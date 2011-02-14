@@ -5,24 +5,16 @@ import org.specs._
 object NodeSeqSpecs extends Specification {
   import XML._
   
-  "shallow xpath" should {
-    "find at the root" in {
+  "shallow selectors" should {
+    "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
-      ns \ "parent" mustEqual ns
-    }
-    
-    // TODO resolve conflict between these tests!
-    
-    "traverse into results" in {
-      val ns = fromString("<parent><parent/></parent>")
-      ns \ "parent" \ "parent" mustEqual fromString("<parent/>")
+      ns > "parent" mustEqual ns.head.asInstanceOf[Elem].children
     }
     
     "find a subset of nodes" in {
       val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>")
-      val child = ns.head.asInstanceOf[Elem].children
-      val result = fromString("<parent><a/><a/><a/></parent>").head.asInstanceOf[Elem].children
-      child \ "a" mustEqual result
+      val result = NodeSeq(elem("a"), elem("a"), elem("a"))
+      ns > "a" mustEqual result
     }
   }
   

@@ -51,37 +51,21 @@ class NodeSeq private (private val nodes: Vector[Node]) extends IndexedSeq[Node]
   def updated(index: Int, node: Node) = new NodeSeq(nodes.updated(index, node))
   
   // TODO optimize
-  def \(name: String): NodeSeq = {
-    val trimmed = name.trim
-    
-    if (trimmed == "_")
-      this
-    else {
-      this filter {
-        case Elem(_, `trimmed`, _, _) => true
-        case _ => false
-      }
-    }
+  def >(name: String): NodeSeq = {
+    for {
+      Elem(_, _, _, children) <- this
+      child @ Elem(_, `name`, _, _) <- children
+    } yield child
   }
   
   // TODO optimize
-  def \\(name: String): NodeSeq = {
-    val trimmed = name.trim
+  def >>(name: String): NodeSeq = {
+    val recursive = for {
+      Elem(_, _, _, children) <- this
+      child <- children >> name
+    } yield child
     
-    if (trimmed == "_")
-      this
-    else {
-      this flatMap {
-        case n @ Elem(_, `trimmed`, _, children) => {
-          val ns = children \\ trimmed
-          n +: ns
-        }
-        
-        case Elem(_, _, _, children) => children \\ trimmed
-        
-        case _ => new NodeSeq(Vector())
-      }
-    }
+    (this > name) ++ recursive
   }
   
   override def toString = nodes.mkString
