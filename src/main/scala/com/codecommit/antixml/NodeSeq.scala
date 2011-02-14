@@ -83,6 +83,8 @@ class NodeSeq private (private val nodes: Vector[Node]) extends IndexedSeq[Node]
       }
     }
   }
+  
+  override def toString = nodes.mkString
 }
 
 object NodeSeq extends ((Node*) => NodeSeq) {
