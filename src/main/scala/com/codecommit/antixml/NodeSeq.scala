@@ -1,13 +1,13 @@
 package com.codecommit.antixml
 
 import scala.collection.IndexedSeqLike
-import scala.collection.generic.GenericTraversableTemplate
+import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
 
 class NodeSeq private (private val nodes: Vector[Node]) extends IndexedSeq[Node] 
     with IndexedSeqLike[Node, NodeSeq] {
   
-  override val newBuilder = new VectorBuilder[Node] mapResult { new NodeSeq(_) }
+  override val newBuilder = NodeSeq.newBuilder
   
   def length = nodes.length
   
@@ -50,12 +50,51 @@ class NodeSeq private (private val nodes: Vector[Node]) extends IndexedSeq[Node]
   
   def updated(index: Int, node: Node) = new NodeSeq(nodes.updated(index, node))
   
-  def \(name: String): NodeSeq = this   // TODO
+  // TODO optimize
+  def \(name: String): NodeSeq = {
+    val trimmed = name.trim
+    
+    if (trimmed == "_")
+      this
+    else {
+      this filter {
+        case Elem(_, `trimmed`, _, _) => true
+        case _ => false
+      }
+    }
+  }
   
-  def \\(name: String): NodeSeq = this    // TODO
+  // TODO optimize
+  def \\(name: String): NodeSeq = {
+    val trimmed = name.trim
+    
+    if (trimmed == "_")
+      this
+    else {
+      this flatMap {
+        case n @ Elem(_, `trimmed`, _, children) => {
+          val ns = children \\ trimmed
+          n +: ns
+        }
+        
+        case Elem(_, _, _, children) => children \\ trimmed
+        
+        case _ => new NodeSeq(Vector())
+      }
+    }
+  }
 }
 
 object NodeSeq extends ((Node*) => NodeSeq) {
+  implicit def canBuildFrom: CanBuildFrom[NodeSeq, Node, NodeSeq] = new CanBuildFrom[NodeSeq, Node, NodeSeq] {
+    def apply(coll: NodeSeq) = newBuilder
+    def apply() = newBuilder
+  }
+  
+  def newBuilder = new VectorBuilder[Node] mapResult { new NodeSeq(_) }
+
+  def empty = new NodeSeq(Vector.empty)
+  
   def apply(nodes: Node*) = fromSeq(nodes)
   
   def fromSeq(seq: Seq[Node]) = seq match {
