@@ -52,18 +52,23 @@ class NodeSeq private (private val nodes: Vector[Node]) extends IndexedSeq[Node]
   
   // TODO optimize
   def >(name: String): NodeSeq = {
-    for {
-      Elem(_, _, _, children) <- this
-      child @ Elem(_, `name`, _, _) <- children
-    } yield child
+    this flatMap {
+      case Elem(_, _, _, children) => {
+        children filter {
+          case Elem(_, `name`, _, _) => true
+          case _ => false
+        }
+      }
+      case _ => NodeSeq()
+    }
   }
   
   // TODO optimize
   def >>(name: String): NodeSeq = {
-    val recursive = for {
-      Elem(_, _, _, children) <- this
-      child <- children >> name
-    } yield child
+    val recursive = this flatMap {
+      case Elem(_, _, _, children) => children >> name
+      case _ => Nil
+    }
     
     (this > name) ++ recursive
   }
