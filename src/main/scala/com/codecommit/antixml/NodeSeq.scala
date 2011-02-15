@@ -7,7 +7,7 @@ import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
 class NodeSeq private (private val nodes: Vector[Node]) extends IndexedSeq[Node] 
     with IndexedSeqLike[Node, NodeSeq] {
   
-  override val newBuilder = NodeSeq.newBuilder
+  override def newBuilder = NodeSeq.newBuilder
   
   def length = nodes.length
   
