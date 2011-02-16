@@ -2,7 +2,7 @@ package com.codecommit.antixml
 
 import scala.annotation.unchecked.uncheckedVariance
 
-import scala.collection.IndexedSeqLike
+import scala.collection.{IndexedSeqLike, TraversableLike}
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
 
@@ -53,13 +53,9 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
   // TODO optimize
-  def \(name: String): Group[Elem] = {
+  def \[B, That](selector: Selector[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = {
     this flatMap {
-      case Elem(_, _, _, children) => {
-        children collect {
-          case e @ Elem(_, `name`, _, _) => e
-        }
-      }
+      case Elem(_, _, _, children) => children collect selector
       case _ => new Group(Vector())
     }
   }
