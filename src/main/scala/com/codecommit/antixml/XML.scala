@@ -2,8 +2,10 @@ package com.codecommit.antixml
 
 import org.xml.sax._
 
-import java.io.{InputStream, StringReader}
+import java.io.{InputStream, Reader, StringReader}
 import javax.xml.parsers.SAXParserFactory
+
+import scala.io.Source
 
 // TODO named arguments for configuration
 object XML {
@@ -12,6 +14,12 @@ object XML {
   
   def fromInputStream(is: InputStream): NodeSeq =
     fromInputSource(new InputSource(is))
+  
+  def fromReader(reader: Reader): NodeSeq =
+    fromInputSource(new InputSource(reader))
+  
+  def fromSource(source: Source): NodeSeq =
+    fromInputSource(new InputSource(new SourceReader(source)))
   
   def fromInputSource(source: InputSource): NodeSeq = {
     val factory = SAXParserFactory.newInstance
@@ -23,5 +31,36 @@ object XML {
     parser.parse(source, handler)
     
     handler.result
+  }
+  
+  private class SourceReader(source: Source) extends Reader {
+    import scala.util.control.Breaks._
+    
+    def read(ch: Array[Char], offset: Int, length: Int) = {
+      if (!source.hasNext) {
+        -1
+      } else {
+        var i = offset
+        breakable {
+          while (i < offset + length) {
+            if (!source.hasNext) {
+              break
+            }
+            
+            ch(i) = source.next()
+            i += 1
+          }
+        }
+        i - offset
+      }
+    }
+    
+    override def reset() {
+      source.reset()
+    }
+    
+    override def close() {
+      source.close()
+    }
   }
 }
