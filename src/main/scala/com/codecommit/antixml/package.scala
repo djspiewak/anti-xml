@@ -11,5 +11,5 @@ package object antixml {
     stringToSelector(name)
   }
 
-  val * = Selector({ case n: Node => n })
+  val `*`: Selector[Node, Group[Node]] = Selector({ case n: Node => n })
 }
