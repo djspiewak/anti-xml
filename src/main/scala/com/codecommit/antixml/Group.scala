@@ -61,13 +61,13 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   }
   
   // TODO optimize
-  def \\(name: String): Group[Elem] = {
+  def \\[B, That <: Traversable[B]](selector: Selector[B])(implicit cbf: CanBuildFrom[Traversable[_], B, That]): That = {
     val recursive = this flatMap {
-      case Elem(_, _, _, children) => children \\ name
-      case _ => new Group(Vector())
+      case Elem(_, _, _, children) => children.\\[B, That](selector)
+      case _ => cbf().result
     }
     
-    (this \ name) ++ recursive
+    (this \ selector) ++ recursive
   }
   
   override def toString = nodes.mkString
