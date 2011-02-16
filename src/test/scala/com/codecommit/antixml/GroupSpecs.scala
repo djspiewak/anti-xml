@@ -2,7 +2,7 @@ package com.codecommit.antixml
 
 import org.specs._
 
-object NodeSeqSpecs extends Specification {
+object GroupSpecs extends Specification {
   import XML._
   
   "shallow selector" should {
