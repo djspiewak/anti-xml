@@ -10,4 +10,6 @@ package object antixml {
     val Symbol(name) = sym
     stringToSelector(name)
   }
+
+  val * = Selector({ case n: Node => n })
 }
