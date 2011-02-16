@@ -53,7 +53,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
   // TODO optimize
-  def \[B, That](selector: Selector[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = {
+  def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = {
     this flatMap {
       case Elem(_, _, _, children) => children collect selector
       case _ => new Group(Vector())
@@ -61,9 +61,9 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   }
   
   // TODO optimize
-  def \\[B, That <: Traversable[B]](selector: Selector[B])(implicit cbf: CanBuildFrom[Traversable[_], B, That]): That = {
+  def \\[B, That <: IndexedSeq[B]](selector: Selector[B, That])(implicit cbf: CanBuildFrom[Traversable[_], B, That]): That = {
     val recursive = this flatMap {
-      case Elem(_, _, _, children) => children.\\[B, That](selector)
+      case Elem(_, _, _, children) => children \\ selector
       case _ => cbf().result
     }
     
@@ -74,8 +74,8 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
 }
 
 object Group {
-  implicit def canBuildFrom[A <: Node]: CanBuildFrom[Group[_], A, Group[A]] = new CanBuildFrom[Group[_], A, Group[A]] {
-    def apply(coll: Group[_]) = newBuilder[A]
+  implicit def canBuildFrom[A <: Node]: CanBuildFrom[Traversable[_], A, Group[A]] = new CanBuildFrom[Traversable[_], A, Group[A]] {
+    def apply(coll: Traversable[_]) = newBuilder[A]
     def apply() = newBuilder[A]
   }
   
