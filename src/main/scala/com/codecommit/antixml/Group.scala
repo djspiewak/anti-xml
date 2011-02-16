@@ -53,7 +53,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
   // TODO optimize
-  def \(name: String): NodeSeq = {
+  def \(name: String): Group[Node] = {
     this flatMap {
       case Elem(_, _, _, children) => {
         children filter {
@@ -66,7 +66,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   }
   
   // TODO optimize
-  def \\(name: String): NodeSeq = {
+  def \\(name: String): Group[Node] = {
     val recursive = this flatMap {
       case Elem(_, _, _, children) => children \\ name
       case _ => new Group(Vector())
