@@ -53,12 +53,11 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
   // TODO optimize
-  def \(name: String): Group[Node] = {
+  def \(name: String): Group[Elem] = {
     this flatMap {
       case Elem(_, _, _, children) => {
-        children filter {
-          case Elem(_, `name`, _, _) => true
-          case _ => false
+        children collect {
+          case e @ Elem(_, `name`, _, _) => e
         }
       }
       case _ => new Group(Vector())
@@ -66,7 +65,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   }
   
   // TODO optimize
-  def \\(name: String): Group[Node] = {
+  def \\(name: String): Group[Elem] = {
     val recursive = this flatMap {
       case Elem(_, _, _, children) => children \\ name
       case _ => new Group(Vector())
@@ -79,8 +78,8 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
 }
 
 object Group {
-  implicit def canBuildFrom[A <: Node]: CanBuildFrom[Group[A], A, Group[A]] = new CanBuildFrom[Group[A], A, Group[A]] {
-    def apply(coll: Group[A]) = newBuilder[A]
+  implicit def canBuildFrom[A <: Node]: CanBuildFrom[Group[_], A, Group[A]] = new CanBuildFrom[Group[_], A, Group[A]] {
+    def apply(coll: Group[_]) = newBuilder[A]
     def apply() = newBuilder[A]
   }
   
