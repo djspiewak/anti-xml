@@ -7,35 +7,43 @@ import javax.xml.parsers.SAXParserFactory
 
 import scala.io.Source
 
-// TODO named arguments for configuration
 object XML {
-  def fromString(str: String): NodeSeq =
-    fromInputSource(new InputSource(new StringReader(str)))
-  
-  def fromInputStream(is: InputStream): NodeSeq =
-    fromInputSource(new InputSource(is))
-  
-  def fromReader(reader: Reader): NodeSeq =
-    fromInputSource(new InputSource(reader))
-  
-  def fromSource(source: Source): NodeSeq =
-    fromInputSource(new InputSource(new SourceReader(source)))
-  
-  def fromInputSource(source: InputSource): NodeSeq = {
+  def fromString(str: String, validate: Boolean=true, namespaces: Boolean=true): NodeSeq =
+    fromInputSource(new InputSource(new StringReader(str)), validate, namespaces)
+
+  def fromInputStream(is: InputStream, validate: Boolean=true, namespaces: Boolean=true): NodeSeq =
+    fromInputSource(new InputSource(is), validate, namespaces)
+
+  def fromReader(reader: Reader, validate: Boolean=true, namespaces: Boolean=true): NodeSeq =
+    fromInputSource(new InputSource(reader), validate, namespaces)
+
+  def fromSource(source: Source, validate: Boolean=true, namespaces: Boolean=true): NodeSeq =
+    fromInputSource(new InputSource(new SourceReader(source)), validate, namespaces)
+
+  def fromInputSource(source: InputSource, validate: Boolean=true, namespaces: Boolean=true): NodeSeq = {
     val factory = SAXParserFactory.newInstance
-    factory.setValidating(true)
-    factory.setNamespaceAware(true)
-    
+    factory.setValidating(validate)
+    factory.setNamespaceAware(namespaces)
+    if (!validate)
+      try {
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
+      } catch {
+        case sex: SAXNotRecognizedException => Unit
+        case ex: Exception => ex.printStackTrace
+      }
+
     val parser = factory.newSAXParser
     val handler = new NodeSeqSAXHandler
     parser.parse(source, handler)
-    
+
     handler.result
   }
-  
+
   private class SourceReader(source: Source) extends Reader {
     import scala.util.control.Breaks._
-    
+
     def read(ch: Array[Char], offset: Int, length: Int) = {
       if (!source.hasNext) {
         -1
@@ -46,7 +54,7 @@ object XML {
             if (!source.hasNext) {
               break
             }
-            
+
             ch(i) = source.next()
             i += 1
           }
@@ -54,11 +62,11 @@ object XML {
         i - offset
       }
     }
-    
+
     override def reset() {
       source.reset()
     }
-    
+
     override def close() {
       source.close()
     }
