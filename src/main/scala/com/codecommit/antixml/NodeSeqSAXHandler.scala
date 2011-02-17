@@ -4,7 +4,7 @@ import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
 private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
-  var elems = List[NodeSeq => Elem]()
+  var elems = List[Group[Node] => Elem]()
   val text = new StringBuilder
   val whitespace = new StringBuilder
   
@@ -46,12 +46,12 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
     builders.head += result
   }
   
-  def result = pop()
+  def result = pop().asInstanceOf[Group[Elem]]       // nasty, but it shouldn't be a problem
   
   private def pop() = {
     val (back :: builders2) = builders
     builders = builders2
-    NodeSeq fromSeq back.result
+    Group fromSeq back.result
   }
   
   private def clearWhitespace() {

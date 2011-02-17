@@ -2,7 +2,7 @@ package com.codecommit.antixml
 
 import org.specs._
 
-object NodeSeqSpecs extends Specification {
+object GroupSpecs extends Specification {
   import XML._
   
   "shallow selector" should {
@@ -39,7 +39,7 @@ object NodeSeqSpecs extends Specification {
     "find and linearize a deep subset of nodes" in {
       val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
       val result = fromString("<parent><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><target>outside</target><target>sub1</target><target>top3-outer</target><target>phoney</target><target>top1</target><target>top2</target></parent>")
-      ns \\ "target" mustEqual result.head.asInstanceOf[Elem].children
+      ns \\ "target" mustEqual result.head.children
     }
   }
   

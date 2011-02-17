@@ -9,19 +9,19 @@ import scala.io.Source
 
 // TODO named arguments for configuration
 object XML {
-  def fromString(str: String): NodeSeq =
+  def fromString(str: String): Group[Elem] =
     fromInputSource(new InputSource(new StringReader(str)))
   
-  def fromInputStream(is: InputStream): NodeSeq =
+  def fromInputStream(is: InputStream): Group[Elem] =
     fromInputSource(new InputSource(is))
   
-  def fromReader(reader: Reader): NodeSeq =
+  def fromReader(reader: Reader): Group[Elem] =
     fromInputSource(new InputSource(reader))
   
-  def fromSource(source: Source): NodeSeq =
+  def fromSource(source: Source): Group[Elem] =
     fromInputSource(new InputSource(new SourceReader(source)))
   
-  def fromInputSource(source: InputSource): NodeSeq = {
+  def fromInputSource(source: InputSource): Group[Elem] = {
     val factory = SAXParserFactory.newInstance
     factory.setValidating(true)
     factory.setNamespaceAware(true)
