@@ -1,6 +1,7 @@
 package com.codecommit.antixml
 
-import org.xml.sax.ContentHandler
+import org.xml.sax.{Attributes, ContentHandler}
+import org.xml.sax.helpers.AttributesImpl
 import java.io.StringReader
 import javax.xml.namespace.{NamespaceContext, QName}
 import javax.xml.stream.{XMLInputFactory, XMLStreamException}
@@ -24,7 +25,10 @@ object StAXParser {
 	case `CHARACTERS` => Stream.cons(Characters(xmlReader.getText), next)
 	case `COMMENT` => Stream.cons(Comment(xmlReader.getText), next)
 	case `DTD` => Stream.cons(DocumentTypeDefinition(xmlReader.getText), next)
-	case `END_ELEMENT` => Stream.cons(ElemEnd, next)
+	case `END_ELEMENT` =>
+	  Stream.cons(ElemEnd(stringToOption(xmlReader.getPrefix),
+			      xmlReader.getLocalName,
+			      stringToOption(xmlReader.getNamespaceURI)), next)
 	case `END_DOCUMENT` => Stream.cons(DocumentEnd, next)
 	case `PROCESSING_INSTRUCTION` =>
 	  Stream.cons(ProcessingInstruction(xmlReader.getPITarget, xmlReader.getPIData), next)
@@ -33,15 +37,10 @@ object StAXParser {
 	    (Map.empty[QName, String] /: (0 until xmlReader.getAttributeCount)) { (attrs, i) =>
 	    attrs + (xmlReader.getAttributeName(i) -> xmlReader.getAttributeValue(i))
 	  }
-	  val namespaces =
-	    (Map.empty[String, String] /: (0 until xmlReader.getNamespaceCount)) { (namespaces, i) =>
-	    namespaces + (xmlReader.getNamespacePrefix(i) -> xmlReader.getNamespaceURI(i))
-          }
-	  val prefix = xmlReader.getPrefix match {
-	    case null => None
-	    case prefix => Some(prefix)
-	  }
-	  Stream.cons(ElemStart(/*prefix, */attrs, namespaces), next)
+	  Stream.cons(ElemStart(stringToOption(xmlReader.getPrefix),
+				xmlReader.getLocalName,
+				attrs,
+				stringToOption(xmlReader.getNamespaceURI)), next)
 	}
 	case _ => throw new XMLStreamException("Unexpected StAX event of type " + xmlReader.getEventType)
       }
@@ -51,19 +50,53 @@ object StAXParser {
     next
   }
 
-  // def parse(source: Stream[StAXEvent]): NodeSeq = {
-  //   val handler = new NodeSeqSAXHandler()
-  //   source foreach {
-  //     case ElemStart(prefix, attrs, namespaces) => () //handler.startElement(prefix.map(namespaces(_)),
-  //     case ElemEnd => ()
-  //     case Characters(text) => ()
-  //     case Comment(text) => ()
-  //     case ProcessingInstruction(target, data) => ()
-  //     case DocumentTypeDefinition(declaration) => ()
-  //     case DocumentEnd => ()
-  //   }
-  //   handler.result
-  // }
+  /**
+   * Returns an equivalent Attributes for a Map of QNames to Strings.
+   * @return an equivalent Attributes for a Map of QNames to Strings.
+   */
+   private def mapToAttrs(attrs: Map[QName, String]): Attributes = {
+    val result = new AttributesImpl()
+    attrs foreach { case (qname, value) =>
+      result.addAttribute(qname.getNamespaceURI,
+			  qname.getLocalPart,
+			  qname.toString,
+			  "",
+			  value)
+    }
+    result
+  }
+
+  /**
+   * Returns Some string if string is not null or blank.
+   * @return Some string if string is not null or blank.
+   */
+  @inline private def stringToOption(string: String): Option[String] =
+    string match {
+      case null => None
+      case "" => None
+      case string => Some(string)
+    }
+
+  def parse(source: Stream[StAXEvent]): NodeSeq = {
+    val handler = new NodeSeqSAXHandler()
+    source foreach {
+      case ElemStart(prefix, name, attrs, uri) =>
+	handler.startElement(uri getOrElse "",
+			     name,
+			     prefix map ((_: String) + ":" + name) getOrElse "",
+			     mapToAttrs(attrs))
+      case ElemEnd(prefix, name, uri) =>
+	handler.endElement(prefix getOrElse "",
+			   name,
+			   prefix map ((_: String) + ":" + name) getOrElse "")
+      case Characters(text) => handler.characters(text.toArray, 0, text.length)
+      case Comment(text) => ()
+      case ProcessingInstruction(target, data) => ()
+      case DocumentTypeDefinition(declaration) => ()
+      case DocumentEnd => ()
+    }
+    handler.result
+  }
 }
 
 // XXX is this worthwhile or better just to use the javax.xml.streams events?
@@ -73,19 +106,24 @@ object StAXParser {
  * */
 sealed trait StAXEvent
 object ElemStart {
-  def apply(attrs: Map[QName, String]): ElemStart = ElemStart(/*None, */attrs, Map.empty)
+  def apply(name: String, attrs: Map[QName, String]): ElemStart =
+    ElemStart(None, name, attrs, None)
 }
 /**
  * A StAXEvent indicating the start of an Elem.
  */
-case class ElemStart(/*val prefix: Option[String], */val attrs: Map[QName, String], val namespaces: Map[String, String])
-  extends StAXEvent {
+case class ElemStart(val prefix: Option[String],
+		     val name: String,
+		     val attrs: Map[QName, String],
+		     val uri: Option[String]) extends StAXEvent {
   def attrs(name: String): String = attrs(new QName(NULL_NS_URI, name))
 }
 /**
  * A StAXEvent indicating the end of an Elem.
  */
-object ElemEnd extends StAXEvent
+case class ElemEnd(val prefix: Option[String],
+		   val name: String,
+		   val uri: Option[String]) extends StAXEvent
 /**
  * A StAXEvent indicating a text Node.
  */
