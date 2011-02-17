@@ -77,7 +77,7 @@ object StAXParser {
       case string => Some(string)
     }
 
-  def parse(source: Stream[StAXEvent]): NodeSeq = {
+  def parse(source: Stream[StAXEvent]): Group[Elem] = {
     val handler = new NodeSeqSAXHandler()
     source foreach {
       case ElemStart(prefix, name, attrs, uri) =>
