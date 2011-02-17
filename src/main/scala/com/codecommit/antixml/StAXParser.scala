@@ -2,24 +2,40 @@ package com.codecommit.antixml
 
 import org.xml.sax.{Attributes, ContentHandler}
 import org.xml.sax.helpers.AttributesImpl
-import java.io.StringReader
+import java.io.{InputStream, StringReader, Reader}
 import javax.xml.namespace.{NamespaceContext, QName}
 import javax.xml.stream.{XMLInputFactory, XMLStreamException}
 import javax.xml.stream.XMLStreamConstants._
+import javax.xml.transform.stream.StreamSource
 import javax.xml.XMLConstants.NULL_NS_URI
 
 /**
  * A Stream-based wrapper for javax.xml.stream.
  * @see java.xml.stream
  */
-object StAXParser {
+class StAXParser extends XML {
+  override def fromInputStream(inputStream: InputStream): Group[Elem] =
+    fromStreamSource(new StreamSource(inputStream))
+  override def fromReader(reader: Reader): Group[Elem] =
+    fromStreamSource(new StreamSource(reader))
+  override def fromString(xml: String): Group[Elem] =
+    fromReader(new StringReader(xml))
+  def fromStreamSource(source: StreamSource): Group[Elem] =
+    parse(view(source))
+  
   /**
-   * Returns a Stream[StAXEvent] by parsing the provided String as XML.
-   * @return a Stream[StAXEvent] by parsing the provided String as XML.
+   * Returns a Stream[StAXEvent] by parsing the provided String.
+   * @return a Stream[StAXEvent] by parsing the provided String.
    */
-  def fromString(xml: String): Stream[StAXEvent] = {
+  def view(xml: String): Stream[StAXEvent] =
+    view(new StreamSource(new StringReader(xml)))
+  /**
+   * Returns a Stream[StAXEvent] by parsing the provided StreamSource.
+   * @return a Stream[StAXEvent] by parsing the provided StreamSource.
+   */
+  def view(source: StreamSource): Stream[StAXEvent] = {
     val xmlReader =
-      XMLInputFactory.newInstance().createXMLStreamReader(new StringReader(xml))
+      XMLInputFactory.newInstance().createXMLStreamReader(source)
     def next: Stream[StAXEvent] = if (xmlReader.hasNext) {
       xmlReader.next match {
 	case `CHARACTERS` => Stream.cons(Characters(xmlReader.getText), next)
@@ -98,6 +114,7 @@ object StAXParser {
     handler.result
   }
 }
+object StAXParser extends StAXParser
 
 // XXX is this worthwhile or better just to use the javax.xml.streams events?
 /**
@@ -136,5 +153,11 @@ case class Comment(val text: String) extends StAXEvent
  * A StAXEvent indicating a processing instruction Node.
  */
 case class ProcessingInstruction(val target: String, val data: String) extends StAXEvent
+/**
+ * A StAXEvent indicating a DocumentTypeDefinition (DTD).
+ */
 case class DocumentTypeDefinition(val declaration: String) extends StAXEvent
+/**
+ * A StAXEvent indicating the end of an XML document.
+ */
 object DocumentEnd extends StAXEvent

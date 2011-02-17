@@ -7,32 +7,20 @@ import javax.xml.parsers.SAXParserFactory
 
 import scala.io.Source
 
+/**
+ * A trait for objects which construct antixml from XML sources.
+ */
 // TODO named arguments for configuration
-object XML {
-  def fromString(str: String): Group[Elem] =
-    fromInputSource(new InputSource(new StringReader(str)))
+trait XML {
+  def fromString(str: String): Group[Elem]
   
-  def fromInputStream(is: InputStream): Group[Elem] =
-    fromInputSource(new InputSource(is))
+  def fromInputStream(is: InputStream): Group[Elem]
   
-  def fromReader(reader: Reader): Group[Elem] =
-    fromInputSource(new InputSource(reader))
-  
+  def fromReader(reader: Reader): Group[Elem]
+
   def fromSource(source: Source): Group[Elem] =
-    fromInputSource(new InputSource(new SourceReader(source)))
-  
-  def fromInputSource(source: InputSource): Group[Elem] = {
-    val factory = SAXParserFactory.newInstance
-    factory.setValidating(true)
-    factory.setNamespaceAware(true)
-    
-    val parser = factory.newSAXParser
-    val handler = new NodeSeqSAXHandler
-    parser.parse(source, handler)
-    
-    handler.result
-  }
-  
+    fromReader(new SourceReader(source))
+
   private class SourceReader(source: Source) extends Reader {
     import scala.util.control.Breaks._
     
@@ -64,3 +52,32 @@ object XML {
     }
   }
 }
+/**
+ * An XML provider implemented on top of the platform-default SAX parser.
+ * @see org.xml.sax
+ */
+class SAXParser extends XML {
+  override def fromString(str: String): Group[Elem] =
+    fromInputSource(new InputSource(new StringReader(str)))
+  
+  override def fromInputStream(is: InputStream): Group[Elem] =
+    fromInputSource(new InputSource(is))
+  
+  override def fromReader(reader: Reader): Group[Elem] =
+    fromInputSource(new InputSource(reader))
+
+  def fromInputSource(source: InputSource): Group[Elem] = {
+    val factory = SAXParserFactory.newInstance
+    factory.setValidating(true)
+    factory.setNamespaceAware(true)
+    
+    val parser = factory.newSAXParser
+    val handler = new NodeSeqSAXHandler
+    parser.parse(source, handler)
+    
+    handler.result
+  }
+}
+object SAXParser extends SAXParser
+object XML extends StAXParser
+
