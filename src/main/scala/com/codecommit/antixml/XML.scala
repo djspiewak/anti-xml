@@ -24,15 +24,12 @@ object XML {
     val factory = SAXParserFactory.newInstance
     factory.setValidating(validate)
     factory.setNamespaceAware(namespaces)
-    if (!validate)
-      try {
-        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
-        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
-      } catch {
-        case sex: SAXNotRecognizedException => Unit
-        case ex: Exception => ex.printStackTrace
-      }
+    
+    if (!validate) {
+      factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+      factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
+      factory.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
+    }
 
     val parser = factory.newSAXParser
     val handler = new NodeSeqSAXHandler
