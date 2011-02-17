@@ -31,5 +31,14 @@ object XMLSpecs extends Specification {
     }
   }
   
+  "fromSource" should {
+    import scala.io.Source
+    
+    "match the semantics of fromString" in {
+      val str = "<test><sub1><subsub1><subsubsub1/><subsubsub2/></subsub1></sub1><sub2/><sub3><subsub1/></sub3></test>"
+      fromSource(Source fromString str) mustEqual fromString(str)
+    }
+  }
+  
   def elem(name: String, children: Node*) = Elem(None, name, Map(), NodeSeq(children: _*))
 }
