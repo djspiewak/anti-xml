@@ -38,27 +38,27 @@ class StAXParser extends XML {
       XMLInputFactory.newInstance().createXMLStreamReader(source)
     def next: Stream[StAXEvent] = if (xmlReader.hasNext) {
       xmlReader.next match {
-	case `CHARACTERS` => Stream.cons(Characters(xmlReader.getText), next)
-	case `COMMENT` => Stream.cons(Comment(xmlReader.getText), next)
-	case `DTD` => Stream.cons(DocumentTypeDefinition(xmlReader.getText), next)
-	case `END_ELEMENT` =>
-	  Stream.cons(ElemEnd(stringToOption(xmlReader.getPrefix),
-			      xmlReader.getLocalName,
-			      stringToOption(xmlReader.getNamespaceURI)), next)
-	case `END_DOCUMENT` => Stream.cons(DocumentEnd, next)
-	case `PROCESSING_INSTRUCTION` =>
-	  Stream.cons(ProcessingInstruction(xmlReader.getPITarget, xmlReader.getPIData), next)
-	case `START_ELEMENT` => {
-	  val attrs =
-	    (Map.empty[QName, String] /: (0 until xmlReader.getAttributeCount)) { (attrs, i) =>
-	    attrs + (xmlReader.getAttributeName(i) -> xmlReader.getAttributeValue(i))
-	  }
-	  Stream.cons(ElemStart(stringToOption(xmlReader.getPrefix),
-				xmlReader.getLocalName,
-				attrs,
-				stringToOption(xmlReader.getNamespaceURI)), next)
-	}
-	case _ => throw new XMLStreamException("Unexpected StAX event of type " + xmlReader.getEventType)
+        case `CHARACTERS` => Stream.cons(Characters(xmlReader.getText), next)
+        case `COMMENT` => Stream.cons(Comment(xmlReader.getText), next)
+        case `DTD` => Stream.cons(DocumentTypeDefinition(xmlReader.getText), next)
+        case `END_ELEMENT` =>
+          Stream.cons(ElemEnd(stringToOption(xmlReader.getPrefix),
+                              xmlReader.getLocalName,
+                              stringToOption(xmlReader.getNamespaceURI)), next)
+        case `END_DOCUMENT` => Stream.cons(DocumentEnd, next)
+        case `PROCESSING_INSTRUCTION` =>
+          Stream.cons(ProcessingInstruction(xmlReader.getPITarget, xmlReader.getPIData), next)
+        case `START_ELEMENT` => {
+          val attrs =
+            (Map.empty[QName, String] /: (0 until xmlReader.getAttributeCount)) { (attrs, i) =>
+            attrs + (xmlReader.getAttributeName(i) -> xmlReader.getAttributeValue(i))
+          }
+          Stream.cons(ElemStart(stringToOption(xmlReader.getPrefix),
+                                xmlReader.getLocalName,
+                                attrs,
+                                stringToOption(xmlReader.getNamespaceURI)), next)
+        }
+        case _ => throw new XMLStreamException("Unexpected StAX event of type " + xmlReader.getEventType)
       }
     } else {
       Stream.Empty
@@ -74,10 +74,10 @@ class StAXParser extends XML {
     val result = new AttributesImpl()
     attrs foreach { case (qname, value) =>
       result.addAttribute(qname.getNamespaceURI,
-			  qname.getLocalPart,
-			  qname.toString,
-			  "",
-			  value)
+                          qname.getLocalPart,
+                          qname.toString,
+                          "",
+                          value)
     }
     result
   }
@@ -97,14 +97,14 @@ class StAXParser extends XML {
     val handler = new NodeSeqSAXHandler()
     source foreach {
       case ElemStart(prefix, name, attrs, uri) =>
-	handler.startElement(uri getOrElse "",
-			     name,
-			     prefix map ((_: String) + ":" + name) getOrElse "",
-			     mapToAttrs(attrs))
+        handler.startElement(uri getOrElse "",
+                             name,
+                             prefix map ((_: String) + ":" + name) getOrElse "",
+                             mapToAttrs(attrs))
       case ElemEnd(prefix, name, uri) =>
-	handler.endElement(prefix getOrElse "",
-			   name,
-			   prefix map ((_: String) + ":" + name) getOrElse "")
+        handler.endElement(prefix getOrElse "",
+                           name,
+                           prefix map ((_: String) + ":" + name) getOrElse "")
       case Characters(text) => handler.characters(text.toArray, 0, text.length)
       case Comment(text) => ()
       case ProcessingInstruction(target, data) => ()
@@ -130,17 +130,17 @@ object ElemStart {
  * A StAXEvent indicating the start of an Elem.
  */
 case class ElemStart(val prefix: Option[String],
-		     val name: String,
-		     val attrs: Map[QName, String],
-		     val uri: Option[String]) extends StAXEvent {
+                     val name: String,
+                     val attrs: Map[QName, String],
+                     val uri: Option[String]) extends StAXEvent {
   def attrs(name: String): String = attrs(new QName(NULL_NS_URI, name))
 }
 /**
  * A StAXEvent indicating the end of an Elem.
  */
 case class ElemEnd(val prefix: Option[String],
-		   val name: String,
-		   val uri: Option[String]) extends StAXEvent
+                   val name: String,
+                   val uri: Option[String]) extends StAXEvent
 /**
  * A StAXEvent indicating a text Node.
  */
