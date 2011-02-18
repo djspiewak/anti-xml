@@ -10,8 +10,7 @@ import javax.xml.transform.stream.StreamSource
 import javax.xml.XMLConstants.NULL_NS_URI
 
 /**
- * A Stream-based wrapper for javax.xml.stream.
- * @see java.xml.stream
+ * An XML provider build on top of StAXIterator.
  */
 class StAXParser extends XML {
   override def fromInputStream(inputStream: InputStream): Group[Elem] =
@@ -21,79 +20,9 @@ class StAXParser extends XML {
   override def fromString(xml: String): Group[Elem] =
     fromReader(new StringReader(xml))
   def fromStreamSource(source: StreamSource): Group[Elem] =
-    parse(view(source))
-  
-  /**
-   * Returns a Stream[StAXEvent] by parsing the provided String.
-   * @return a Stream[StAXEvent] by parsing the provided String.
-   */
-  def view(xml: String): Stream[StAXEvent] =
-    view(new StreamSource(new StringReader(xml)))
-  /**
-   * Returns a Stream[StAXEvent] by parsing the provided StreamSource.
-   * @return a Stream[StAXEvent] by parsing the provided StreamSource.
-   */
-  def view(source: StreamSource): Stream[StAXEvent] = {
-    val xmlReader =
-      XMLInputFactory.newInstance().createXMLStreamReader(source)
-    def next: Stream[StAXEvent] = if (xmlReader.hasNext) {
-      xmlReader.next match {
-        case `CHARACTERS` => Stream.cons(Characters(xmlReader.getText), next)
-        case `COMMENT` => Stream.cons(Comment(xmlReader.getText), next)
-        case `DTD` => Stream.cons(DocumentTypeDefinition(xmlReader.getText), next)
-        case `END_ELEMENT` =>
-          Stream.cons(ElemEnd(stringToOption(xmlReader.getPrefix),
-                              xmlReader.getLocalName,
-                              stringToOption(xmlReader.getNamespaceURI)), next)
-        case `END_DOCUMENT` => Stream.cons(DocumentEnd, next)
-        case `PROCESSING_INSTRUCTION` =>
-          Stream.cons(ProcessingInstruction(xmlReader.getPITarget, xmlReader.getPIData), next)
-        case `START_ELEMENT` => {
-          val attrs =
-            (Map.empty[QName, String] /: (0 until xmlReader.getAttributeCount)) { (attrs, i) =>
-            attrs + (xmlReader.getAttributeName(i) -> xmlReader.getAttributeValue(i))
-          }
-          Stream.cons(ElemStart(stringToOption(xmlReader.getPrefix),
-                                xmlReader.getLocalName,
-                                attrs,
-                                stringToOption(xmlReader.getNamespaceURI)), next)
-        }
-        case _ => throw new XMLStreamException("Unexpected StAX event of type " + xmlReader.getEventType)
-      }
-    } else {
-      Stream.Empty
-    }
-    next
-  }
+    parse(new StAXIterator(source))
 
-  /**
-   * Returns an equivalent Attributes for a Map of QNames to Strings.
-   * @return an equivalent Attributes for a Map of QNames to Strings.
-   */
-   private def mapToAttrs(attrs: Map[QName, String]): Attributes = {
-    val result = new AttributesImpl()
-    attrs foreach { case (qname, value) =>
-      result.addAttribute(qname.getNamespaceURI,
-                          qname.getLocalPart,
-                          qname.toString,
-                          "",
-                          value)
-    }
-    result
-  }
-
-  /**
-   * Returns Some string if string is not null or blank.
-   * @return Some string if string is not null or blank.
-   */
-  @inline private def stringToOption(string: String): Option[String] =
-    string match {
-      case null => None
-      case "" => None
-      case string => Some(string)
-    }
-
-  def parse(source: Stream[StAXEvent]): Group[Elem] = {
+  def parse(source: Iterator[StAXEvent]): Group[Elem] = {
     val handler = new NodeSeqSAXHandler()
     source foreach {
       case ElemStart(prefix, name, attrs, uri) =>
@@ -113,10 +42,76 @@ class StAXParser extends XML {
     }
     handler.result
   }
+  
+  /**
+   * Returns an equivalent Attributes for a Map of QNames to Strings.
+   * @return an equivalent Attributes for a Map of QNames to Strings.
+   */
+  private def mapToAttrs(attrs: Map[QName, String]): Attributes = {
+    val result = new AttributesImpl()
+    attrs foreach { case (qname, value) =>
+      result.addAttribute(qname.getNamespaceURI,
+                          qname.getLocalPart,
+                          qname.toString,
+                          "",
+                          value)
+    }
+    result
+  }
 }
-object StAXParser extends StAXParser
 
-// XXX is this worthwhile or better just to use the javax.xml.streams events?
+object StAXIterator {
+  def fromString(xml: String): StAXIterator =
+    new StAXIterator(new StreamSource(new StringReader(xml)))
+}
+/**
+ * An Iterator over StAXEvents. This implementation uses the
+ * <a href="http://download.oracle.com/javase/6/docs/api/javax/xml/stream/package-summary.html">
+ * Java Streaming API for XML</a>.
+ * @see java.xml.stream
+ */
+class StAXIterator(source: StreamSource) extends Iterator[StAXEvent] {
+  private val xmlReader =
+    XMLInputFactory.newInstance().createXMLStreamReader(source)
+  override def next: StAXEvent = xmlReader.next match {
+    case `CHARACTERS` => Characters(xmlReader.getText)
+    case `COMMENT` => Comment(xmlReader.getText)
+    case `DTD` => DocumentTypeDefinition(xmlReader.getText)
+    case `END_ELEMENT` =>
+      ElemEnd(stringToOption(xmlReader.getPrefix),
+                          xmlReader.getLocalName,
+                          stringToOption(xmlReader.getNamespaceURI))
+    case `END_DOCUMENT` => DocumentEnd
+    case `PROCESSING_INSTRUCTION` =>
+      ProcessingInstruction(xmlReader.getPITarget, xmlReader.getPIData)
+    case `START_ELEMENT` => {
+      val attrs =
+        (Map.empty[QName, String] /: (0 until xmlReader.getAttributeCount)) { (attrs, i) =>
+          attrs + (xmlReader.getAttributeName(i) -> xmlReader.getAttributeValue(i))
+        }
+      ElemStart(stringToOption(xmlReader.getPrefix),
+                xmlReader.getLocalName,
+                attrs,
+                stringToOption(xmlReader.getNamespaceURI))
+    }
+    case _ =>
+      throw new XMLStreamException("Unexpected StAX event of type " +
+                                   xmlReader.getEventType)
+  }
+  override def hasNext: Boolean = xmlReader.hasNext
+
+  /**
+   * Returns Some string if string is not null or empty.
+   * @return Some string if string is not null or empty.
+   */
+  @inline private def stringToOption(string: String): Option[String] =
+    string match {
+      case null => None
+      case "" => None
+      case string => Some(string)
+    }
+}
+
 /**
  * A base trait for StAXParser generated events.
  * @see java.xml.stream.XMLEvent

@@ -3,43 +3,44 @@ package com.codecommit.antixml
 import org.specs._
 
 object StAXParserSpecs extends Specification {
+  object StAXParser extends StAXParser
   "StAXParser" should {
     "view should" >> {
       "generate ElemStarts" in {
-        StAXParser.view("<a />").head must_== ElemStart("a", Map.empty)
+        StAXIterator.fromString("<a />").next must_== ElemStart("a", Map.empty)
       }
       "parse attributes in ElemStarts" in {
-        StAXParser.view("<a attr='value' />").head must beLike {
+        StAXIterator.fromString("<a attr='value' />").next must beLike {
           case elemStart: ElemStart => elemStart.attrs("attr") must_== "value"
         }
       }
       "parse namespace prefixes in ElemStarts" in {
-        StAXParser.view("<a:a xmlns:a='a' />").head must beLike {
+        StAXIterator.fromString("<a:a xmlns:a='a' />").next must beLike {
           case elemStart: ElemStart => elemStart.prefix == Some("a")
         }
       }
       "gerenate ElemEnds" in {
-        StAXParser.view("<a />").tail.head must_== ElemEnd(None, "a", None)
+        StAXIterator.fromString("<a />").drop(1).next must_== ElemEnd(None, "a", None)
       }
       "generate namespace URIs" in {
-        StAXParser.view("<a:a xmlns:a='http://example.com' />").head must beLike {
+        StAXIterator.fromString("<a:a xmlns:a='http://example.com' />").next must beLike {
           case elemStart: ElemStart => {
             elemStart.uri == Some("http://example.com")
           }
         }
       }
       "generate Characters" in {
-        StAXParser.view("<a>a</a>").tail.head must beLike {
+        StAXIterator.fromString("<a>a</a>").drop(1).next must beLike {
           case chars: Characters => chars.text == "a"
         }
       }
       "generate Comment" in {
-        StAXParser.view("<!--comment--><a />").head must beLike {
+        StAXIterator.fromString("<!--comment--><a />").next must beLike {
           case comment: Comment => comment.text == "comment"
         }
       }
       "generate ProcessingInstruction" in {
-        StAXParser.view("<?target data?><a />").head must beLike {
+        StAXIterator.fromString("<?target data?><a />").next must beLike {
           case pi: ProcessingInstruction => pi.target == "target" && pi.data == "data"
         }
       }
@@ -48,16 +49,16 @@ object StAXParserSpecs extends Specification {
       //        val doctype = "<!DOCTYPE html " +
       //   "PUBLIC \"-//W3C//DTD XHTML Basic 1.0//EN\" " +
       //   "\"http://www.w3.org/TR/xhtml-basic/xhtml-basic10.dtd\">"
-        // StAXParser.view(doctype + "<html />").head must beLike {
+        // StAXIterator.fromString(doctype + "<html />").next must beLike {
         //      case dtd: DocumentTypeDefinition => dtd.declaration == doctype
         // }
       //}
       "generate DocumentEnd" in {
-        StAXParser.view("<a />").tail.tail.head must_== DocumentEnd
+        StAXIterator.fromString("<a />").drop(2).next must_== DocumentEnd
       }
     }
     "parse should generate NodeSeqs" in {
-      StAXParser.parse(StAXParser.view("<a:a xmlns:a='a'>hi<b attr='value' /></a:a>")) mustEqual NodeSeq(Elem(Some("a"), "a", Map.empty, NodeSeq(Text("hi"), Elem(None, "b", Map("attr" -> "value"), NodeSeq()))))
+      StAXParser.parse(StAXIterator.fromString("<a:a xmlns:a='a'>hi<b attr='value' /></a:a>")) mustEqual NodeSeq(Elem(Some("a"), "a", Map.empty, NodeSeq(Text("hi"), Elem(None, "b", Map("attr" -> "value"), NodeSeq()))))
     }
   }
 }
