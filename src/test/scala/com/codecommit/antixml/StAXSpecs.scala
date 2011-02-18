@@ -3,6 +3,8 @@ package com.codecommit.antixml
 import org.specs._
 
 object StAXSpecs extends Specification {
+  import StAXEvents._
+  
   object StAXParser extends StAXParser
   "StAX" >> {
     "StAXIterator should" >> {
