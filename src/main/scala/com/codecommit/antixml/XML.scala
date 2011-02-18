@@ -78,6 +78,5 @@ class SAXParser extends XML {
     handler.result
   }
 }
-object SAXParser extends SAXParser
 object XML extends StAXParser
 
