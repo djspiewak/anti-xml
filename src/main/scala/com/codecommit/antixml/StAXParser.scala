@@ -124,34 +124,34 @@ object ElemStart {
 /**
  * A StAXEvent indicating the start of an Elem.
  */
-case class ElemStart(val prefix: Option[String],
-                     val name: String,
-                     val attrs: Map[QName, String],
-                     val uri: Option[String]) extends StAXEvent {
+case class ElemStart(prefix: Option[String],
+                     name: String,
+                     attrs: Map[QName, String],
+                     uri: Option[String]) extends StAXEvent {
   def attrs(name: String): String = attrs(new QName(NULL_NS_URI, name))
 }
 /**
  * A StAXEvent indicating the end of an Elem.
  */
-case class ElemEnd(val prefix: Option[String],
-                   val name: String,
-                   val uri: Option[String]) extends StAXEvent
+case class ElemEnd(prefix: Option[String],
+                   name: String,
+                   uri: Option[String]) extends StAXEvent
 /**
  * A StAXEvent indicating a text Node.
  */
-case class Characters(val text: String) extends StAXEvent
+case class Characters(text: String) extends StAXEvent
 /**
  * A StAXEvent indicating a comment Node.
  */
-case class Comment(val text: String) extends StAXEvent
+case class Comment(text: String) extends StAXEvent
 /**
  * A StAXEvent indicating a processing instruction Node.
  */
-case class ProcessingInstruction(val target: String, val data: String) extends StAXEvent
+case class ProcessingInstruction(target: String, data: String) extends StAXEvent
 /**
  * A StAXEvent indicating a DocumentTypeDefinition (DTD).
  */
-case class DocumentTypeDefinition(val declaration: String) extends StAXEvent
+case class DocumentTypeDefinition(declaration: String) extends StAXEvent
 /**
  * A StAXEvent indicating the end of an XML document.
  */
