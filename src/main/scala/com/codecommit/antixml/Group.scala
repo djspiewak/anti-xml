@@ -83,6 +83,18 @@ object Group {
     def apply() = newBuilder[A]
   }
   
+  implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Group[A]] = {
+    new CanBuildFromWithZipper[Traversable[_], A, Group[A]] {
+      def apply(coll: Traversable[_], path: List[Group[A] => Group[Node]]) =
+        new VectorBuilder[A] mapResult { new Group(_) }
+      
+      def apply(path: List[Group[A] => Group[Node]]) = 
+        new VectorBuilder[A] mapResult { new Group(_) }
+      
+      def rebuild(former: Group[Node], map: Vector[(Int, Int, Group[Node] => Node)])(children: Group[A]): Group[Node] = Group()   // TODO
+    }
+  }
+  
   def newBuilder[A <: Node] = new VectorBuilder[A] mapResult { new Group(_) }
   
   def empty[A <: Node] = new Group[A](Vector.empty)
