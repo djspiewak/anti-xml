@@ -137,7 +137,20 @@ object Group {
         }
       }
       
-      def rebuild(former: Group[Node], map: Vector[(Int, Int, Group[Node] => Node)])(children: Zipper[A]): Group[Node] = Group()   // TODO
+      def rebuild(former: Group[Node], map: Vector[(Int, Int, Group[Node] => Node)])(children: Zipper[A]): Group[Node] = {
+        val (_, latter) = map.foldLeft((0, former)) {
+          case ((i, nodes), (start, end, f)) => {
+            val nodes2 = nodes(i) match {
+              case _: Elem =>
+                nodes.updated(i, f(children.slice(start, end)))  
+              
+              case _ => nodes
+            }
+            (i + 1, nodes2)
+          }
+        }
+        latter    // TODO this actually preserves the zipper.  should probably leverage that...
+      }
     }
   }
   
