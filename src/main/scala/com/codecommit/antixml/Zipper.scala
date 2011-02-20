@@ -1,6 +1,6 @@
 package com.codecommit.antixml
 
-trait Zipper[A <: Node] extends Group[A] { self =>
+trait Zipper[+A <: Node] extends Group[A] { self =>
   val rebuild: Group[Node] => Group[Node]
   val path: List[Group[Node] => Group[Node]]
   
