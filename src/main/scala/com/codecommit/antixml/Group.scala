@@ -112,6 +112,8 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
     (this \ selector) ++ recursive
   }
   
+  def toVector = nodes
+  
   override def toString = nodes.mkString
 }
 
