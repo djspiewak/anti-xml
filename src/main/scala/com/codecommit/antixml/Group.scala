@@ -5,6 +5,7 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.collection.{IndexedSeqLike, TraversableLike}
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
+import scala.collection.mutable.Builder
 
 class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends IndexedSeq[A] 
     with IndexedSeqLike[A, Group[A]] {
@@ -83,15 +84,20 @@ object Group {
     def apply() = newBuilder[A]
   }
   
-  implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Group[A]] = {
-    new CanBuildFromWithZipper[Traversable[_], A, Group[A]] {
-      def apply(coll: Traversable[_], path: List[Group[A] => Group[Node]]) =
-        new VectorBuilder[A] mapResult { new Group(_) }
+  implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
+    new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
+      def apply(coll: Traversable[_], basePath: List[Zipper[A] => Group[Node]]): Builder[A, Zipper[A]] = 
+        apply(basePath)
       
-      def apply(path: List[Group[A] => Group[Node]]) = 
-        new VectorBuilder[A] mapResult { new Group(_) }
+      def apply(basePath: List[Zipper[A] => Group[Node]]): Builder[A, Zipper[A]] = {
+        new VectorBuilder[A] mapResult { vec =>
+          new Group(vec) with Zipper[A] {
+            override val path = basePath
+          }
+        }
+      }
       
-      def rebuild(former: Group[Node], map: Vector[(Int, Int, Group[Node] => Node)])(children: Group[A]): Group[Node] = Group()   // TODO
+      def rebuild(former: Group[Node], map: Vector[(Int, Int, Group[Node] => Node)])(children: Zipper[A]): Group[Node] = Group()   // TODO
     }
   }
   
