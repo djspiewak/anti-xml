@@ -58,8 +58,6 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   
   // TODO optimize
   protected def search[B, That <: Traversable[B]](selector: Selector[B, That], pathToSelf: List[Group[Node] => Group[Node]])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
-    implicit val cbf = CanBuildFromWithZipper cbfwzToCbf cbfwz
-    
     val results = nodes map {
       case e @ Elem(_, _, _, children) => {
         val selectedWithIndexes = children.zipWithIndex flatMap {
@@ -102,11 +100,9 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   
   // TODO optimize
   def \\[B, That <: IndexedSeq[B]](selector: Selector[B, That])(implicit cbfwz: CanBuildFromWithZipper[Traversable[_], B, That]): That = {
-    implicit val cbf = CanBuildFromWithZipper cbfwzToCbf cbfwz
-    
     val recursive = this flatMap {
       case Elem(_, _, _, children) => children \\ selector
-      case _ => cbf().result
+      case _ => cbfwz().result
     }
     
     (this \ selector) ++ recursive
