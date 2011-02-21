@@ -42,6 +42,18 @@ object ZipperSpecs extends Specification {
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
     }
+    
+    "rebuild after a map at the first level" in {
+      val books = bookstore \ "book"
+      val books2 = books map { _.copy(attrs=Map("updated" -> "yes")) }
+      
+      val bookstore2: Group[Node] = books2.unselect
+      
+      // find afresh without using \
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+    }
   }
   
   def resource(filename: String) =
