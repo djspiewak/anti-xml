@@ -5,20 +5,20 @@ import scala.util.Random
 
 object BloomFilter {
 
-  def apply[A](elements: Seq[A] = Nil)(implicit conf: BloomFilterConfiguration): BloomFilter[A] = {
+  def apply(elements: Seq[Any] = Nil)(implicit conf: BloomFilterConfiguration): BloomFilter = {
     require(elements != null, "elements must not be null!")
     new BloomFilter(elements, conf)
   }
 }
 
-private[antixml] class BloomFilter[A](elements: Seq[A], conf: BloomFilterConfiguration) {
+private[antixml] class BloomFilter(elements: Seq[Any], conf: BloomFilterConfiguration) {
   import conf._
   import math._
 
-  def contains(element: A): Boolean =
+  def contains(element: Any): Boolean =
     hash(element) forall bits.contains
 
-  def +[B >: A](element: B): BloomFilter[B] =
+  def +(element: Any): BloomFilter =
     new BloomFilter(element +: elements, conf)
 
   override lazy val toString = "BloomFilter: n=%s, m=%s, k=%s".format(elements.size, m, k)
@@ -41,9 +41,9 @@ private[antixml] class BloomFilter[A](elements: Seq[A], conf: BloomFilterConfigu
 
   private val bits = BitSet(hash(elements): _*) // Pay attention to initialization order!
 
-  private def hash(elements: Seq[A]): Seq[Int] = elements flatMap hash
+  private def hash(elements: Seq[Any]): Seq[Int] = elements flatMap hash
 
-  private def hash(element: A): Seq[Int] = {
+  private def hash(element: Any): Seq[Int] = {
     // TODO Is tihs approach valid and if so does it offer enough performance?
     val rnd = new Random(0)
     val hashCode = element.hashCode
