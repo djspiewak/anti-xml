@@ -54,9 +54,15 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   
   // TODO optimize
   def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = {
-    this flatMap {
-      case Elem(_, _, _, children) => children collect selector
-      case _ => new Group(Vector())
+    if (selector.element map bloomFilter.contains getOrElse true) {
+      this flatMap {
+        case Elem(_, _, _, children) => children collect selector
+        case _ => new Group(Vector())
+      }
+    } else {
+      this flatMap {
+        case _ => new Group(Vector())
+      }
     }
   }
   
@@ -71,6 +77,18 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   }
   
   override def toString = nodes.mkString
+
+  private lazy val bloomFilter = {
+    val elementNames =
+      nodes flatMap {
+        case Elem(_, _, _, children) =>
+          children collect {
+            case Elem(_, name, _, _) => name
+          }
+        case _ => new Group(Vector())
+      }
+    BloomFilter(elementNames)
+  }
 }
 
 object Group {
