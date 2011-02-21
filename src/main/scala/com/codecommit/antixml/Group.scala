@@ -54,22 +54,20 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   
   // TODO optimize
   def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = {
-    if (selector.element map bloomFilter.contains getOrElse true) {
+    if (matches(selector)) {
       this flatMap {
         case Elem(_, _, _, children) => children collect selector
-        case _ => new Group(Vector())
+        case _ => cbf().result
       }
     } else {
-      this flatMap {
-        case _ => new Group(Vector())
-      }
+      cbf().result
     }
   }
   
   // TODO optimize
   def \\[B, That <: IndexedSeq[B]](selector: Selector[B, That])(implicit cbf: CanBuildFrom[Traversable[_], B, That]): That = {
     val recursive = this flatMap {
-      case Elem(_, _, _, children) => children \\ selector
+      case Elem(_, _, _, children) if matches(selector) => children \\ selector
       case _ => cbf().result
     }
     
@@ -77,7 +75,10 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   }
   
   override def toString = nodes.mkString
-
+  
+  private def matches(selector: Selector[_, _]) =
+    selector.element map bloomFilter.contains getOrElse true
+  
   private lazy val bloomFilter = {
     val elementNames =
       nodes flatMap {
