@@ -1,42 +1,54 @@
 package com.codecommit.antixml
 
-import org.scalacheck.Prop._
-import org.specs.{ ScalaCheck, Specification }
+import org.specs.Specification
+import scala.util.Random
 
 class BloomFilterSpec extends Specification {
 
-  "Calling BloomFilter.apply" should {
-    "throw an IllegalArgumentException for null elements" >> {
-      BloomFilter(null: String) must throwA[IllegalArgumentException]
-      BloomFilter(null: Seq[String]) must throwA[IllegalArgumentException]
+  "Calling BloomFilter.contains" should {
+    val words =
+      for {
+        length <- 1 to 20
+        i <- 1 to 5000
+      } yield word(length)
+    val time0 = System.currentTimeMillis
+    val bloomFilter = BloomFilter(words)
+    val time1 = System.currentTimeMillis
+
+    "never return a wrong false" >> {
+      val falses = words filter { word => !(bloomFilter contains word) }
+      falses must beEmpty
     }
-    "throw an IllegalArgumentException for a null factory" >> {
-      BloomFilter("")(null) must throwA[IllegalArgumentException]
-    }
+
+//    "DUMMY" >> {
+//      val otherWords =
+//        for {
+//          length <- 1 to 20
+//          i <- 1 to 5000
+//        } yield "b?r" + word(length) + "f##"
+//      val trues = otherWords filter bloomFilter.contains
+//      println("*** false trues: " + trues.size)
+//      1 mustEqual 1
+//    }
   }
-}
 
-class DefaultBloomFilterSpec extends Specification with ScalaCheck {
-
-  "Calling DefaultBloomFilter.contains" should {
-    "throw an IllegalArgumentException for a null element" >> {
-      new DefaultBloomFilter(Nil) contains null must throwA[IllegalArgumentException]
-    }
-    "never return true for elements that are not contained" >> {
-      forAll { (s: String) =>
-        (BloomFilter(Seq(s)) contains (s + "#")) == false
-      } must pass
-    }
-  }
-
-  "Calling DefaultBloomFilter.+" should {
-    val filter = new DefaultBloomFilter(Seq("a"))
-    "throw an IllegalArgumentException for a null element" >> {
-      filter + null must throwA[IllegalArgumentException]
-    }
+  "Calling BloomFilter.+" should {
     "return a new BloomFilter" >> {
+      val filter = BloomFilter(Seq("a"))
       filter + "b" mustNotBe null
       filter + "1" mustNotBe null
     }
   }
+
+  private val rnd = new Random
+
+  private val aToZ = 'a' to 'z'
+
+  private def word(length: Int, s: String = ""): String =
+    if (length < 1) {
+      s
+    } else {
+      val c = aToZ(rnd nextInt aToZ.size)
+      word(length - 1, s + c)
+    }
 }
