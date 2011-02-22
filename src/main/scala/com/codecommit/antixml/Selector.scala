@@ -5,13 +5,13 @@ import scala.collection.immutable.Seq
 
 trait Selector[+A, +Coll <: Traversable[A]] extends PartialFunction[Node, A] {
 
-  val element: Option[String] = None
+  val elementName: Option[String] = None
 }
 
 object Selector {
-  def apply[A, Coll <: Traversable[A]](pf: PartialFunction[Node, A], elem: Option[String] = None) =
+  def apply[A, Coll <: Traversable[A]](pf: PartialFunction[Node, A], name: Option[String] = None) =
     new Selector[A, Coll] {
-      override val element = elem
+      override val elementName = name
 
       def apply(node: Node) = pf(node)
 

@@ -32,11 +32,11 @@ class BloomFilterSpec extends Specification {
 //    }
   }
 
-  "Calling BloomFilter.+" should {
+  "Calling BloomFilter.++" should {
     "return a new BloomFilter" >> {
-      val filter = BloomFilter(Seq("a"))
-      filter + "b" mustNotBe null
-      filter + "1" mustNotBe null
+      val filter1 = BloomFilter(Seq("a"))
+      val filter2 = BloomFilter(Seq("b"))
+      filter1 ++ filter2 mustNotBe null
     }
   }
 

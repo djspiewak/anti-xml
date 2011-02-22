@@ -115,21 +115,21 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   def toVector = nodes
   
   override def toString = nodes.mkString
-  
-  private def matches(selector: Selector[_, _]) =
-    selector.element map bloomFilter.contains getOrElse true
-  
-  private lazy val bloomFilter = {
-    val elementNames =
-      nodes flatMap {
-        case Elem(_, _, _, children) =>
-          children collect {
-            case Elem(_, name, _, _) => name
-          }
-        case _ => new Group(Vector())
+
+  private val bloomFilter: BloomFilter = {
+    val names =
+      nodes collect {
+        case Elem(_, name, _, _) => name
       }
-    BloomFilter(elementNames)
+    val subFilters =
+      nodes collect {
+        case Elem(_, _, _, children) => children.bloomFilter
+      }
+    (BloomFilter(names) /: subFilters) { _ ++ _ }
   }
+
+  private def matches(selector: Selector[_, _]) =
+    selector.elementName map bloomFilter.contains getOrElse true
 }
 
 object Group {

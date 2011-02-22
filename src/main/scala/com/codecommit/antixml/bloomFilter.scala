@@ -4,51 +4,48 @@ import scala.collection.immutable.BitSet
 import scala.util.Random
 
 object BloomFilter {
+  import math._
 
   def apply(elements: Seq[Any] = Nil)(implicit conf: BloomFilterConfiguration): BloomFilter = {
     require(elements != null, "elements must not be null!")
-    new BloomFilter(elements, conf)
-  }
-}
 
-private[antixml] class BloomFilter(elements: Seq[Any], conf: BloomFilterConfiguration) {
-  import conf._
-  import math._
-
-  def contains(element: Any): Boolean =
-    hash(element) forall bits.contains
-
-  def +(element: Any): BloomFilter =
-    new BloomFilter(element +: elements, conf)
-
-  override lazy val toString = "BloomFilter: n=%s, m=%s, k=%s".format(elements.size, m, k)
-
-  private val (m, k) = {
-    val n = elements.size
-    val m = {
-      val m = round((- n * log(p) / pow(log(2), 2)).toFloat)
-      if (m > 0) m else 1
-    }
-    val k =
-      if (n == 0) {
-        0
-      } else {
-        val k = round(log(2).toFloat * m / n)
-        if (k > 0) k else 1
-      }
-    (m, k)
+//    val (m, k) = optimalMAndK(elements.size, conf.p)
+    val (m, k) = (1024, 2)
+    val hashes = elements flatMap hash(m, k)
+    new BloomFilter(BitSet(hashes: _*), m, k)
   }
 
-  private val bits = BitSet(hash(elements): _*) // Pay attention to initialization order!
-
-  private def hash(elements: Seq[Any]): Seq[Int] = elements flatMap hash
-
-  private def hash(element: Any): Seq[Int] = {
+  private def hash(m: Int, k: Int)(element: Any): Seq[Int] = {
     // TODO Is tihs approach valid and if so does it offer enough performance?
     val rnd = new Random(0)
     val hashCode = element.hashCode
     (1 until k) map { _ => abs(hashCode ^ rnd.nextInt) % m }
   }
+
+//  private def optimalMAndK(n: Int, p: Float): (Int, Int) = {
+//    val m = {
+//      val m = round((- n * log(p) / pow(log(2), 2)).toFloat)
+//      if (m > 0) m else 1
+//    }
+//    val k =
+//      if (n == 0) {
+//        0
+//      } else {
+//        val k = round(log(2).toFloat * m / n)
+//        if (k > 0) k else 1
+//      }
+//    (m, k)
+//  }
+}
+
+private[antixml] class BloomFilter(private val bits: BitSet, m: Int, k: Int) {
+  import BloomFilter._
+
+  def contains(element: Any): Boolean =
+    hash(m, k)(element) forall bits.contains
+
+  def ++(that: BloomFilter): BloomFilter =
+    new BloomFilter(this.bits union that.bits, m, k)
 }
 
 object BloomFilterConfiguration {
