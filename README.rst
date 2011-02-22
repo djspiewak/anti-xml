@@ -42,6 +42,64 @@ you need will be in the ``com.codecommit.antixml`` package.  Enjoy!
 Selectors
 =========
 
+Anti-XML provides a very general mechanism for selectors.  However, before we get
+into that, we need to settle a little bit of terminology.  Consider the following
+snippet::
+    
+    val xml: Group[Node] = ...
+    xml \ * \ "book"
+    xml \\ "author"
+    
+In this snippet, there are three selectors and two select operators.  The two
+select operators are ``\`` and ``\\``, which are "shallow-select" and "deep-select"
+respectively.  The selectors are ``*`` (the wildcard selector), ``"book"`` and
+``"author"``.  Thus, select operators are defined on ``Group`` each as a function
+which takes a selector and returns a new ``Group``.
+
+
+Select Definitions
+------------------
+
+Shallow- and deep-select are both defined in full generality.  Shallow-select
+is (in principle) defined as the following::
+    
+    def \(selector: Selector) = {
+      nodes flatMap {
+        case Elem(_, _, _, children) => children collect selector
+        case _ => Group()
+      }
+    }
+    
+This is to say, shallow-select finds all of the ``Elem``(s) in the current ``Group``
+and filters their children against the selector (which extends ``PartialFunction``).
+The filtered children are then concatenated together into a single ``Group``.
+
+Deep-select is (in principle) defined as the following::
+    
+    def \\(selector: Selector) = {
+      val recursive = nodes flatMap {
+        case Elem(_, _, _, children) => children \\ selector
+        case _ => Group()
+      }
+      
+      (this \ selector) ++ recursive
+    }
+    
+This is to say that deep-select is equivalent to applying shallow-select at every
+level of the XML tree, recursively.  It is important to note that if a selector
+matches some ``Elem`` *a* which in turn contains a child ``Elem`` *b* which is
+also matched by the selector, both *a* and *b* will be returned by ``\\``.
+
+
+Selectors
+---------
+
+**TODO**
+
+
+Type Safety
+-----------
+
 **TODO**
 
 
