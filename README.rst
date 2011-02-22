@@ -128,7 +128,27 @@ There are three build-in selectors:
 Type Safety
 -----------
 
-**TODO**
+Every selector is typed on a resulting element and collection type.  For example::
+    
+    val `*`: Selector[Node, Group[Node]] = ...
+    
+    implicit def strToSelector(str: String): Selector[Elem, Group[Elem]] = ...
+    implicit def symToSelector(str: Symbol): Selector[Elem, Group[Elem]] = ...
+
+Notably, any select method will return a collection of the type specified by
+the selector.  This is quite useful in many ways.  For example, if you select
+using one of the name selectors (using ``String`` or ``Symbol``), then the
+collection resulting from the select will be of type ``Group[Elem]``::
+    
+    val xml: Group[Node] = ...
+    val results: Group[Elem] = xml \ "book"
+    
+However, if you select using the wildcard selector (``*``), the result will
+naturally be of type ``Group[Node]`` since every node (including non-``Elem``(s))
+will be returned::
+    
+    val xml: Group[Node] = ...
+    val results: Group[Node] = xml \ *
 
 
 Zippers
