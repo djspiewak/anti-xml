@@ -137,6 +137,24 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
 }
 
 object Group {
+  implicit def canBuildFromWithZipperGeneric[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
+    new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
+      def apply(from: Traversable[_], baseMap: Vector[(Int, Int, Group[Node] => Node)]): Builder[A, Zipper[A]] =
+        apply(baseMap)
+      
+      def apply(baseMap: Vector[(Int, Int, Group[Node] => Node)]): Builder[A, Zipper[A]] = {
+        new VectorBuilder[A] mapResult { vec =>
+          new Group(vec) with Zipper[A] {
+            type Parent = Nothing
+            
+            val map = baseMap
+            val parent = error("No zipper context available")
+          }
+        }
+      }
+    }
+  }
+  
   implicit def canBuildFromWithZipper[A <: Node, B <: Node]: CanBuildFromWithZipper[Zipper[A], B, Zipper[B] { type Parent = Zipper[A] }] = {
     type To = Group[B] with Zipper[B] { type Parent = Zipper[A] }
     
@@ -144,7 +162,7 @@ object Group {
       def apply(from: Zipper[A], baseMap: Vector[(Int, Int, Group[Node] => Node)]): Builder[B, To] = {
         new VectorBuilder[B] mapResult { vec =>
           new Group(vec) with Zipper[B] {
-            override type Parent = Zipper[A]
+            type Parent = Zipper[A]
             
             val map = baseMap
             val parent = from.makeAsZipper
