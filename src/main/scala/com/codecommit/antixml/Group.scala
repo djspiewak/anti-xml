@@ -125,7 +125,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
       nodes collect {
         case Elem(_, _, _, children) => children.bloomFilter
       }
-    (BloomFilter(names) /: subFilters) { _ ++ _ }
+    (BloomFilter(names)(1024) /: subFilters) { _ ++ _ }
   }
 
   private def matches(selector: Selector[_, _]) =

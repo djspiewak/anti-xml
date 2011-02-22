@@ -12,7 +12,7 @@ class BloomFilterSpec extends Specification {
         i <- 1 to 5000
       } yield word(length)
     val time0 = System.currentTimeMillis
-    val bloomFilter = BloomFilter(words)
+    val bloomFilter = BloomFilter(words)()
     val time1 = System.currentTimeMillis
 
     "never return a wrong false" >> {
@@ -34,8 +34,8 @@ class BloomFilterSpec extends Specification {
 
   "Calling BloomFilter.++" should {
     "return a new BloomFilter" >> {
-      val filter1 = BloomFilter(Seq("a"))
-      val filter2 = BloomFilter(Seq("b"))
+      val filter1 = BloomFilter(Seq("a"))()
+      val filter2 = BloomFilter(Seq("b"))()
       filter1 ++ filter2 mustNotBe null
     }
   }
