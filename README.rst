@@ -36,8 +36,76 @@ We haven't pushed any compiled binaries as of yet.  You will need to clone the
 project using Git.  Then, use SBT to build a JAR for the project.  Everything
 you need will be in the ``com.codecommit.antixml`` package.  Enjoy!
 
+The API should look fairly familiar to anyone who has used the ``scala.xml``
+package.  For example::
+    
+    import com.codecommit.antixml._
+    
+    val xml = XML.fromFile("src/test/resources/bookstore.xml")
+    val titles = (xml \ "book" \ "title" \ *) map { _.toString }
+    val firstAuthor = (xml \\ "author" \ *) map { _.toString } headOption
+
+Well, maybe not *exactly* like ``scala.xml``.  This example uses the bookstore.xml_
+file from the test suite.  The ``titles`` and ``firstAuthor`` fields will have
+the following values:
+
+* ``titles`` = ``Vector("For Whom the Bell Tolls", "I, Robot", "Programming Scala")``
+* ``firstAuthor`` = ``Some("Hemmingway")``
+
+The ``\`` and ``\\`` operators make it possible to perform complex queries against
+XML trees simply and efficiently (see the section on selectors_).  If you pass
+a ``String`` value to these selectors, then the result will be a ``Group[Elem]``.
+You can also pass a ``Symbol`` if that is more convenient::
+    
+    val xml = ...
+    val books = xml \ "book"
+    val books2 = xml \ 'book       // equivalent to `books`
+    
+You will also note that the ``*`` character is used as a wildcard selector, rather
+than the magical string value ``"_"`` (as in ``scala.xml``).  This is because
+selectors do not do *any* string parsing (at all)!  If you pass a string as a
+selector, it assumes that string value to be an element name, no more, no less.
+This dramatically simplifies the selection semantics and also serves to make the
+behavior (and performance) of the library quite a bit more predictable.
+
+It is also worth noting that the ``Node`` hierarcy has been dramatically
+simplified.  You can see this for yourself by looking at the node.scala_ file.
+Basically, ``Node`` is now a proper `algebraic data type`_ with a very straightforward
+(and lightweight) structure.  This makes a lot of common tasks quite a bit easier.
+For example, if I wanted to get the value of the ``popular`` attribute of the
+first ``book`` element, I could do so very easily::
+    
+    val xml = ...
+    val popular: String = (xml \ "book").head.attrs("popular")
+    
+We're still working out the best way to incorporate namespace information into
+this representation.  If you have any ideas, please fork and demonstrate!
+
+One very important aspect of the API is that ``Group`` is based on ``scala.collection.immutable.Vector``.
+As such, it is possible to access any node within a ``Group`` in constant time.
+It is also possible to *update* (by which I mean "derive a new ``Group`` with
+revised data") any node in constant time.  This can be very useful sometimes::
+    
+    val xml = ...
+    val books = xml \ "book"
+    val books2 = books.updated(2, books(2).copy(attrs=Map("updated" -> "yes")))
+    
+Note that this snippet makes use of the ``copy`` method which we get for free on
+``Elem`` because of its nature as a case class.
+
+There are a lot more things to see and a large number of improvements over Scala's
+built-in XML support.  For example, we actually provide a mechanism for taking
+the ``books2`` value in the above example and reconstructing the original ``xml``
+tree around it, ariving at the original structure modulo the change made to the
+third ``<book>`` element deep inside the tree.  For more details, see some of
+the following sections.
+
+.. _bookstore.xml: https://github.com/djspiewak/anti-xml/blob/master/src/test/resources/bookstore.xml
+.. _node.scala: https://github.com/djspiewak/anti-xml/blob/master/src/main/scala/com/codecommit/antixml/node.scala
+.. _algebraic data type: http://en.wikipedia.org/wiki/Algebraic_data_type
 
 .. _below:
+.. _selectors:
 
 Selectors
 =========
