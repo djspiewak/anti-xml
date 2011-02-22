@@ -94,7 +94,35 @@ also matched by the selector, both *a* and *b* will be returned by ``\\``.
 Selectors
 ---------
 
-**TODO**
+A selector is an object of type ``Selector[A, Coll]``, which is really just a
+``PartialFunction[Node, A]`` with some extra trimming (for optimization).  This
+function is used to search and transform (in a single pass) the result set on a
+select.  In principle, selectors can return *any* results.  For example, one could
+write a ``text`` selector which results in a ``List[String]`` object containing
+the respective contents of the ``Text`` and ``Whitespace`` nodes in the tree.
+This selector would be defined in the following way::
+    
+    val text: Selector[String, List[String]] = Selector({
+      case Text(str) => str
+      case Whitespace(str) => str
+    })
+    
+This selector could then be used just like any other::
+    
+    val xml: Group[Node] = ...
+    xml \ text        // => List[String]
+    
+In this way, the selector mechanism is fully extensible to almost any use-case.
+There are three build-in selectors:
+
+* Select only ``Elem`` nodes based on name
+
+  * Implicit conversion from ``String`` (e.g. ``xml \ "book"``)
+  * Implicit conversion from ``Symbol`` (e.g. ``xml \ 'book``)
+  
+* Select all nodes (basically, the identity selector)
+
+  * Defined as the ``*`` operator
 
 
 Type Safety
