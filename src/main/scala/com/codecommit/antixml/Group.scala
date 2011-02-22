@@ -137,11 +137,6 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
 }
 
 object Group {
-  implicit def canBuildFrom[A <: Node]: CanBuildFrom[Traversable[_], A, Group[A]] = new CanBuildFrom[Traversable[_], A, Group[A]] {
-    def apply(coll: Traversable[_]) = newBuilder[A]
-    def apply() = newBuilder[A]
-  }
-  
   implicit def canBuildFromWithZipper[A <: Node, B <: Node]: CanBuildFromWithZipper[Zipper[A], B, Zipper[B] { type Parent = Zipper[A] }] = {
     type To = Group[B] with Zipper[B] { type Parent = Zipper[A] }
     
