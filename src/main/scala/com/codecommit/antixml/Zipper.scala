@@ -4,7 +4,7 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   type Parent <: Zipper[Node]     // TODO maybe a lower bound here?
   
   val map: Vector[(Int, Int, Group[Node] => Node)]
-  val parent: Parent
+  def parent: Parent
   
   val rebuild: Group[Node] => Group[Node] = null
   val path: List[Group[Node] => Group[Node]] = null

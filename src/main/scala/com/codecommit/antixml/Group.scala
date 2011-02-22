@@ -102,7 +102,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   protected def makeAsZipper: Zipper[A] = {
     new Group(nodes) with Zipper[A] {
       val map = Vector()
-      val parent = error("Attempted to move up at root of the tree")
+      def parent = error("Attempted to move up at root of the tree")
     }
   }
   
@@ -148,7 +148,7 @@ object Group {
             type Parent = Nothing
             
             val map = baseMap
-            val parent = error("No zipper context available")
+            def parent = error("No zipper context available")
           }
         }
       }
