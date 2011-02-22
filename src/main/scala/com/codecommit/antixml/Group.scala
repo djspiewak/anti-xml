@@ -8,8 +8,8 @@ import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
 import scala.collection.mutable.Builder
 
 class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends IndexedSeq[A] 
-    with IndexedSeqLike[A, Group[A]] {
-  
+    with IndexedSeqLike[A, Group[A]] { self =>
+      
   override protected[this] def newBuilder = Group.newBuilder[A]
   
   def length = nodes.length
@@ -53,11 +53,8 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
-  def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That =
-    search(selector, Nil)
-  
   // TODO optimize
-  protected def search[B, That <: Traversable[B]](selector: Selector[B, That], pathToSelf: List[Group[Node] => Group[Node]])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
+  def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
     if (matches(selector)) {
       val results = nodes map {
         case e @ Elem(_, _, _, children) => {
@@ -94,19 +91,26 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
         case None => Vector()
       }
       
-      val builder = cbfwz.apply(this, cbfwz.rebuild(this, map), pathToSelf)
+      val builder = cbf(makeAsZipper, map)
       builder ++= cat
       builder.result
     } else {
-      cbfwz().result
+      cbf(Vector()).result
+    }
+  }
+  
+  protected def makeAsZipper: Zipper[A] = {
+    new Group(nodes) with Zipper[A] {
+      val map = Vector()
+      val parent = error("Attempted to move up at root of the tree")
     }
   }
   
   // TODO optimize
-  def \\[B, That <: IndexedSeq[B]](selector: Selector[B, That])(implicit cbfwz: CanBuildFromWithZipper[Traversable[_], B, That]): That = {
+  def \\[B, That <: IndexedSeq[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Traversable[_], B, That]): That = {
     val recursive = this flatMap {
       case Elem(_, _, _, children) if matches(selector) => children \\ selector
-      case _ => cbfwz().result
+      case _ => cbf().result
     }
     
     (this \ selector) ++ recursive
@@ -138,34 +142,23 @@ object Group {
     def apply() = newBuilder[A]
   }
   
-  implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
-    new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
-      def apply(coll: Traversable[_], baseRebuild: Zipper[A] => Group[Node], basePath: List[Group[Node] => Group[Node]]): Builder[A, Zipper[A]] = 
-        apply(baseRebuild, basePath)
-      
-      def apply(baseRebuild: Zipper[A] => Group[Node], basePath: List[Group[Node] => Group[Node]]): Builder[A, Zipper[A]] = {
-        new VectorBuilder[A] mapResult { vec =>
-          new Group(vec) with Zipper[A] {
-            val rebuild = baseRebuild.asInstanceOf[Group[Node] => Group[Node]]      // TODO ewwwww!
-            val path = basePath
+  implicit def canBuildFromWithZipper[A <: Node, B <: Node]: CanBuildFromWithZipper[Zipper[A], B, Zipper[B] { type Parent = Zipper[A] }] = {
+    type To = Group[B] with Zipper[B] { type Parent = Zipper[A] }
+    
+    new CanBuildFromWithZipper[Zipper[A], B, To] {
+      def apply(from: Zipper[A], baseMap: Vector[(Int, Int, Group[Node] => Node)]): Builder[B, To] = {
+        new VectorBuilder[B] mapResult { vec =>
+          new Group(vec) with Zipper[B] {
+            override type Parent = Zipper[A]
+            
+            val map = baseMap
+            val parent = from.makeAsZipper
           }
         }
       }
       
-      def rebuild(former: Group[Node], map: Vector[(Int, Int, Group[Node] => Node)])(children: Zipper[A]): Group[Node] = {
-        val (_, latter) = map.foldLeft((0, former)) {
-          case ((i, nodes), (start, end, f)) => {
-            val nodes2 = nodes(i) match {
-              case _: Elem =>
-                nodes.updated(i, f(children.slice(start, end)))  
-              
-              case _ => nodes
-            }
-            (i + 1, nodes2)
-          }
-        }
-        latter    // TODO this actually preserves the zipper.  should probably leverage that...
-      }
+      def apply(baseMap: Vector[(Int, Int, Group[Node] => Node)]): Builder[B, To] =
+        error("Cannot build without a base collection")
     }
   }
   
