@@ -44,5 +44,5 @@ private[antixml] class BloomFilter(private val bits: BitSet, n: Int, m: Int, k: 
     hash(m, k)(element) forall bits.contains
 
   def ++(that: BloomFilter): BloomFilter =
-    new BloomFilter(this.bits union that.bits, n, m, k)
+    new BloomFilter(this.bits | that.bits, n, m, k)
 }
