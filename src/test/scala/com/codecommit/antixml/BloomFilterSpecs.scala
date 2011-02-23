@@ -1,54 +1,54 @@
 package com.codecommit.antixml
 
-import org.specs.Specification
-import scala.util.Random
+import org.specs._
+import org.scalacheck._
 
-class BloomFilterSpecs extends Specification {
-
-  "Calling BloomFilter.contains" should {
-    val words =
-      for {
-        length <- 1 to 20
-        i <- 1 to 5000
-      } yield word(length)
-    val time0 = System.currentTimeMillis
-    val bloomFilter = BloomFilter(words)()
-    val time1 = System.currentTimeMillis
-
-    "never return a wrong false" >> {
-      val falses = words filter { word => !(bloomFilter contains word) }
-      falses must beEmpty
-    }
-
-//    "DUMMY" >> {
-//      val otherWords =
-//        for {
-//          length <- 1 to 20
-//          i <- 1 to 5000
-//        } yield "b?r" + word(length) + "f##"
-//      val trues = otherWords filter bloomFilter.contains
-//      println("*** false trues: " + trues.size)
-//      1 mustEqual 1
-//    }
-  }
-
-  "Calling BloomFilter.++" should {
-    "return a new BloomFilter" >> {
-      val filter1 = BloomFilter(Seq("a"))()
-      val filter2 = BloomFilter(Seq("b"))()
-      filter1 ++ filter2 mustNotBe null
+object BloomFilterSpecs extends Specification with ScalaCheck {
+  import Prop._
+  import scala.math._
+  
+  "contains" should {
+    "never give a false negative" in {
+      val prop = forAll { xs: List[String] =>
+        val filter = BloomFilter(xs)()
+        xs mustNotExist { x => !filter.contains(x) }
+      }
+      
+      prop must pass(set(maxSize -> 1000))
     }
   }
 
-  private val rnd = new Random
-
-  private val aToZ = 'a' to 'z'
-
-  private def word(length: Int, s: String = ""): String =
-    if (length < 1) {
-      s
-    } else {
-      val c = aToZ(rnd nextInt aToZ.size)
-      word(length - 1, s + c)
+  "++" should {
+    "throw an exception on mismatched filter size" in {
+      val filter1 = BloomFilter(List('a, 'b, 'c))(n=6)
+      val filter2 = BloomFilter(List('d, 'e))(n=4)
+      
+      (filter1 ++ filter2) must throwAn[IllegalArgumentException]
     }
+    
+    "return a BloomFilter which contains all of each" in {
+      val prop = forAll { (xs1: List[String], xs2: List[String]) =>
+        val width = (max(xs1.length, xs2.length) + 1) * 2
+        val filter1 = BloomFilter(xs1)(n=width)
+        val filter2 = BloomFilter(xs2)(n=width)
+        val filter = filter1 ++ filter2
+        
+        xs1 mustNotExist { x => !filter.contains(x) }
+        xs2 mustNotExist { x => !filter.contains(x) }
+      }
+      
+      prop must pass(set(maxSize -> 1000))
+    }
+    
+    "be commutative" in {
+      val prop = forAll { (xs1: List[String], xs2: List[String]) =>
+        val width = (max(xs1.length, xs2.length) + 1) * 2
+        val filter1 = BloomFilter(xs1)(n=width)
+        val filter2 = BloomFilter(xs2)(n=width)
+        (filter1 ++ filter2) mustEqual (filter2 ++ filter1)
+      }
+      
+      prop must pass(set(maxSize -> 1000))
+    }
+  }
 }

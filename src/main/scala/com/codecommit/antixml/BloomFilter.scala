@@ -43,8 +43,12 @@ private[antixml] class BloomFilter(private val bits: BitSet, private val n: Int,
   def contains(element: Any): Boolean =
     hash(m, k)(element) forall bits.contains
 
-  def ++(that: BloomFilter): BloomFilter =
+  def ++(that: BloomFilter): BloomFilter = {
+    if (this.n != that.n || this.m != that.m || this.k != that.k) {
+      throw new IllegalArgumentException("BloomFilter properties must match")
+    }
     new BloomFilter(this.bits | that.bits, n, m, k)
+  }
   
   override def equals(a: Any) = a match {
     case that: BloomFilter =>
