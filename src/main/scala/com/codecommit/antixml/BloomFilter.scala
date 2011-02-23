@@ -6,7 +6,7 @@ import scala.util.Random
 private[antixml] object BloomFilter {
   import math._
 
-  def apply(elements: Seq[Any] = Nil)(n: Int = elements.size, p: Float = 0.33f): BloomFilter = {
+  def apply(elements: Seq[Any] = Nil)(n: Int = (elements.size + 1) * 2, p: Float = 0.33f): BloomFilter = {
     require(elements != null, "elements must not be null!")
 
     val (m, k) = optimalMAndK(n, p)
