@@ -26,6 +26,14 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
     }
   }
   
+  def mapWithContext[B <: Node](f: A => B): Zipper[B] = {
+    val nodes2 = toVector map f
+    new Group(nodes2) with Zipper[B] {
+      val map = self.map
+      def parent = self.parent
+    }
+  }
+  
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVector) with Zipper[B] {
       val map = self.map

@@ -45,7 +45,7 @@ object ZipperSpecs extends Specification {
     
     "rebuild after a map at the first level" in {
       val books = bookstore \ "book"
-      val books2 = books map { _.copy(attrs=Map("updated" -> "yes")) }
+      val books2 = books mapWithContext { _.copy(attrs=Map("updated" -> "yes")) }
       
       val bookstore2: Group[Node] = books2.unselect
       
