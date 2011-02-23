@@ -3,7 +3,7 @@ package com.codecommit.antixml
 import scala.collection.immutable.BitSet
 import scala.util.Random
 
-object BloomFilter {
+private[antixml] object BloomFilter {
   import math._
 
   def apply(elements: Seq[Any] = Nil)(n: Int = elements.size, p: Float = 0.33f): BloomFilter = {
