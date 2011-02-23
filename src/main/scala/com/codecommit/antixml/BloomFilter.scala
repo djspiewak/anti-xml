@@ -37,7 +37,7 @@ private[antixml] object BloomFilter {
   }
 }
 
-private[antixml] class BloomFilter(private val bits: BitSet, n: Int, m: Int, k: Int) {
+private[antixml] class BloomFilter(private val bits: BitSet, private val n: Int, private val m: Int, private val k: Int) {
   import BloomFilter._
 
   def contains(element: Any): Boolean =
@@ -45,4 +45,13 @@ private[antixml] class BloomFilter(private val bits: BitSet, n: Int, m: Int, k: 
 
   def ++(that: BloomFilter): BloomFilter =
     new BloomFilter(this.bits | that.bits, n, m, k)
+  
+  override def equals(a: Any) = a match {
+    case that: BloomFilter =>
+      this.bits == that.bits && this.n == that.n && this.m == that.m && this.k == that.k
+    
+    case _ => false
+  }
+  
+  override def hashCode = bits.hashCode ^ n ^ m ^ k
 }
