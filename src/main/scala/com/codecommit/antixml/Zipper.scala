@@ -1,10 +1,10 @@
 package com.codecommit.antixml
 
 trait Zipper[+A <: Node] extends Group[A] { self =>
-  type Parent <: Zipper[Node]     // TODO maybe a lower bound here?
+  // TODO dependently-typed HList, maybe?
   
   val map: Vector[(Int, Int, Group[Node] => Node)]
-  def parent: Parent
+  def parent: Zipper[Node]
   
   val rebuild: Group[Node] => Group[Node] = null
   val path: List[Group[Node] => Group[Node]] = null
@@ -12,11 +12,10 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO this *may* be a poor choice of words...
   def stripZipper = new Group(toVector)
   
-  def up: Parent = error("unimplemented")
+  def up: Zipper[Node] = error("unimplemented")
   
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVector) with Zipper[B] {
-      type Parent = self.Parent
       val map = self.map
       val parent = self.parent
     }
