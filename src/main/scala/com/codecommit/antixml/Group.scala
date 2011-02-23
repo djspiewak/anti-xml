@@ -53,7 +53,6 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
-  // TODO optimize
   def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
     if (matches(selector)) {
       val results = nodes map {
@@ -106,7 +105,6 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
     }
   }
   
-  // TODO optimize
   def \\[B, That <: IndexedSeq[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Traversable[_], B, That]): That = {
     val recursive = this flatMap {
       case Elem(_, _, _, children) if matches(selector) => children \\ selector
