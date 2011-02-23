@@ -6,10 +6,10 @@ import scala.util.Random
 object BloomFilter {
   import math._
 
-  def apply(elements: Seq[Any] = Nil)(n: Int = elements.size)(implicit conf: BloomFilterConfiguration): BloomFilter = {
+  def apply(elements: Seq[Any] = Nil)(n: Int = elements.size, p: Float = 0.33f): BloomFilter = {
     require(elements != null, "elements must not be null!")
 
-    val (m, k) = optimalMAndK(n, conf.p)
+    val (m, k) = optimalMAndK(n, p)
     val hashes = elements flatMap hash(m, k)
     new BloomFilter(BitSet(hashes: _*), n, m, k)
   }
@@ -45,18 +45,4 @@ private[antixml] class BloomFilter(private val bits: BitSet, n: Int, m: Int, k: 
 
   def ++(that: BloomFilter): BloomFilter =
     new BloomFilter(this.bits union that.bits, n, m, k)
-}
-
-object BloomFilterConfiguration {
-
-  // Values > 0.18f lead towards k == 2
-  // Values < 0.25f tend to show more false trues than expected
-  // 0.33f leads to significantly faster creation than 0.25f for 100000 elements
-  implicit val default: BloomFilterConfiguration =
-    BloomFilterConfiguration(0.33f)
-}
-
-case class BloomFilterConfiguration(p: Float) {
-  require(p > 0, "p must be positive!")
-  require(p < 1, "p must be less than 1!")
 }
