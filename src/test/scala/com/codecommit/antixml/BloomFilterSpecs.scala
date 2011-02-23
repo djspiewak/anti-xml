@@ -3,7 +3,7 @@ package com.codecommit.antixml
 import org.specs.Specification
 import scala.util.Random
 
-class BloomFilterSpec extends Specification {
+class BloomFilterSpecs extends Specification {
 
   "Calling BloomFilter.contains" should {
     val words =
