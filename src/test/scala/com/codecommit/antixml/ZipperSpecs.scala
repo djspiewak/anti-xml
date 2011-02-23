@@ -12,7 +12,7 @@ object ZipperSpecs extends Specification {
       val book0 = books(0).copy(attrs=Map("updated" -> "yes"))
       val book2 = books(2).copy(attrs=Map("updated" -> "yes"))
       
-      val bookstore2: Group[Node] = books.updated(0, book0).updated(2, book2).up    // ensure we have NodeSeq
+      val bookstore2: Group[Node] = books.updated(0, book0).updated(2, book2).unselect    // ensure we have NodeSeq
       
       // find afresh without using \
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
@@ -26,7 +26,7 @@ object ZipperSpecs extends Specification {
       val author2 = authors(2).copy(attrs=Map("updated" -> "yes"))
       val author3 = authors(3).copy(attrs=Map("updated" -> "yes"))
       
-      val bookstore2: Group[Node] = authors.updated(0, author0).updated(2, author2).updated(3, author3).up.up
+      val bookstore2: Group[Node] = authors.updated(0, author0).updated(2, author2).updated(3, author3).unselect.unselect
       
       // find afresh without using \
       bookstore2.head.asInstanceOf[Elem].name mustEqual "bookstore"

@@ -9,7 +9,7 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO this *may* be a poor choice of words...
   def stripZipper = new Group(toVector)
   
-  def up: Zipper[Node] = {
+  def unselect: Zipper[Node] = {
     val (_, nodes2) = map.foldLeft((0, parent.toVector)) {
       case ((i, vec), (from, to, rebuild)) => {
         val vec2 = vec(i) match {
