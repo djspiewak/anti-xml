@@ -5,3 +5,4 @@ lib_managed/
 *.ipr
 *.iws
 .idea
+.ensime
