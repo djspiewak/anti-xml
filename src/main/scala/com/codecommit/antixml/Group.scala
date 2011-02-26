@@ -6,7 +6,7 @@ import scala.collection.{IndexedSeqLike, TraversableLike}
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
 
-class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends IndexedSeq[A] 
+class Group[+A <: Node] private[antixml] (private[antixml] val nodes: Vector[A]) extends IndexedSeq[A] 
     with IndexedSeqLike[A, Group[A]] {
   
   override protected[this] def newBuilder = Group.newBuilder[A]
