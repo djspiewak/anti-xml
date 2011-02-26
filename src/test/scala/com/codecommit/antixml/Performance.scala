@@ -67,14 +67,14 @@ object Performance {
   }
 
   def loadDiscogs = Test("anti-xml loading a large file") {
-    XML.fromSource(Source.fromURL(getClass.getResource("/discogs_20110201_labels.xml")))
+    XML.fromInputStream(getClass.getResourceAsStream("/discogs_20110201_labels.xml"))
   }
 
   def loadAntiSpending = Test("anti-xml loading a medium-sized XML file") {
-    XML.fromSource(Source.fromURL(getClass.getResource("/spending.xml")))
+    XML.fromInputStream(getClass.getResourceAsStream("/spending.xml"))
   }
 
   def loadScalaSpending = Test("scala.xml loading a medium-sized XML file") {
-    scala.xml.XML.load(getClass.getResource("/spending.xml"))
+    scala.xml.XML.load(getClass.getResourceAsStream("/spending.xml"))
   }
 }
