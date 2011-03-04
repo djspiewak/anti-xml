@@ -13,6 +13,8 @@ import javax.xml.XMLConstants.NULL_NS_URI
  * An XML provider build on top of StAXIterator.
  */
 class StAXParser extends XML {
+  import StAXEvents._
+  
   override def fromInputStream(inputStream: InputStream): Group[Elem] =
     fromStreamSource(new StreamSource(inputStream))
   override def fromReader(reader: Reader): Group[Elem] =
@@ -70,7 +72,9 @@ object StAXIterator {
  * Java Streaming API for XML</a>.
  * @see java.xml.stream
  */
-class StAXIterator(source: StreamSource) extends Iterator[StAXEvent] {
+class StAXIterator(source: StreamSource) extends Iterator[StAXEvents.StAXEvent] {
+  import StAXEvents._
+  
   private val xmlReader =
     XMLInputFactory.newInstance().createXMLStreamReader(source)
   override def next: StAXEvent = xmlReader.next match {
@@ -112,47 +116,49 @@ class StAXIterator(source: StreamSource) extends Iterator[StAXEvent] {
     }
 }
 
-/**
- * A base trait for StAXParser generated events.
- * @see java.xml.stream.XMLEvent
- * */
-sealed trait StAXEvent
-object ElemStart {
-  def apply(name: String, attrs: Map[QName, String]): ElemStart =
-    ElemStart(None, name, attrs, None)
-}
-/**
- * A StAXEvent indicating the start of an Elem.
- */
-case class ElemStart(prefix: Option[String],
+object StAXEvents {
+  /**
+   * A base trait for StAXParser generated events.
+   * @see java.xml.stream.XMLEvent
+   * */
+  sealed trait StAXEvent
+  object ElemStart {
+    def apply(name: String, attrs: Map[QName, String]): ElemStart =
+      ElemStart(None, name, attrs, None)
+  }
+  /**
+   * A StAXEvent indicating the start of an Elem.
+   */
+  case class ElemStart(prefix: Option[String],
+                       name: String,
+                       attrs: Map[QName, String],
+                       uri: Option[String]) extends StAXEvent {
+    def attrs(name: String): String = attrs(new QName(NULL_NS_URI, name))
+  }
+  /**
+   * A StAXEvent indicating the end of an Elem.
+   */
+  case class ElemEnd(prefix: Option[String],
                      name: String,
-                     attrs: Map[QName, String],
-                     uri: Option[String]) extends StAXEvent {
-  def attrs(name: String): String = attrs(new QName(NULL_NS_URI, name))
+                     uri: Option[String]) extends StAXEvent
+  /**
+   * A StAXEvent indicating a text Node.
+   */
+  case class Characters(text: String) extends StAXEvent
+  /**
+   * A StAXEvent indicating a comment Node.
+   */
+  case class Comment(text: String) extends StAXEvent
+  /**
+   * A StAXEvent indicating a processing instruction Node.
+   */
+  case class ProcessingInstruction(target: String, data: String) extends StAXEvent
+  /**
+   * A StAXEvent indicating a DocumentTypeDefinition (DTD).
+   */
+  case class DocumentTypeDefinition(declaration: String) extends StAXEvent
+  /**
+   * A StAXEvent indicating the end of an XML document.
+   */
+  object DocumentEnd extends StAXEvent
 }
-/**
- * A StAXEvent indicating the end of an Elem.
- */
-case class ElemEnd(prefix: Option[String],
-                   name: String,
-                   uri: Option[String]) extends StAXEvent
-/**
- * A StAXEvent indicating a text Node.
- */
-case class Characters(text: String) extends StAXEvent
-/**
- * A StAXEvent indicating a comment Node.
- */
-case class Comment(text: String) extends StAXEvent
-/**
- * A StAXEvent indicating a processing instruction Node.
- */
-case class ProcessingInstruction(target: String, data: String) extends StAXEvent
-/**
- * A StAXEvent indicating a DocumentTypeDefinition (DTD).
- */
-case class DocumentTypeDefinition(declaration: String) extends StAXEvent
-/**
- * A StAXEvent indicating the end of an XML document.
- */
-object DocumentEnd extends StAXEvent
