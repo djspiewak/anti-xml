@@ -6,3 +6,4 @@ lib_managed/
 *.iws
 .idea
 .ensime
+.DS_Store
