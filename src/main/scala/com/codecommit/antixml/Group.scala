@@ -57,20 +57,8 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
     if (matches(selector)) {
       val results = nodes map {
         case e @ Elem(_, _, _, children) => {
-          val selectedWithIndexes = children.zipWithIndex flatMap {
-            case (n, i) if selector isDefinedAt n => Some(selector(n) -> i)
-            case _ => None
-          }
-          
-          val indexes = selectedWithIndexes map { case (_, i) => i }
-          val selected = selectedWithIndexes map { case (e, _) => e }
-          
-          def rebuild(children2: Group[Node]) = {
-            val revisedChildren = (indexes zip children2).foldLeft(children) {
-              case (vec, (i, e)) => vec.updated(i, e)
-            }
-            e.copy(children=revisedChildren)
-          }
+          def rebuild(children2: Group[Node]) = e.copy(children=children2)
+          val selected = children collect selector
           
           Some((selected, rebuild _))
         }

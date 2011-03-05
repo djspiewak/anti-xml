@@ -32,13 +32,13 @@ object ZipperSpecs extends Specification {
       bookstore2.head.asInstanceOf[Elem].name mustEqual "bookstore"
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].name mustEqual "book"
       
-      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children.length mustBe 2
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children must haveSize(2)
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
       
-      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children.length mustBe 2
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children must haveSize(2)
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map()
       
-      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children.length mustBe 3
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children must haveSize(3)
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
     }
@@ -48,11 +48,34 @@ object ZipperSpecs extends Specification {
       val books2 = books map { _.copy(attrs=Map("updated" -> "yes")) }
       
       val bookstore2: Group[Node] = books2.unselect
+      bookstore2.head.asInstanceOf[Elem].children must haveSize(3)
       
       // find afresh without using \
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+    }
+    
+    "rebuild after a flatMap at the first level" in {
+      val books = bookstore \ "book"
+      val books2 = books flatMap { 
+        case e @ Elem(_, _, _, children) if children.length > 2 =>
+          List(e.copy(attrs=Map("updated" -> "yes")), e.copy(attrs=Map("updated" -> "yes")))
+        
+        case _ => Nil
+      }
+      
+      val bookstore2: Group[Node] = books2.unselect
+      bookstore2.head.asInstanceOf[Elem].children must haveSize(2)
+      
+      // find afresh without using \
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      
+      (bookstore2 \ "book" \ "title" \ *) forall {
+        case Text(str) => str mustEqual "Programming Scala"
+        case _ => false
+      }
     }
   }
   
