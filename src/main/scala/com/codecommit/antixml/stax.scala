@@ -26,21 +26,35 @@ class StAXParser extends XML {
 
   def parse(source: Iterator[StAXEvent]): Group[Elem] = {
     val handler = new NodeSeqSAXHandler()
-    source foreach {
-      case ElemStart(prefix, name, attrs, uri) =>
-        handler.startElement(uri getOrElse "",
-                             name,
-                             prefix map ((_: String) + ":" + name) getOrElse "",
-                             mapToAttrs(attrs))
-      case ElemEnd(prefix, name, uri) =>
-        handler.endElement(prefix getOrElse "",
-                           name,
-                           prefix map ((_: String) + ":" + name) getOrElse "")
-      case Characters(text) => handler.characters(text.toArray, 0, text.length)
-      case Comment(text) => ()
-      case ProcessingInstruction(target, data) => ()
-      case DocumentTypeDefinition(declaration) => ()
-      case DocumentEnd => ()
+    while(source.hasNext) {
+      val event = source.next
+      event.number match {
+        // this match is very active during parsing
+        // using integer literals compiles to a single tableswitch
+        // the techniques below become sequential if-elses on scala 2.8.1:
+        // - referencing StAXEventNumber fields
+        // - caching StAXEventNumbers as fields of StAXParser
+        // - caching StAXEventNumbers as local vals
+        // - matching on the class of the event
+        case 1 => {
+          val elemStart = event.asInstanceOf[ElemStart]
+          handler.startElement(elemStart.uri getOrElse "",
+                               elemStart.name,
+                               elemStart.prefix map ((_: String) + ":" + elemStart.name) getOrElse "",
+                               mapToAttrs(elemStart.attrs))
+        }
+        case 2 => {
+          val elemEnd = event.asInstanceOf[ElemEnd]
+          handler.endElement(elemEnd.prefix getOrElse "",
+                             elemEnd.name,
+                             elemEnd.prefix map ((_: String) + ":" + elemEnd.name) getOrElse "")
+        }
+        case 3 => {
+          val characters = event.asInstanceOf[Characters]
+          handler.characters(characters.text.toArray, 0, characters.text.length)
+        }
+        case _ => ()
+      }
     }
     handler.result
   }
@@ -117,11 +131,21 @@ class StAXIterator(source: StreamSource) extends Iterator[StAXEvents.StAXEvent] 
 }
 
 object StAXEvents {
+  object StAXEventNumber {
+    val ElemStart = 1
+    val ElemEnd = 2
+    val Characters = 3
+    val Comment = 4
+    val ProcessingInstruction = 5
+    val DocumentTypeDefinition = 6
+    val DocumentEnd = 7
+  }
+
   /**
    * A base trait for StAXParser generated events.
    * @see java.xml.stream.XMLEvent
    * */
-  sealed trait StAXEvent
+  abstract class StAXEvent(val number: Int)
   object ElemStart {
     def apply(name: String, attrs: Map[QName, String]): ElemStart =
       ElemStart(None, name, attrs, None)
@@ -132,7 +156,7 @@ object StAXEvents {
   case class ElemStart(prefix: Option[String],
                        name: String,
                        attrs: Map[QName, String],
-                       uri: Option[String]) extends StAXEvent {
+                       uri: Option[String]) extends StAXEvent(StAXEventNumber.ElemStart) {
     def attrs(name: String): String = attrs(new QName(NULL_NS_URI, name))
   }
   /**
@@ -140,25 +164,25 @@ object StAXEvents {
    */
   case class ElemEnd(prefix: Option[String],
                      name: String,
-                     uri: Option[String]) extends StAXEvent
+                     uri: Option[String]) extends StAXEvent(StAXEventNumber.ElemEnd)
   /**
    * A StAXEvent indicating a text Node.
    */
-  case class Characters(text: String) extends StAXEvent
+  case class Characters(text: String) extends StAXEvent(StAXEventNumber.Characters)
   /**
    * A StAXEvent indicating a comment Node.
    */
-  case class Comment(text: String) extends StAXEvent
+  case class Comment(text: String) extends StAXEvent(StAXEventNumber.Comment)
   /**
    * A StAXEvent indicating a processing instruction Node.
    */
-  case class ProcessingInstruction(target: String, data: String) extends StAXEvent
+  case class ProcessingInstruction(target: String, data: String) extends StAXEvent(StAXEventNumber.ProcessingInstruction)
   /**
    * A StAXEvent indicating a DocumentTypeDefinition (DTD).
    */
-  case class DocumentTypeDefinition(declaration: String) extends StAXEvent
+  case class DocumentTypeDefinition(declaration: String) extends StAXEvent(StAXEventNumber.DocumentTypeDefinition)
   /**
    * A StAXEvent indicating the end of an XML document.
    */
-  object DocumentEnd extends StAXEvent
+  object DocumentEnd extends StAXEvent(StAXEventNumber.DocumentEnd)
 }
