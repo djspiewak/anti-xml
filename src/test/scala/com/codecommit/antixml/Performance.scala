@@ -5,22 +5,31 @@ import com.github.dmlap.sizeof.SizeOf.deepsize
 import javax.xml.parsers.DocumentBuilderFactory 
 
 object Performance {
-  val tests: List[Test] = List(/*loadDiscogs _, */loadAntiSpending)
+  val tests: List[Test] = List(loadAntiSpending, loadScalaSpending, loadJavaSpending)
   val comparisons: List[(Test, Test)] = List(loadAntiSpending -> loadScalaSpending)
 
   def main(args: Array[String]) {
     println("Starting with " + (Runtime.getRuntime.maxMemory / (1024 * 1024)) + "MB")
     println("-- Memory Usage --")
+    val memStart = System.nanoTime
     println("anti-xml: " + deepsize(antiSpending))
     println("scala.xml: " + deepsize(scalaSpending))
     println("javax.xml: " + deepsize(javaSpending))
-    // println("-- Execution Time --")
-    // runTests()
-    // println()
-    // println("-- Comparisons --")
-    // runComparisons()
+    println("Memory Usage finished in " + durationMs(memStart) + " ms")
+    println("-- Execution Time --")
+    val execStart = System.nanoTime
+    runTests()
+    println()
+    println("Execution Time finished in " + durationMs(execStart) + " ms")
+    println("-- Comparisons --")
+    val compStart = System.nanoTime
+    runComparisons()
+    println("Comparisons finished in " + durationMs(compStart) + " ms")
     println("Done")
   }
+
+  @inline def durationMs(start: Long): Long =
+    (System.nanoTime - start) / 1000000
 
   def runTests() {
     tests foreach { test =>
@@ -38,12 +47,12 @@ object Performance {
 
   def runTest(test: Test): TimingResults = {
     // warm-up
-    (0 until 10) foreach { _ => test.run() }
-    TimingResults((0 until 20) map { _ =>
+    (0 until 5) foreach { _ => test.run() }
+    TimingResults((0 until 10) map { _ =>
       System.gc()
       val start = System.nanoTime
       test.run()
-      (System.nanoTime - start) / 100000
+      durationMs(start)
     })
   }
 
@@ -52,10 +61,10 @@ object Performance {
     def run()
   }
   object Test {
-    def apply(desc: String)(f: =>Unit) = new Test {
+    def apply(desc: String)(f: () => Unit) = new Test {
       val description = desc
       def run() {
-        f
+        f()
       }
     }
   }
@@ -72,7 +81,7 @@ object Performance {
     }
   }
 
-  def loadDiscogs = Test("anti-xml loading a large file") {
+  def loadDiscogs = Test("anti-xml loading a large file") { () =>
     XML.fromSource(Source.fromURL(getClass.getResource("/discogs_20110201_labels.xml")))
   }
 
@@ -90,5 +99,7 @@ object Performance {
 
   def javaSpending =
     DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
+  def loadJavaSpending =
+    Test("javax.xml loading a medium-sized XML file")(javaSpending _)
     
 }
