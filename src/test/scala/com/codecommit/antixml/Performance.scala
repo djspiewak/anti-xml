@@ -2,6 +2,7 @@ package com.codecommit.antixml
 
 import scala.io.Source
 import com.github.dmlap.sizeof.SizeOf.deepsize
+import javax.xml.parsers.DocumentBuilderFactory 
 
 object Performance {
   val tests: List[Test] = List(/*loadDiscogs _, */loadAntiSpending)
@@ -12,6 +13,7 @@ object Performance {
     println("-- Memory Usage --")
     println("anti-xml: " + deepsize(antiSpending))
     println("scala.xml: " + deepsize(scalaSpending))
+    println("javax.xml: " + deepsize(javaSpending))
     // println("-- Execution Time --")
     // runTests()
     // println()
@@ -74,13 +76,19 @@ object Performance {
     XML.fromSource(Source.fromURL(getClass.getResource("/discogs_20110201_labels.xml")))
   }
 
+  val spendingPath = "/spending.xml"
+
   def antiSpending =
-    XML.fromSource(Source.fromURL(getClass.getResource("/spending.xml")))
+    XML.fromSource(Source.fromURL(getClass.getResource(spendingPath)))
   def loadAntiSpending =
     Test("anti-xml loading a medium-sized XML file")(antiSpending _)
 
   def scalaSpending =
-    scala.xml.XML.load(getClass.getResource("/spending.xml"))
+    scala.xml.XML.load(getClass.getResource(spendingPath))
   def loadScalaSpending =
     Test("scala.xml loading a medium-sized XML file")(scalaSpending _)
+
+  def javaSpending =
+    DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
+    
 }
