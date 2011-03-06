@@ -88,7 +88,7 @@ object Performance {
   val spendingPath = "/spending.xml"
 
   def antiSpending =
-    XML.fromSource(Source.fromURL(getClass.getResourceAsStream(spendingPath)))
+    XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
   def loadAntiSpending =
     Test("anti-xml loading a medium-sized XML file")(antiSpending _)
 
