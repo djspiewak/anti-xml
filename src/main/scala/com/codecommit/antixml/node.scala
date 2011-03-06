@@ -40,6 +40,9 @@ class Elem private(val ns: Option[String], val name: String, val attrs: Map[Stri
       this.attrs == that.attrs && this._children == that._children
     case _ => false
   }
+
+  def copy(ns: Option[String] = this.ns, name: String = this.name, attrs: Map[String, String] = this.attrs, children: Group[Node] = this.children): Elem =
+    Elem(ns, name, attrs, children)
     
 }
 
