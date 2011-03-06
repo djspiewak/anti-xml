@@ -25,7 +25,6 @@ object Performance {
     val compStart = System.nanoTime
     runComparisons()
     println("Comparisons finished in " + durationMs(compStart) + " ms")
-    println("Done")
   }
 
   @inline def durationMs(start: Long): Long =
