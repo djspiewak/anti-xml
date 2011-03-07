@@ -58,9 +58,14 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
       val results = nodes map {
         case e @ Elem(_, _, _, children) => {
           def rebuild(children2: Group[Node], indexes: Vector[Int]) = {
-            val revisedChildren = (children2 zip indexes).foldLeft(children) {
-              case (vec, (e, i)) => vec.updated(i, e)
+            val (_, _, revisedChildren) = children.zipWithIndex.foldLeft((children2.view, indexes.view, Group[Node]())) {
+              case ((children2, indexes, acc), (e, i)) if indexes.head == i =>
+                (children2.tail, indexes.tail, acc :+ children2.head)
+              
+              case ((children2, indexes, acc), (e, _)) =>
+                (children2, indexes, acc :+ e)
             }
+            
             e.copy(children=revisedChildren)
           }
           
