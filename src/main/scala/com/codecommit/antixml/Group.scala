@@ -57,28 +57,41 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
     if (matches(selector)) {
       val results = nodes map {
         case e @ Elem(_, _, _, children) => {
-          def rebuild(children2: Group[Node], indexes: Vector[Int]) = e.copy(children=children2)
-          val selected = children collect selector
+          def rebuild(children2: Group[Node], indexes: Vector[Int]) = {
+            val revisedChildren = (children2 zip indexes).foldLeft(children) {
+              case (vec, (e, i)) => vec.updated(i, e)
+            }
+            e.copy(children=revisedChildren)
+          }
           
-          Some((selected, rebuild _))
+          val selected = children.zipWithIndex collect {
+            case (n, i) if selector isDefinedAt n => (selector(n), i)
+          }
+          
+          // this really *should* be a function on Vector
+          val unzipped = ((Vector[B](), Vector[Int]()) /: selected) {
+            case ((left, right), (x, y)) => (left :+ x, right :+ y)
+          }
+          
+          Some((unzipped, rebuild _))
         }
         
         case _ => None
       }
       
-      val (_, map) = results.foldLeft((0, Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)]())) {
-        case ((i, acc), Some((res, f))) if !res.isEmpty =>
-          (i + res.length, acc :+ (i, i + res.length, f))
+      val (_, map, childMap) = results.foldLeft((0, Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)](), Vector[Int]())) {
+        case ((i, acc, childAcc), Some(((res, index), f))) if !res.isEmpty =>
+          (i + res.length, acc :+ (i, i + res.length, f), childAcc ++ index)
         
-        case ((i, acc), _) => (i, acc)
+        case ((i, acc, childAcc), _) => (i, acc, childAcc)
       }
       
       val cat = results flatMap {
-        case Some((selected, _)) => selected
+        case Some(((selected, _), _)) => selected
         case None => Vector()
       }
       
-      val builder = cbf(makeAsZipper, map, Vector())    // TODO
+      val builder = cbf(makeAsZipper, map, childMap)
       builder ++= cat
       builder.result
     } else {
