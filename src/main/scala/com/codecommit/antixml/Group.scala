@@ -57,7 +57,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
     if (matches(selector)) {
       val results = nodes map {
         case e @ Elem(_, _, _, children) => {
-          def rebuild(children2: Group[Node]) = e.copy(children=children2)
+          def rebuild(children2: Group[Node], indexes: Vector[Int]) = e.copy(children=children2)
           val selected = children collect selector
           
           Some((selected, rebuild _))
@@ -66,7 +66,7 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
         case _ => None
       }
       
-      val (_, map) = results.foldLeft((0, Vector[(Int, Int, Group[Node] => Node)]())) {
+      val (_, map) = results.foldLeft((0, Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)]())) {
         case ((i, acc), Some((res, f))) if !res.isEmpty =>
           (i + res.length, acc :+ (i, i + res.length, f))
         
@@ -78,17 +78,18 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
         case None => Vector()
       }
       
-      val builder = cbf(makeAsZipper, map)
+      val builder = cbf(makeAsZipper, map, Vector())    // TODO
       builder ++= cat
       builder.result
     } else {
-      cbf(Vector()).result
+      cbf(Vector(), Vector()).result
     }
   }
   
   protected def makeAsZipper: Zipper[A] = {
     new Group(nodes) with Zipper[A] {
       val map = Vector()
+      val childMap = Vector()
       def parent = error("Attempted to move up at root of the tree")
     }
   }
@@ -125,10 +126,11 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
 object Group {
   implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
     new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
-      def apply(from: Traversable[_], baseMap: Vector[(Int, Int, Group[Node] => Node)]): Builder[A, Zipper[A]] = {
+      def apply(from: Traversable[_], baseMap: Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)], baseChildMap: Vector[Int]): Builder[A, Zipper[A]] = {
         new VectorBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             val map = baseMap
+            val childMap = baseChildMap
             
             def parent = from match {
               case group: Group[Node] => group.makeAsZipper
@@ -138,10 +140,11 @@ object Group {
         }
       }
       
-      def apply(baseMap: Vector[(Int, Int, Group[Node] => Node)]): Builder[A, Zipper[A]] = {
+      def apply(baseMap: Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)], baseChildMap: Vector[Int]): Builder[A, Zipper[A]] = {
         new VectorBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             val map = baseMap
+            val childMap = baseChildMap
             def parent = error("No zipper context available")
           }
         }

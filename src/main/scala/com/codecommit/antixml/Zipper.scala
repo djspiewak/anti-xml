@@ -5,7 +5,8 @@ import scala.collection.generic.CanBuildFrom
 trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO dependently-typed HList, maybe?
   
-  val map: Vector[(Int, Int, Group[Node] => Node)]
+  val map: Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)]
+  val childMap: Vector[Int]
   def parent: Zipper[Node]
   
   // TODO this *may* be a poor choice of words...
@@ -14,19 +15,20 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   def unselect: Zipper[Node] = {
     val nodes2 = (map zip parent.toVector).foldLeft(Vector[Node]()) {
       case (acc, ((from, to, _), _: Elem)) if from == to => acc
-      case (acc, ((from, to, rebuild), _: Elem)) => acc :+ rebuild(self.slice(from, to))
+      case (acc, ((from, to, rebuild), _: Elem)) => acc :+ rebuild(self.slice(from, to), childMap.slice(from, to))
       case (acc, (_, e)) => acc :+ e
     }
     
     new Group(nodes2) with Zipper[Node] {
       val map = self.parent.map
+      val childMap = self.parent.childMap
       def parent = self.parent.parent
     }
   }
   
   override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
     case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
-      val builder = cbf(parent.asInstanceOf[Group[A]], map)      // oddly, the type-checker isn't handling this
+      val builder = cbf(parent.asInstanceOf[Group[A]], map, childMap)      // oddly, the type-checker isn't handling this
       builder ++= (toVector map f)
       builder.result
     }
@@ -50,7 +52,7 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
           (offset + delta, map.updated(i, (from + offset, to + offset, rebuild)), chunks :+ chunk)
       }
       
-      val builder = cbf(parent.asInstanceOf[Group[A]], map3)
+      val builder = cbf(parent.asInstanceOf[Group[A]], map3, Vector())    // TODO
       chunks foreach (builder ++=)
       builder.result
     }
@@ -61,6 +63,7 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVector) with Zipper[B] {
       val map = self.map
+      val childMap = self.childMap
       val parent = self.parent
     }
   }
