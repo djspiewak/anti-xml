@@ -39,11 +39,17 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   override def flatMap[B, That](f: A => Traversable[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
     case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
       val result = toVector map f
+      
       val map2 = for (((from, to, rebuild), i) <- map.zipWithIndex) yield {
         val chunk = result.slice(from, to).flatten
         val length = chunk.length       // nasty
         val delta = length - (to - from)
         (from, to + delta, rebuild, chunk, delta, i)
+      }
+      
+      val childMap2 = (childMap zip result).foldLeft(Vector[Int]()) {
+        case (acc, (i, chunk)) =>
+          acc ++ Stream.fill(chunk.size)(i)
       }
       
       val sorted = map2 sortBy { case (from, _, _, _, _, _) => from }
@@ -52,7 +58,7 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
           (offset + delta, map.updated(i, (from + offset, to + offset, rebuild)), chunks :+ chunk)
       }
       
-      val builder = cbf(parent.asInstanceOf[Group[A]], map3, Vector())    // TODO
+      val builder = cbf(parent.asInstanceOf[Group[A]], map3, childMap2)
       chunks foreach (builder ++=)
       builder.result
     }
