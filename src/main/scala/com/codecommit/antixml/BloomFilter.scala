@@ -5,6 +5,8 @@ import scala.util.Random
 
 private[antixml] object BloomFilter {
   import math._
+  
+  private val ProbableDefaultMAndK = (2363, 2)
 
   def apply(elements: Seq[Any] = Nil)(n: Int = (elements.size + 1) * 2, p: Float = 0.33f): BloomFilter = {
     require(elements != null, "elements must not be null!")
@@ -21,18 +23,22 @@ private[antixml] object BloomFilter {
   }
 
   private def optimalMAndK(n: Int, p: Float): (Int, Int) = {
-    val m = {
-      val m = round((- n * log(p) / pow(log(2), 2)).toFloat)
-      if (m > 0) m else 1
-    }
-    val k =
-      if (n == 0) {
-        1
-      } else {
-        val k = round(log(2).toFloat * m / n)
-        if (k > 0) k else 1
+    if (n == 1024 && p == 0.33f) {    // fast-path for the hard-coded case
+      ProbableDefaultMAndK
+    } else {
+      val m = {
+        val m = round((- n * log(p) / pow(log(2), 2)).toFloat)
+        if (m > 0) m else 1
       }
-    (m, k)
+      val k =
+        if (n == 0) {
+          1
+        } else {
+          val k = round(log(2).toFloat * m / n)
+          if (k > 0) k else 1
+        }
+      (m, k)
+    }
   }
 }
 
