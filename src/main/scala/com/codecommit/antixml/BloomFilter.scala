@@ -16,9 +16,8 @@ private[antixml] object BloomFilter {
 
   private def hash(m: Int, k: Int)(element: Any): Seq[Int] = {
     // TODO Is tihs approach valid and if so does it offer enough performance?
-    val rnd = new Random(0)
-    val hashCode = element.hashCode
-    (1 until k) map { _ => abs(hashCode ^ rnd.nextInt) % m }
+    val rnd = new Random(element.hashCode)
+    (1 until k) map { _ => abs(rnd.nextInt) % m }
   }
 
   private def optimalMAndK(n: Int, p: Float): (Int, Int) = {
