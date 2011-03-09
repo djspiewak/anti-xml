@@ -118,7 +118,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: Vector[A])
   
   override def toString = nodes.mkString
 
-  private lazy val bloomFilter: BloomFilter = {
+  private val bloomFilter: BloomFilter = {
     val names =
       nodes collect {
         case Elem(_, name, _, _) => name
