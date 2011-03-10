@@ -63,7 +63,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: Vector[A])
       
       for (node <- nodes) {
         node match {
-          case e @ Elem(_, _, _, children) => {
+          case e @ Elem(_, _, _, children) if children.matches(selector) => {
             val indexBuffer = new ArrayBuffer[Int](children.length)
             var currentChunk = 0
             
