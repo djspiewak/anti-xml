@@ -5,7 +5,7 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.collection.{IndexedSeqLike, TraversableLike}
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
-import scala.collection.mutable.Builder
+import scala.collection.mutable.{ArrayBuffer, Builder}
 
 class Group[+A <: Node] private[antixml] (private[antixml] val nodes: Vector[A]) extends IndexedSeq[A] 
     with IndexedSeqLike[A, Group[A]] {
@@ -55,39 +55,54 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: Vector[A])
   
   def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
     if (matches(selector)) {
-      val results = nodes map {
-        case e @ Elem(_, _, _, children) => {
-          val selectedWithIndexes = children.zipWithIndex flatMap {
-            case (n, i) if selector isDefinedAt n => Some(selector(n) -> i)
-            case _ => None
-          }
-          
-          val indexes = selectedWithIndexes map { case (_, i) => i }
-          val selected = selectedWithIndexes map { case (e, _) => e }
-          
-          def rebuild(children2: Group[Node]) = {
-            val revisedChildren = (indexes zip children2).foldLeft(children) {
-              case (vec, (i, e)) => vec.updated(i, e)
+      // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
+      
+      val catBuilder = new VectorBuilder[B]
+      val chunkBuilder = new VectorBuilder[Int]
+      val rebuildBuilder = new VectorBuilder[Group[Node] => Node]
+      
+      for (node <- nodes) {
+        node match {
+          case e @ Elem(_, _, _, children) => {
+            val indexBuffer = new ArrayBuffer[Int](children.length)
+            var currentChunk = 0
+            
+            var i = 0
+            for (child <- children) {
+              if (selector isDefinedAt child) {
+                catBuilder += selector(child)
+                currentChunk += 1
+                indexBuffer += i
+              }
+              i += 1
             }
-            e.copy(children=revisedChildren)
+            
+            chunkBuilder += currentChunk
+            
+            lazy val indexes = Vector(indexBuffer: _*)
+            def rebuild(children2: Group[Node]) = {
+              val revisedChildren = (indexes zip children2).foldLeft(children) {
+                case (vec, (i, e)) => vec.updated(i, e)
+              }
+              e.copy(children=revisedChildren)
+            }
+            
+            rebuildBuilder += (rebuild _)
           }
           
-          Some((selected, rebuild _))
+          case _ =>
         }
-        
-        case _ => None
       }
       
-      lazy val (_, map) = results.foldLeft((0, Vector[(Int, Int, Group[Node] => Node)]())) {
-        case ((i, acc), Some((res, f))) if !res.isEmpty =>
-          (i + res.length, acc :+ (i, i + res.length, f))
-        
-        case ((i, acc), _) => (i, acc)
-      }
+      val cat = catBuilder.result
       
-      val cat = results flatMap {
-        case Some((selected, _)) => selected
-        case None => Vector()
+      lazy val (_, map) = {
+        (chunkBuilder.result zip rebuildBuilder.result).foldLeft((0, Vector[(Int, Int, Group[Node] => Node)]())) {
+          case ((i, acc), (length, f)) if length != 0 =>
+            (i + length, acc :+ (i, i + length, f))
+          
+          case ((i, acc), _) => (i, acc)
+        }
       }
       
       val builder = cbf(makeAsZipper, map)
