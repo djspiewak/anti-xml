@@ -1,9 +1,13 @@
 package com.codecommit.antixml
 
+import scala.collection.mutable
+
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
 private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
+  val symbolTable = mutable.Map[String, String]()
+  
   var elems = List[Group[Node] => Elem]()
   val text = new StringBuilder
   val whitespace = new StringBuilder
@@ -28,10 +32,10 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
     elems ::= { children =>
       val ns = if (uri == "") None else Some(uri)
       val map = (0 until attrs.getLength).foldLeft(Map[String, String]()) { (map, i) =>
-        map + (attrs.getQName(i) -> attrs.getValue(i))    // TODO namespacing
+        map + (intern(attrs.getQName(i)) -> attrs.getValue(i))    // TODO namespacing
       }
       
-      Elem(ns, localName, map, children)
+      Elem(ns, intern(localName), map, children)
     }
   }
   
@@ -66,5 +70,12 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
       builders.head += Text(text.toString)
       text.clear()
     }
+  }
+  
+  private def intern(str: String) = {
+    if (!symbolTable.contains(str)) {
+      symbolTable += (str -> str)
+    }
+    symbolTable(str)
   }
 } 
