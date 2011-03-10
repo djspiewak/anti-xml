@@ -3,7 +3,7 @@ package com.codecommit.antixml
 trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO dependently-typed HList, maybe?
   
-  protected val map: Vector[(Int, Int, Group[Node] => Node)]
+  protected def map: Vector[(Int, Int, Group[Node] => Node)]
   protected def parent: Zipper[Node]
   
   // TODO this *may* be a poor choice of words...
