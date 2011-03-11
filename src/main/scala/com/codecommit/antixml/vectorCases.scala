@@ -80,6 +80,7 @@ private[antixml] object VectorCase {
   def apply[A](as: A*) = fromSeq(as)
   
   def fromSeq[A](seq: Seq[A]) = seq match {
+    case c: VectorCase[A] => c
     case _ if seq.lengthCompare(0) <= 0 => Vector0
     case _ if seq.lengthCompare(1) <= 0 => Vector1(seq(0))
     case _ if seq.lengthCompare(2) <= 0 => Vector2(seq(0), seq(1))
