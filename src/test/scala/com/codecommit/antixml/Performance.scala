@@ -29,25 +29,40 @@ object Performance {
     println(trial.description)
     trial.implementations foreach { impl =>
       print(" + " + impl.description + ": ")
-      (0 until trial.warmUps) foreach { _ => impl.run() }
+      (0 until trial.warmUps) foreach { _ => impl.run(impl.preload()) }
       println(TimingResults((0 until trial.runs) map { _ =>
         System.gc()
-        timedMs { impl.run() }
+        val a = impl.preload()      // existential types for the win!
+        timedMs { impl.run(a) }
       }))
     }
   }
 
   case class Trial(val description: String) {
-    var implementations: Seq[Implementation] = Seq()
+    var implementations: Seq[Implementation[_]] = Seq()
     val warmUps = 5
     val runs = 10
 
     object implemented {
       def by(desc: String) = new {
-        def in(impl: =>Any): Implementation = {
-          val result = new Implementation  {
+        def preload[A](a: =>A) = new {
+          def in(impl: A => Any): Implementation[A] = {
+            val result = new Implementation[A] {
+              val description = desc
+              def preload() = a
+              def run(a: A) = {
+                impl(a)
+              }
+            }
+            implementations = implementations :+ result
+            result
+          }
+        }
+        def in(impl: =>Any): Implementation[Unit] = {
+          val result = new Implementation[Unit] {
             val description = desc
-            def run() = {
+            def preload() = ()
+            def run(a: Unit) = {
               impl
             }
           }
@@ -57,9 +72,11 @@ object Performance {
       }
     }
     
-    trait Implementation {
+    trait Implementation[A] {
+      type Value = A
       val description: String
-      def run(): Any
+      def preload(): Value
+      def run(a: Value): Any
     }
   }
 
@@ -79,19 +96,19 @@ object Performance {
   object ShallowSelection extends Trial("Shallow selection in a 7MB tree") {
     val spendingPath = "/spending.xml"
     
-    val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
-    val scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
-    val domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
+    def antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    def scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
+    def domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
     
-    val antiXml = implemented by "anti-xml" in {
+    val antiXml = implemented by "anti-xml" preload antiTree in { antiTree =>
       antiTree \ "result" \ "doc" \ "MajorFundingAgency2"
       antiTree \ "foo" \ "bar" \ "MajorFundingAgency2"
     }
-    val scalaXml = implemented by "scala.xml" in {
+    val scalaXml = implemented by "scala.xml" preload scalaTree in { scalaTree =>
       scalaTree \ "result" \ "doc" \ "MajorFundingAgency2"
       scalaTree \ "foo" \ "bar" \ "MajorFundingAgency2"
     }
-    val javaXml = implemented by "javax.xml" in {
+    val javaXml = implemented by "javax.xml" preload domTree in { domTree =>
       val childNodes = domTree.getChildNodes item 0 getChildNodes
       
       for {
@@ -131,19 +148,19 @@ object Performance {
   object DeepSelection extends Trial("Deep selection in a 7MB tree") {
     val spendingPath = "/spending.xml"
     
-    val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
-    val scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
-    val domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
+    def antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    def scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
+    def domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
     
-    val antiXml = implemented by "anti-xml" in {
+    val antiXml = implemented by "anti-xml" preload antiTree in { antiTree =>
       antiTree \\ "MajorFundingAgency2"
       antiTree \\ "fubar"
     }
-    val scalaXml = implemented by "scala.xml" in {
+    val scalaXml = implemented by "scala.xml" preload scalaTree in { scalaTree =>
       scalaTree \\ "MajorFundingAgency2"
       scalaTree \\ "fubar"
     }
-    val javaXml = implemented by "javax.xml" in {
+    val javaXml = implemented by "javax.xml" preload domTree in { domTree =>
       {
         val result = domTree getElementsByTagName "MajorFundingAgency2"
         (0 until result.getLength) foreach (result item)
