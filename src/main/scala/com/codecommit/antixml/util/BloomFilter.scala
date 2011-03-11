@@ -1,4 +1,4 @@
-package com.codecommit.antixml
+package com.codecommit.antixml.util
 
 import scala.collection.immutable.BitSet
 import scala.util.Random

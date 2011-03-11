@@ -1,4 +1,7 @@
-package com.codecommit.antixml
+package com.codecommit
+package antixml
+
+import util._
 
 trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO dependently-typed HList, maybe?

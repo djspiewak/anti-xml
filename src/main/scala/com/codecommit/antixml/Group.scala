@@ -1,4 +1,7 @@
-package com.codecommit.antixml
+package com.codecommit
+package antixml
+
+import util._
 
 import scala.annotation.unchecked.uncheckedVariance
 

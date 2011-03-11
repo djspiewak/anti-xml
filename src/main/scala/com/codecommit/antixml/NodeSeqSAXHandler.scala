@@ -1,4 +1,7 @@
-package com.codecommit.antixml
+package com.codecommit
+package antixml
+
+import util._
 
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler

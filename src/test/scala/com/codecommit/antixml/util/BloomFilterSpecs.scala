@@ -1,4 +1,4 @@
-package com.codecommit.antixml
+package com.codecommit.antixml.util
 
 import org.specs._
 import org.scalacheck._
