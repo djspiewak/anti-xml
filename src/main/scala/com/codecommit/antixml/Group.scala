@@ -7,7 +7,7 @@ import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
 import scala.collection.mutable.{ArrayBuffer, Builder}
 
-class Group[+A <: Node] private[antixml] (private[antixml] val nodes: Vector[A]) extends IndexedSeq[A] 
+class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase[A]) extends IndexedSeq[A] 
     with IndexedSeqLike[A, Group[A]] {
   
   override protected[this] def newBuilder = Group.newBuilder[A]
@@ -133,7 +133,9 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: Vector[A])
     }
   }
   
-  def toVector = nodes
+  def toVector = nodes.toVector
+  
+  private[antixml] def toVectorCase: VectorCase[A] = nodes
   
   override def toString = nodes.mkString
 
@@ -157,7 +159,7 @@ object Group {
   implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
     new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
       def apply(from: Traversable[_], baseMap: =>Vector[(Int, Int, Group[Node] => Node)]): Builder[A, Zipper[A]] = {
-        new VectorBuilder[A] mapResult { vec =>
+        VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             lazy val map = baseMap
             
@@ -170,7 +172,7 @@ object Group {
       }
       
       def apply(baseMap: =>Vector[(Int, Int, Group[Node] => Node)]): Builder[A, Zipper[A]] = {
-        new VectorBuilder[A] mapResult { vec =>
+        VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             lazy val map = baseMap
             def parent = error("No zipper context available")
@@ -180,14 +182,11 @@ object Group {
     }
   }
   
-  def newBuilder[A <: Node] = new VectorBuilder[A] mapResult { new Group(_) }
+  def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { new Group(_) }
   
-  def empty[A <: Node] = new Group[A](Vector.empty)
+  def empty[A <: Node] = new Group[A](VectorCase.empty)
   
   def apply[A <: Node](nodes: A*) = fromSeq(nodes)
   
-  def fromSeq[A <: Node](seq: Seq[A]) = seq match {
-    case vec: Vector[A] => new Group(vec)
-    case _ => new Group(Vector(seq: _*))
-  }
+  def fromSeq[A <: Node](seq: Seq[A]) = new Group(VectorCase(seq: _*))
 }
