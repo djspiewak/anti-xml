@@ -6,15 +6,24 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 object Performance {
   def main(args: Array[String]) {
+    val tests = if (args.isEmpty)
+      Function.const(true) _
+    else
+      Set((args map { Symbol(_) }): _*)
+    
     println("-- System Information --")
     println("Heap: " + (Runtime.getRuntime.maxMemory / (1024 * 1024)) + "MB")
     println("Java: " + System.getProperty("java.vendor") + " " + System.getProperty("java.version"))
     println("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.version") + " " + System.getProperty("os.arch"))
-    println("-- Memory Usage --")
-    println("anti-xml: " + deepsize(LoadingXml.antiXml.run()))
-    println("scala.xml: " + deepsize(LoadingXml.scalaXml.run()))
-    println("javax.xml: " + deepsize(LoadingXml.javaXml.run()))
-    println("-- Execution Time --")
+    println()
+    
+    if (tests('memory)) {
+      println("-- Memory Usage --")
+      println("anti-xml: " + deepsize(LoadingXml.antiXml.run(())))
+      println("scala.xml: " + deepsize(LoadingXml.scalaXml.run(())))
+      println("javax.xml: " + deepsize(LoadingXml.javaXml.run(())))
+      println()
+    }
     
     val trials = List(LoadingXml,
       ShallowSelectionCold,
@@ -22,7 +31,11 @@ object Performance {
       ShallowSelectionWarm,
       DeepSelectionWarm)
     
-    trials foreach timeTrial
+    val filtered = trials filter { t => tests(t.id) }
+    if (!filtered.isEmpty) {
+      println("-- Execution Time --")
+      filtered foreach timeTrial
+    }
   }
 
   def timedMs(f: =>Unit): Long = {
@@ -44,7 +57,7 @@ object Performance {
     }
   }
 
-  case class Trial(val description: String) {
+  case class Trial(id: Symbol, description: String) {
     var implementations: Seq[Implementation[_]] = Seq()
     val warmUps = 5
     val runs = 10
@@ -86,7 +99,7 @@ object Performance {
     }
   }
 
-  object LoadingXml extends Trial("Loading a 7MB XML file") {
+  object LoadingXml extends Trial('load, "Loading a 7MB XML file") {
     val spendingPath = "/spending.xml"
     val antiXml = implemented by "anti-xml" in {
       XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
@@ -99,7 +112,7 @@ object Performance {
     }
   }
 
-  object ShallowSelectionCold extends Trial("Shallow selection in a 7MB tree (cold)") {
+  object ShallowSelectionCold extends Trial('shallowSelectCold, "Shallow selection in a 7MB tree (cold)") {
     val spendingPath = "/spending.xml"
     
     def antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
@@ -151,7 +164,7 @@ object Performance {
     }
   }
 
-  object DeepSelectionCold extends Trial("Deep selection in a 7MB tree (cold)") {
+  object DeepSelectionCold extends Trial('deepSelectCold, "Deep selection in a 7MB tree (cold)") {
     val spendingPath = "/spending.xml"
     
     def antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
@@ -179,7 +192,7 @@ object Performance {
     }
   }
 
-  object ShallowSelectionWarm extends Trial("Shallow selection in a 7MB tree (warm)") {
+  object ShallowSelectionWarm extends Trial('shallowSelectWarm, "Shallow selection in a 7MB tree (warm)") {
     val spendingPath = "/spending.xml"
     
     val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
@@ -231,7 +244,7 @@ object Performance {
     }
   }
 
-  object DeepSelectionWarm extends Trial("Deep selection in a 7MB tree (warm)") {
+  object DeepSelectionWarm extends Trial('deepSelectWarm, "Deep selection in a 7MB tree (warm)") {
     val spendingPath = "/spending.xml"
     
     val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))

@@ -9,11 +9,13 @@ class Project(info: ProjectInfo) extends DefaultProject(info)  with IdeaProject 
   /* Performance Tests */
   val perfDependencies = testClasspath +++ testDependencies.all
   val sizeOfJar = testDependencies.libraries ** (jvmSizeOf.name + "*.jar")
-  lazy val testPerf = task {
-    log.info("Running performance tests...")
-    new Fork.ForkScala("com.codecommit.antixml.Performance")(None, Seq("-javaagent:" + sizeOfJar.absString/*, "-agentlib:hprof=cpu=samples,depth=10"*/), perfDependencies.getFiles, Seq(), log) match {
-      case 0 => None
-      case x => Some("failed with error code " + x)
-    }
-  } dependsOn (testCompile, copyTestResources)
+  lazy val testPerf = task { args =>
+    task {
+      log.info("Running performance tests...")
+      new Fork.ForkScala("com.codecommit.antixml.Performance")(None, Seq("-javaagent:" + sizeOfJar.absString/*, "-agentlib:hprof=cpu=samples,depth=10"*/), perfDependencies.getFiles, args, log) match {
+        case 0 => None
+        case x => Some("failed with error code " + x)
+      }
+    } dependsOn (testCompile, copyTestResources)
+  }
 }
