@@ -3,7 +3,7 @@ package com.codecommit.antixml
 import scala.collection.IndexedSeqLike
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.{IndexedSeq, VectorBuilder}
-import scala.collection.mutable.Builder
+import scala.collection.mutable.{ArrayBuffer, Builder}
 
 private[antixml] sealed trait VectorCase[+A] extends IndexedSeq[A] with IndexedSeqLike[A, VectorCase[A]] {
   
@@ -28,13 +28,53 @@ private[antixml] object VectorCase {
   
   def empty[A] = VectorN[A](Vector.empty)
   
-  def newBuilder[A] = new VectorBuilder[A] mapResult {    // TODO optimize
-    case vec if vec.isEmpty => Vector0
-    case vec if vec.length == 1 => Vector1(vec(0))
-    case vec if vec.length == 2 => Vector2(vec(0), vec(1))
-    case vec if vec.length == 3 => Vector3(vec(0), vec(1), vec(2))
-    case vec if vec.length == 4 => Vector4(vec(0), vec(1), vec(2), vec(3))
-    case vec => VectorN(vec)
+  def newBuilder[A]: Builder[A, VectorCase[A]] = new Builder[A, VectorCase[A]] { this: Builder[A, VectorCase[A]] =>
+    val small = new ArrayBuffer[A](4)
+    var builder: VectorBuilder[A] = _
+    
+    def +=(a: A) = {
+      if (builder == null) {
+        small += a
+        
+        if (small.length > 4) {
+          builder = new VectorBuilder[A]
+          builder ++= small
+        }
+      } else {
+        builder += a
+      }
+      this
+    }
+    
+    override def ++=(seq: TraversableOnce[A]) = {
+      if (builder == null) {
+        small ++= seq
+        
+        if (small.length > 4) {
+          builder = new VectorBuilder[A]
+          builder ++= small
+        }
+      } else {
+        builder ++= seq
+      }
+      this
+    }
+    
+    def result() = {
+      if (builder == null) {
+        small.length match {
+          case 0 => Vector0
+          case 1 => Vector1(small(0))
+          case 2 => Vector2(small(0), small(1))
+          case 3 => Vector3(small(0), small(1), small(2))
+          case 4 => Vector4(small(0), small(1), small(2), small(3))
+        }
+      } else {
+        VectorN(builder.result())
+      }
+    }
+    
+    def clear() = this
   }
   
   def apply[A](as: A*) = fromSeq(as)
