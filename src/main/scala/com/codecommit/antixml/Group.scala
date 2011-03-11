@@ -139,7 +139,6 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   override def toString = nodes.mkString
 
-  private lazy val bloomFilter: BloomFilter = {
     val names =
       nodes collect {
         case Elem(_, name, _, _) => name
@@ -147,6 +146,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
     val subFilters =
       nodes collect {
         case Elem(_, _, _, children) => children.bloomFilter
+  private val bloomFilter: BloomFilter = {
       }
     (BloomFilter(names)(1024) /: subFilters) { _ ++ _ }
   }
