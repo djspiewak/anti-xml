@@ -8,7 +8,7 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
   val text = new StringBuilder
   val whitespace = new StringBuilder
   
-  var builders = Vector.newBuilder[Node] :: Nil
+  var builders = VectorCase.newBuilder[Node] :: Nil
   
   override def characters(ch: Array[Char], start: Int, length: Int) {
     clearWhitespace()
@@ -24,7 +24,7 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
     clearWhitespace()
     clearText()
     
-    builders ::= Vector.newBuilder
+    builders ::= VectorCase.newBuilder
     elems ::= { children =>
       val ns = if (uri == "") None else Some(uri)
       val map = (0 until attrs.getLength).foldLeft(Map[String, String]()) { (map, i) =>
