@@ -8,7 +8,7 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.collection.{IndexedSeqLike, TraversableLike}
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
-import scala.collection.mutable.{ArrayBuffer, Builder}
+import scala.collection.mutable.{ArrayBuffer, Builder, ListBuffer}
 
 class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase[A]) extends IndexedSeq[A] 
     with IndexedSeqLike[A, Group[A]] {
@@ -142,16 +142,31 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   override def toString = nodes.mkString
 
-  private lazy val bloomFilter: BloomFilter = {
-    val names =
-      nodes collect {
-        case Elem(_, name, _, _) => name
+  private val bloomFilter: BloomFilter = {
+    // note: mutable and horrible for performance
+    val names = new ListBuffer[String]
+    var childFilter: BloomFilter = null
+    
+    for (node <- nodes) {
+      node match {
+        case Elem(_, name, _, children) => {
+          names += name
+          
+          childFilter = if (childFilter == null)
+            children.bloomFilter
+          else
+            childFilter ++ children.bloomFilter
+        }
+        
+        case _ =>
       }
-    val subFilters =
-      nodes collect {
-        case Elem(_, _, _, children) => children.bloomFilter
-      }
-    (BloomFilter(names)(1024) /: subFilters) { _ ++ _ }
+    }
+    
+    val ourFilter = BloomFilter(names)(1024)
+    if (childFilter == null)
+      ourFilter
+    else
+      ourFilter ++ childFilter
   }
 
   private def matches(selector: Selector[_, _]) =
