@@ -91,7 +91,7 @@ private[antixml] object VectorCase {
   }
 }
 
-case object Vector0 extends VectorCase[Nothing] {
+private[antixml] case object Vector0 extends VectorCase[Nothing] {
   def length = 0
   
   def +:[B](b: B) = Vector1(b)
@@ -105,7 +105,7 @@ case object Vector0 extends VectorCase[Nothing] {
   def toVector = Vector()
 }
 
-case class Vector1[+A](_1: A) extends VectorCase[A] {
+private[antixml] case class Vector1[+A](_1: A) extends VectorCase[A] {
   def length = 1
   
   def +:[B >: A](b: B) = Vector2(b, _1)
@@ -139,7 +139,7 @@ case class Vector1[+A](_1: A) extends VectorCase[A] {
   def toVector = Vector(_1)
 }
 
-case class Vector2[+A](_1: A, _2: A) extends VectorCase[A] {
+private[antixml] case class Vector2[+A](_1: A, _2: A) extends VectorCase[A] {
   def length = 2
   
   def +:[B >: A](b: B) = Vector3(b, _1, _2)
@@ -170,7 +170,7 @@ case class Vector2[+A](_1: A, _2: A) extends VectorCase[A] {
   def toVector = Vector(_1, _2)
 }
 
-case class Vector3[+A](_1: A, _2: A, _3: A) extends VectorCase[A] {
+private[antixml] case class Vector3[+A](_1: A, _2: A, _3: A) extends VectorCase[A] {
   def length = 3
   
   def +:[B >: A](b: B) = Vector4(b, _1, _2, _3)
@@ -202,7 +202,7 @@ case class Vector3[+A](_1: A, _2: A, _3: A) extends VectorCase[A] {
   def toVector = Vector(_1, _2, _3)
 }
 
-case class Vector4[+A](_1: A, _2: A, _3: A, _4: A) extends VectorCase[A] {
+private[antixml] case class Vector4[+A](_1: A, _2: A, _3: A, _4: A) extends VectorCase[A] {
   def length = 4
   
   def +:[B >: A](b: B) = VectorN(Vector(b, _1, _2, _3, _4))
@@ -235,7 +235,7 @@ case class Vector4[+A](_1: A, _2: A, _3: A, _4: A) extends VectorCase[A] {
   def toVector = Vector(_1, _2, _3, _4)
 }
 
-case class VectorN[+A](vector: Vector[A]) extends VectorCase[A] {
+private[antixml] case class VectorN[+A](vector: Vector[A]) extends VectorCase[A] {
   def length = vector.length
   
   def +:[B >:A](b: B) = VectorN(b +: vector)
