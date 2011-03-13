@@ -57,6 +57,7 @@ them will make it (certainly not in their current form), but it's a start.  It
 will be interesting to see where things go!
 
 .. _ADT: http://en.wikipedia.org/wiki/Algebraic_data_type
+.. _large set of ideas: https://vibe.novell.com/thread/41cf4424-15c6-40dd-b79f-497bcbd8e147
 
 
 Usage
@@ -442,8 +443,6 @@ branch of the main GitHub repository.
 
 .. _deep-zipper: https://github.com/djspiewak/anti-xml/tree/deep-zipper
 
-
-.. _large set of ideas:
 
 The Task List
 =============
