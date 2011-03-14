@@ -1,3 +1,7 @@
+==================================
+Anti-XML: The Non-Violent Solution
+==================================
+
 Anti-XML is a replacement for the ``scala.xml`` package in the Scala standard
 library.  The goal is to learn from the mistakes made in the implementation of
 the original library and finally provide an implementation which corrects them.
