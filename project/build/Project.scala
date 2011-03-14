@@ -12,7 +12,7 @@ class Project(info: ProjectInfo) extends DefaultProject(info)  with IdeaProject 
   lazy val testPerf = task { args =>
     task {
       log.info("Running performance tests...")
-      new Fork.ForkScala("com.codecommit.antixml.Performance")(None, Seq("-javaagent:" + sizeOfJar.absString/*, "-agentlib:hprof=cpu=samples,depth=10"*/), perfDependencies.getFiles, args, log) match {
+      new Fork.ForkScala("com.codecommit.antixml.Performance")(None, Seq("-javaagent:" + sizeOfJar.absString, "-Xmx2g"), perfDependencies.getFiles, args, log) match {
         case 0 => None
         case x => Some("failed with error code " + x)
       }
