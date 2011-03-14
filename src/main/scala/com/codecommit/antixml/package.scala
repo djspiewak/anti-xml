@@ -12,4 +12,6 @@ package object antixml {
   }
 
   val `*`: Selector[Node, Zipper[Node]] = Selector({ case n: Node => n })
+  
+  val text: Selector[String, Traversable[String]] = Selector({ case Text(str) => str })
 }

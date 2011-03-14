@@ -123,7 +123,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
     }
   }
   
-  def \\[B, That <: IndexedSeq[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Traversable[_], B, That]): That = {
+  def \\[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[Node], B, That], cbf2: CanBuildFrom[Traversable[_], B, That]): That = {
     if (matches(selector)) {
       val recursive = this flatMap {
         case Elem(_, _, _, children) => children \\ selector
