@@ -448,6 +448,84 @@ branch of the main GitHub repository.
 .. _deep-zipper: https://github.com/djspiewak/anti-xml/tree/deep-zipper
 
 
+Performance
+===========
+
+Performance is one of the most important features of a framework, particularly
+one operating at a low-level on comparatively sizable data sets (like XML).  This
+is why we have made benchmarking and rigorous performance testing an integral
+part of our development process.  We're still adding tests and optimizing, but
+the results are already very promising.
+
+One feature of Anti-XML which is important to remember is the fact that we use
+bloom filters to optimize selection over arbitrarily large trees.  This is why
+both shallow and deep selection are almost unacountably fast under Anti-XML (when
+compared to ``scala.xml`` and even ``javax.xml``).  Unfortunately, it is also why
+Anti-XML trees require noticably more memory than ``scala.xml``, and why Anti-XML
+parse times are longer.  When bloom filters are disabled, Anti-XML parse times are
+solidly ahead of ``scala.xml``, while the memory usage is comfortably lower.
+However, disabling bloom filters means that selection performance suffers (it brings
+things about even with ``scala.xml``).  Considering that selection is likely to
+be more common than parsing, we have decided to optimize the former case at the
+expense of the latter.
+
+All of the tests below were performed on a 2010 MacBook Pro with a Dual core,
+2.66 Ghz Core i7 (Turbo up to 3 Ghz) and hyperthreading enabled, 8 GB of 1067 Mhz
+DDR3 RAM and a 256 GB 3 Gbps SATA2 SSD.  The sources for all of the performance
+tests can be found in the repository.
+
+Memory
+------
+
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+MB&chxr=1,0,350,50&chds=0,350,0,350,0,350&chd=t:48.36,326.5|45.33,197.5|37.89,168.1&chxl=0:|spending.xml+(7+MB)|discogs.xml+(30+MB)
+   :height: 300px
+   :width:  600px
+
+===========     ========        =============       =============
+Source Size     Anti-XML        ``scala.xml``       ``javax.xml``
+===========     ========        =============       =============
+7.1 MB          48.36 MB        45.33 MB            37.89 MB
+32 MB           326.5 MB        179.5 MB            168.1 MB
+===========     ========        =============       =============
+
+
+Runtime
+-------
+
+spending.xml
+~~~~~~~~~~~~
+
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,300,50&chds=0,300,0,300,0,300,0,300&chd=t:263,6,9|144,26,154|115,_,20&chxl=0:|Parse|Shallow-Select|Deep-Select
+   :height: 300px
+   :width:  600px
+
+==============     ========        =============       =============
+Action             Anti-XML        ``scala.xml``       ``javax.xml``
+==============     ========        =============       =============
+Parse              274 ms          137 ms              109 ms
+Shallow-Select     5 ms            33 ms               869 ms
+Deep-Select        10 ms           256 ms              26 ms
+==============     ========        =============       =============
+
+discogs.xml
+~~~~~~~~~~~
+
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,2100,300&chds=0,2100,0,2100,0,2100,0,2100&chd=t:2024,415,707|947,207,961|491,_,92&chxl=0:|Parse|Shallow-Select|Deep-Select
+   :height: 300px
+   :width:  600px
+
+==============     ========        =============       =============
+Action             Anti-XML        ``scala.xml``       ``javax.xml``
+==============     ========        =============       =============
+Parse              2024 ms         947 ms              491 ms
+Shallow-Select     415 ms          207 ms              ``-``
+Deep-Select        707 ms          961 ms              92 ms
+==============     ========        =============       =============
+
+
+.. _spending.xml: https://github.com/djspiewak/anti-xml/blob/master/src/test/resources/spending.xml
+
+
 The Task List
 =============
 
