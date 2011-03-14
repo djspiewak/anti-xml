@@ -3,6 +3,8 @@ package antixml
 
 import util._
 
+import scala.collection.generic.CanBuildFrom
+
 trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO dependently-typed HList, maybe?
   
@@ -29,12 +31,14 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
     }
   }
   
-  def mapWithContext[B <: Node](f: A => B): Zipper[B] = {
-    val nodes2: VectorCase[B] = toVectorCase map f
-    new Group(nodes2) with Zipper[B] {
-      val map = self.map
-      def parent = self.parent
+  override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
+    case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
+      val builder = cbf(parent.asInstanceOf[Group[A]], map)      // oddly, the type-checker isn't handling this
+      builder ++= (toVectorCase map f)
+      builder.result
     }
+    
+    case _ => super.map(f)(cbf)
   }
   
   override def updated[B >: A <: Node](index: Int, node: B) = {
