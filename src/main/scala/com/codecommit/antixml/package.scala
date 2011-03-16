@@ -10,6 +10,8 @@ package object antixml {
     val Symbol(name) = sym
     stringToSelector(name)
   }
+  
+  implicit def nodeSeqToConverter[A](a: A): Converter[A] = new Converter(a)
 
   val `*`: Selector[Node, Zipper[Node]] = Selector({ case n: Node => n })
   
