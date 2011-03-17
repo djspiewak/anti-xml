@@ -40,6 +40,11 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
     builders.head += result
   }
   
+  override def skippedEntity(entity: String) {
+    clearText()
+    builders.head += EntityRef(entity)
+  }
+  
   def result = pop().asInstanceOf[Group[Elem]]       // nasty, but it shouldn't be a problem
   
   private def pop() = {

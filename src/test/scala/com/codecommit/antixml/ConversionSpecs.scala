@@ -12,16 +12,19 @@ object ConversionSpecs extends Specification with ScalaCheck {
     "choose the most specific type" in {
       val e: xml.Elem = <test/>
       val t: xml.Atom[String] = xml.Text("text")
+      val r: xml.EntityRef = <test>&hellip;</test>.child.head.asInstanceOf[xml.EntityRef]
       val n: xml.Node = e
       val ns: xml.NodeSeq = e
       
       val e2 = e.anti
       val t2 = t.anti
+      val r2 = r.anti
       val n2 = n.anti
       val ns2 = ns.anti
       
       validate[Elem](e2)
       validate[Text](t2)
+      validate[EntityRef](r2)
       validate[Node](n2)
       validate[Group[Node]](ns2)
     }
@@ -29,6 +32,11 @@ object ConversionSpecs extends Specification with ScalaCheck {
     "convert text nodes" verifies { str: String =>
       val node = xml.Text(str)
       node.anti mustEqual Text(str)
+    }
+    
+    "convert entity references" verifies { str: String =>
+      val ref = xml.EntityRef(str)
+      ref.anti mustEqual EntityRef(str)
     }
     
     "convert elem names without namespaces" in {

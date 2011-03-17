@@ -53,6 +53,10 @@ class StAXParser extends XML {
           val characters = event.asInstanceOf[Characters]
           handler.characters(characters.text.toArray, 0, characters.text.length)
         }
+        case 8 => {
+          val entityRef = event.asInstanceOf[EntityRef]
+          handler.skippedEntity(entityRef.text)
+        }
         case _ => ()
       }
     }
@@ -112,6 +116,8 @@ class StAXIterator(source: StreamSource) extends Iterator[StAXEvents.StAXEvent] 
                 attrs,
                 stringToOption(xmlReader.getNamespaceURI))
     }
+    case `ENTITY_REFERENCE` =>
+      EntityRef(xmlReader.getLocalName, xmlReader.getText)
     case _ =>
       throw new XMLStreamException("Unexpected StAX event of type " +
                                    xmlReader.getEventType)
@@ -139,6 +145,7 @@ object StAXEvents {
     val ProcessingInstruction = 5
     val DocumentTypeDefinition = 6
     val DocumentEnd = 7
+    val EntityRef = 8
   }
 
   /**
@@ -181,6 +188,7 @@ object StAXEvents {
    * A StAXEvent indicating a DocumentTypeDefinition (DTD).
    */
   case class DocumentTypeDefinition(declaration: String) extends StAXEvent(StAXEventNumber.DocumentTypeDefinition)
+  case class EntityRef(localName: String, text: String) extends StAXEvent(StAXEventNumber.EntityRef)
   /**
    * A StAXEvent indicating the end of an XML document.
    */

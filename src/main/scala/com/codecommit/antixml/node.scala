@@ -25,3 +25,7 @@ case class Elem(ns: Option[String], name: String, attrs: Map[String, String], ch
 case class Text(text: String) extends Node {
   override def toString = text
 }
+
+case class EntityRef(entity: String) extends Node {
+  override def toString = "&" + entity + ";"
+}
