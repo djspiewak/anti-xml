@@ -203,12 +203,11 @@ A selector is an object of type ``Selector[A, Coll]``, which is really just a
 function is used to search and transform (in a single pass) the result set on a
 select.  In principle, selectors can return *any* results.  For example, one could
 write a ``text`` selector which results in a ``List[String]`` object containing
-the respective contents of the ``Text`` and ``Whitespace`` nodes in the tree.
-This selector would be defined in the following way::
+the respective contents of the ``Text`` nodes in the tree. This selector would
+be defined in the following way::
     
     val text: Selector[String, List[String]] = Selector({
       case Text(str) => str
-      case Whitespace(str) => str
     })
     
 This selector could then be used just like any other::

@@ -9,22 +9,14 @@ import org.xml.sax.helpers.DefaultHandler
 private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
   var elems = List[Group[Node] => Elem]()
   val text = new StringBuilder
-  val whitespace = new StringBuilder
   
   var builders = VectorCase.newBuilder[Node] :: Nil
   
   override def characters(ch: Array[Char], start: Int, length: Int) {
-    clearWhitespace()
     text.appendAll(ch, start, length)
   }
   
-  override def ignorableWhitespace(ch: Array[Char], start: Int, length: Int) {
-    clearText()
-    whitespace.appendAll(ch, start, length)
-  }
-  
   override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
-    clearWhitespace()
     clearText()
     
     builders ::= VectorCase.newBuilder
@@ -39,7 +31,6 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
   }
   
   override def endElement(uri: String, localName: String, qName: String) {
-    clearWhitespace()
     clearText()
     
     val (build :: elems2) = elems
@@ -55,13 +46,6 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
     val (back :: builders2) = builders
     builders = builders2
     Group fromSeq back.result
-  }
-  
-  private def clearWhitespace() {
-    if (!whitespace.isEmpty) {
-      builders.head += Whitespace(text.toString)
-      whitespace.clear()
-    }
   }
   
   private def clearText() {
