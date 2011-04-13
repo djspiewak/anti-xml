@@ -77,6 +77,15 @@ class SAXParser extends XML {
     
     handler.result
   }
+
+  def fromInputSource(source: InputSource, reader: XMLReader): Group[Elem] = {
+    val handler = new NodeSeqSAXHandler
+
+    reader.setContentHandler(handler)
+    reader.parse(source)
+
+    handler.result
+  }
 }
 object XML extends SAXParser
 
