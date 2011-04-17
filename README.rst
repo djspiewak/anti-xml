@@ -425,12 +425,16 @@ on the resulting collection.  Similarly (and as we saw in the examples), the
 *not* able to preserve context.  A full list of context-preserving methods follows
 below:
 
+* ``collect``
+* ``filter``
+* ``flatMap``
 * ``map``
 * ``updated``
 
-We're working to add more methods to this list.  The ``flatMap`` and ``filter``
-methods are *theoretically* doable, and it would be very nice to support them as
-that would allow preservation of zipper context through ``for``-comprehensions.
+We're working to add more methods to this list.  A large number of collection-returning
+utility methods can be implemented in terms of ``flatMap``.  Implementing these
+methods is largely a matter of just writing a few lines of code with the appropriate
+delegation.
 
 Other Selectors
 ---------------
