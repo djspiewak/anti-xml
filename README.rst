@@ -421,9 +421,8 @@ However, any ``map`` which returns something of type ``Node`` (or any of its
 subtypes) will preserve the zipper context and you will be able to ``unselect``
 on the resulting collection.  Similarly (and as we saw in the examples), the
 ``updated`` method is also able to preserve context.  Unfortunately, methods like
-``filter``, ``:+`` and ``+:`` (append and prepend, respectively), and so on are
-*not* able to preserve context.  A full list of context-preserving methods follows
-below:
+``:+`` and ``+:`` (append and prepend, respectively), and so on are *not* able
+to preserve context.  A full list of context-preserving methods follows below:
 
 * ``collect``
 * ``filter``
