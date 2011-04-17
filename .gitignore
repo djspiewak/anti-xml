@@ -11,3 +11,4 @@ project/plugins/src_managed/
 .DS_Store
 .project
 .classpath
+.scala_dependencies
