@@ -1,15 +1,18 @@
-package com.codecommit.antixml
+package com.codecommit
+package antixml
+
+import util._
 
 import scala.annotation.unchecked.uncheckedVariance
 
 import scala.collection.{IndexedSeqLike, TraversableLike}
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
-import scala.collection.mutable.Builder
+import scala.collection.mutable.{ArrayBuffer, Builder, ListBuffer}
 
-class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends IndexedSeq[A] 
-    with IndexedSeqLike[A, Group[A]] { self =>
-      
+class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase[A]) extends IndexedSeq[A] 
+    with IndexedSeqLike[A, Group[A]] {
+  
   override protected[this] def newBuilder = Group.newBuilder[A]
   
   def length = nodes.length
@@ -55,44 +58,59 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   
   def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
     if (matches(selector)) {
-      val results = nodes map {
-        case e @ Elem(_, _, _, children) => {
-          def rebuild(children2: Group[Node], indexes: Map[Int, Set[Int]]) = {
-            val revisedChildren = children.zipWithIndex.foldLeft(Group[Node]()) {
-              case (acc, (_, i)) if indexes contains i =>
-                indexes(i).foldLeft(acc) { _ :+ children2(_) }
-              
-              case (acc, (e, _)) => acc :+ e
+      // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
+      
+      val catBuilder = new VectorBuilder[B]
+      val chunkBuilder = new VectorBuilder[Int]
+      val rebuildBuilder = new VectorBuilder[(Group[Node], Map[Int, Set[Int]]) => Node]
+      val childMapBuilder = new VectorBuilder[Map[Int, Set[Int]]]
+      
+      for (node <- nodes) {
+        node match {
+          case e @ Elem(_, _, _, children) if children.matches(selector) => {
+            var childMap = Map[Int, Set[Int]]()
+            var currentChunk = 0
+            
+            var i = 0
+            for (child <- children) {
+              if (selector isDefinedAt child) {
+                catBuilder += selector(child)
+                childMap += (i -> Set(currentChunk))
+                currentChunk += 1
+              }
+              i += 1
             }
             
-            e.copy(children=revisedChildren)
+            chunkBuilder += currentChunk
+            childMapBuilder += childMap
+            
+            def rebuild(children2: Group[Node], indexes: Map[Int, Set[Int]]) = {
+              val revisedChildren = children.zipWithIndex.foldLeft(Group[Node]()) {
+                case (acc, (_, i)) if indexes contains i =>
+                  indexes(i).foldLeft(acc) { _ :+ children2(_) }
+                
+                case (acc, (e, _)) => acc :+ e
+              }
+              
+              e.copy(children=revisedChildren)
+            }
+            
+            rebuildBuilder += (rebuild _)
           }
           
-          val selected = children.zipWithIndex collect {
-            case (n, i) if selector isDefinedAt n => (selector(n), i)
-          }
-          
-          // this really *should* be a function on Vector
-          val unzipped = ((Vector[B](), Map[Int, Set[Int]]()) /: selected) {
-            case ((left, right), (x, y)) => (left :+ x, right + (y -> Set(left.length)))
-          }
-          
-          Some((unzipped, rebuild _))
+          case _ =>
         }
-        
-        case _ => None
       }
       
-      val (_, map) = results.foldLeft((0, Vector[ZContext]())) {
-        case ((i, acc), Some(((res, index), f))) if !res.isEmpty =>
-          (i + res.length, acc :+ (i, i + res.length, f, index))
-        
-        case ((i, acc), _) => (i, acc)
-      }
+      val cat = catBuilder.result
       
-      val cat = results flatMap {
-        case Some(((selected, _), _)) => selected
-        case None => Vector()
+      lazy val (_, map) = {
+        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[ZContext]())) {
+          case ((i, acc), ((length, f), childMap)) if length != 0 =>
+            (i + length, acc :+ (i, i + length, f, childMap))
+          
+          case ((i, acc), _) => (i, acc)
+        }
       }
       
       val builder = cbf(makeAsZipper, map)
@@ -106,34 +124,54 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
   protected def makeAsZipper: Zipper[A] = {
     new Group(nodes) with Zipper[A] {
       val map = Vector()
-      val childMap = Vector()
       def parent = error("Attempted to move up at root of the tree")
     }
   }
   
-  def \\[B, That <: IndexedSeq[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Traversable[_], B, That]): That = {
-    val recursive = this flatMap {
-      case Elem(_, _, _, children) if matches(selector) => children \\ selector
-      case _ => cbf().result
+  def \\[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[Node], B, That], cbf2: CanBuildFrom[Traversable[_], B, That]): That = {
+    if (matches(selector)) {
+      val recursive = this flatMap {
+        case Elem(_, _, _, children) => children \\ selector
+        case _ => cbf().result
+      }
+      
+      (this \ selector) ++ recursive
+    } else {
+      cbf().result
     }
-    
-    (this \ selector) ++ recursive
   }
   
-  def toVector = nodes
+  def toVector = nodes.toVector
+  
+  private[antixml] def toVectorCase: VectorCase[A] = nodes
   
   override def toString = nodes.mkString
 
   private val bloomFilter: BloomFilter = {
-    val names =
-      nodes collect {
-        case Elem(_, name, _, _) => name
+    // note: mutable and horrible for performance
+    val names = new ListBuffer[String]
+    var childFilter: BloomFilter = null
+    
+    for (node <- nodes) {
+      node match {
+        case Elem(_, name, _, children) => {
+          names += name
+          
+          childFilter = if (childFilter == null)
+            children.bloomFilter
+          else
+            childFilter ++ children.bloomFilter
+        }
+        
+        case _ =>
       }
-    val subFilters =
-      nodes collect {
-        case Elem(_, _, _, children) => children.bloomFilter
-      }
-    (BloomFilter(names)(1024) /: subFilters) { _ ++ _ }
+    }
+    
+    val ourFilter = BloomFilter(names)(1024)
+    if (childFilter == null)
+      ourFilter
+    else
+      ourFilter ++ childFilter
   }
 
   private def matches(selector: Selector[_, _]) =
@@ -143,12 +181,12 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
 object Group {
   implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
     new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
-      def apply(from: Traversable[_], baseMap: Vector[ZContext]): Builder[A, Zipper[A]] = {
-        new VectorBuilder[A] mapResult { vec =>
+      def apply(from: Traversable[_], baseMap: =>Vector[ZContext]): Builder[A, Zipper[A]] = {
+        VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
-            val map = baseMap
+            lazy val map = baseMap
             
-            def parent = from match {
+            lazy val parent = from match {
               case group: Group[Node] => group.makeAsZipper
               case _ => error("No zipper context available")
             }
@@ -156,10 +194,10 @@ object Group {
         }
       }
       
-      def apply(baseMap: Vector[ZContext]): Builder[A, Zipper[A]] = {
-        new VectorBuilder[A] mapResult { vec =>
+      def apply(baseMap: =>Vector[ZContext]): Builder[A, Zipper[A]] = {
+        VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
-            val map = baseMap
+            lazy val map = baseMap
             def parent = error("No zipper context available")
           }
         }
@@ -167,14 +205,11 @@ object Group {
     }
   }
   
-  def newBuilder[A <: Node] = new VectorBuilder[A] mapResult { new Group(_) }
+  def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { new Group(_) }
   
-  def empty[A <: Node] = new Group[A](Vector.empty)
+  def empty[A <: Node] = new Group[A](VectorCase.empty)
   
   def apply[A <: Node](nodes: A*) = fromSeq(nodes)
   
-  def fromSeq[A <: Node](seq: Seq[A]) = seq match {
-    case vec: Vector[A] => new Group(vec)
-    case _ => new Group(Vector(seq: _*))
-  }
+  def fromSeq[A <: Node](seq: Seq[A]) = new Group(VectorCase(seq: _*))
 }

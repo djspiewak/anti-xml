@@ -22,6 +22,12 @@ object GroupSpecs extends Specification {
       val result = NodeSeq(elem("a"), elem("a"), elem("a"))
       ns \ "a" mustEqual result
     }
+    
+    "work with an alternative selector" in {
+      val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
+      val strs = ns \ text
+      strs mustEqual Vector("Some text", "More text")
+    }
   }
   
   "deep selector" should {
@@ -40,6 +46,12 @@ object GroupSpecs extends Specification {
       val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
       val result = fromString("<parent><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><target>outside</target><target>sub1</target><target>top3-outer</target><target>phoney</target><target>top1</target><target>top2</target></parent>")
       ns \\ "target" mustEqual result.head.children
+    }
+    
+    "work with an alternative selector" in {
+      val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
+      val strs = ns \\ text
+      strs mustEqual Vector("Some text", "More text", "top", "outside", "sub1", "top3-outer", "top1", "top2", "phoney")
     }
   }
   

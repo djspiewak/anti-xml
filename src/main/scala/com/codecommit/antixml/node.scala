@@ -26,6 +26,6 @@ case class Text(text: String) extends Node {
   override def toString = text
 }
 
-case class Whitespace(text: String) extends Node {
-  override def toString = text
+case class EntityRef(entity: String) extends Node {
+  override def toString = "&" + entity + ";"
 }

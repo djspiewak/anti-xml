@@ -7,3 +7,8 @@ project/plugins/src_managed/
 *.ipr
 *.iws
 .idea
+.ensime
+.DS_Store
+.project
+.classpath
+.scala_dependencies
