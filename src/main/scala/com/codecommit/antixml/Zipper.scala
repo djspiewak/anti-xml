@@ -83,7 +83,16 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
 
     case _ => super.flatMap(f)(cbf)
   }
-
+  
+  override def filter(f: A => Boolean): Zipper[A] = collect {
+    case e if f(e) => e
+  }
+  
+  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = flatMap {
+    case e if pf isDefinedAt e => Some(pf(e))
+    case _ => None
+  }
+  
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVectorCase) with Zipper[B] {
       val map = self.map
