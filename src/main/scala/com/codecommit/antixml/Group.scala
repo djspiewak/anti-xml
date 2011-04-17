@@ -57,13 +57,12 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
     if (matches(selector)) {
       val results = nodes map {
         case e @ Elem(_, _, _, children) => {
-          def rebuild(children2: Group[Node], indexes: Vector[Int]) = {
-            val (_, _, revisedChildren) = children.zipWithIndex.foldLeft((children2.view, indexes.view, Group[Node]())) {
-              case ((children2, indexes, acc), (e, i)) if indexes.head == i =>
-                (children2.tail, indexes.tail, acc :+ children2.head)
+          def rebuild(children2: Group[Node], indexes: Map[Int, Set[Int]]) = {
+            val revisedChildren = children.zipWithIndex.foldLeft(Group[Node]()) {
+              case (acc, (_, i)) if indexes contains i =>
+                indexes(i).foldLeft(acc) { _ :+ children2(_) }
               
-              case ((children2, indexes, acc), (e, _)) =>
-                (children2, indexes, acc :+ e)
+              case (acc, (e, _)) => acc :+ e
             }
             
             e.copy(children=revisedChildren)
@@ -74,8 +73,8 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
           }
           
           // this really *should* be a function on Vector
-          val unzipped = ((Vector[B](), Vector[Int]()) /: selected) {
-            case ((left, right), (x, y)) => (left :+ x, right :+ y)
+          val unzipped = ((Vector[B](), Map[Int, Set[Int]]()) /: selected) {
+            case ((left, right), (x, y)) => (left :+ x, right + (y -> Set(left.length)))
           }
           
           Some((unzipped, rebuild _))
@@ -84,11 +83,11 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
         case _ => None
       }
       
-      val (_, map, childMap) = results.foldLeft((0, Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)](), Vector[Int]())) {
-        case ((i, acc, childAcc), Some(((res, index), f))) if !res.isEmpty =>
-          (i + res.length, acc :+ (i, i + res.length, f), childAcc ++ index)
+      val (_, map) = results.foldLeft((0, Vector[ZContext]())) {
+        case ((i, acc), Some(((res, index), f))) if !res.isEmpty =>
+          (i + res.length, acc :+ (i, i + res.length, f, index))
         
-        case ((i, acc, childAcc), _) => (i, acc, childAcc)
+        case ((i, acc), _) => (i, acc)
       }
       
       val cat = results flatMap {
@@ -96,11 +95,11 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
         case None => Vector()
       }
       
-      val builder = cbf(makeAsZipper, map, childMap)
+      val builder = cbf(makeAsZipper, map)
       builder ++= cat
       builder.result
     } else {
-      cbf(Vector(), Vector()).result
+      cbf(Vector()).result
     }
   }
   
@@ -144,11 +143,10 @@ class Group[+A <: Node] private[antixml] (private val nodes: Vector[A]) extends 
 object Group {
   implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
     new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
-      def apply(from: Traversable[_], baseMap: Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)], baseChildMap: Vector[Int]): Builder[A, Zipper[A]] = {
+      def apply(from: Traversable[_], baseMap: Vector[ZContext]): Builder[A, Zipper[A]] = {
         new VectorBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             val map = baseMap
-            val childMap = baseChildMap
             
             def parent = from match {
               case group: Group[Node] => group.makeAsZipper
@@ -158,11 +156,10 @@ object Group {
         }
       }
       
-      def apply(baseMap: Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)], baseChildMap: Vector[Int]): Builder[A, Zipper[A]] = {
+      def apply(baseMap: Vector[ZContext]): Builder[A, Zipper[A]] = {
         new VectorBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             val map = baseMap
-            val childMap = baseChildMap
             def parent = error("No zipper context available")
           }
         }

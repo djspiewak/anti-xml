@@ -4,75 +4,89 @@ import scala.collection.generic.CanBuildFrom
 
 trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO dependently-typed HList, maybe?
-  
-  val map: Vector[(Int, Int, (Group[Node], Vector[Int]) => Node)]
-  val childMap: Vector[Int]
+
+  val map: Vector[ZContext]
   def parent: Zipper[Node]
-  
+
   // TODO this *may* be a poor choice of words...
   def stripZipper = new Group(toVector)
-  
+
   def unselect: Zipper[Node] = {
     val nodes2 = (map zip parent.toVector).foldLeft(Vector[Node]()) {
-      case (acc, ((from, to, _), _: Elem)) if from == to => acc
-      case (acc, ((from, to, rebuild), _: Elem)) => acc :+ rebuild(self.slice(from, to), childMap.slice(from, to))
+      case (acc, ((from, to, _, _), _: Elem)) if from == to => acc
+      case (acc, ((from, to, rebuild, childMap), _: Elem)) => acc :+ rebuild(self.slice(from, to), childMap)
       case (acc, (_, e)) => acc :+ e
     }
-    
+
     new Group(nodes2) with Zipper[Node] {
       val map = self.parent.map
-      val childMap = self.parent.childMap
       def parent = self.parent.parent
     }
   }
-  
+
   override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
     case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
-      val builder = cbf(parent.asInstanceOf[Group[A]], map, childMap)      // oddly, the type-checker isn't handling this
+      val builder = cbf(parent.asInstanceOf[Group[A]], map) // oddly, the type-checker isn't handling this
       builder ++= (toVector map f)
       builder.result
     }
-    
+
     case _ => super.map(f)(cbf)
   }
-  
+
   override def flatMap[B, That](f: A => Traversable[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
     case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
       val result = toVector map f
-      
-      val map2 = for (((from, to, rebuild), i) <- map.zipWithIndex) yield {
-        val chunk = result.slice(from, to).flatten
-        val length = chunk.length       // nasty
+
+      val intermedMap = for ((from, to, rebuild, childMap) <- map) yield {
+        // get the mapping from *our* indexes to source indexes
+        val inverseMap = {
+          val maps = for ((source, targets) <- childMap)
+            yield (Map[Int, Int]() /: targets) { (acc, t) => acc + (t -> source) }
+
+          (Map[Int, Int]() /: maps) { _ ++ _ }
+        }
+
+        val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), Map[Int, Set[Int]]())) {
+          case ((start, acc, childMap2), (chunk, i)) => {
+            val size = chunk.size
+            val source = inverseMap(i)
+
+            val contrib = Set(start until (start + size): _*)
+            val set2 = childMap2.getOrElse(source, contrib) ++ contrib
+
+            (start + size, acc ++ chunk, childMap2.updated(source, set2))
+          }
+        }
+
+        val length = aggregate.length
         val delta = length - (to - from)
-        (from, to + delta, rebuild, chunk, delta, i)
+        (from, to + delta, rebuild, childMap2, aggregate, delta)
       }
-      
-      val childMap2 = (childMap zip result).foldLeft(Vector[Int]()) {
-        case (acc, (i, chunk)) =>
-          acc ++ Stream.fill(chunk.size)(i)
+
+      val (_, map2, chunks) = intermedMap.foldLeft((0, Vector[ZContext](), Vector[Vector[B]]())) {
+        case ((offset, map2, acc), (from, to, rebuild, childMap, aggregate, delta)) => {
+          val from2 = from + offset
+          val to2 = to + offset
+          val offset2 = offset + delta
+          (offset2, map2 :+ (from2, to2, rebuild, childMap), acc :+ aggregate)
+        }
       }
-      
-      val sorted = map2 sortBy { case (from, _, _, _, _, _) => from }
-      val (_, map3, chunks) = sorted.foldLeft((0, map, Vector[Traversable[B]]())) {
-        case ((offset, map, chunks), (from, to, rebuild, chunk, delta, i)) =>
-          (offset + delta, map.updated(i, (from + offset, to + offset, rebuild)), chunks :+ chunk)
-      }
-      
-      val builder = cbf(parent.asInstanceOf[Group[A]], map3, childMap2)
+
+      val builder = cbf(parent.asInstanceOf[Group[A]], map2)
       chunks foreach (builder ++=)
       builder.result
     }
-    
+
     case _ => super.flatMap(f)(cbf)
   }
-  
+
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVector) with Zipper[B] {
       val map = self.map
-      val childMap = self.childMap
       val parent = self.parent
     }
   }
-  
+
   override protected def makeAsZipper = self
 }
