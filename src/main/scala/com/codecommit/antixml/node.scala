@@ -2,7 +2,9 @@ package com.codecommit.antixml
 
 sealed trait Node
 
-case class ProcInstr(target: String, data: String) extends Node
+case class ProcInstr(target: String, data: String) extends Node {
+  override def toString = "<?" + target + " " + data + "?>"
+}
 
 case class Elem(ns: Option[String], name: String, attrs: Map[String, String], children: Group[Node]) extends Node {
   override def toString = {
