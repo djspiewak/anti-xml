@@ -10,6 +10,67 @@ import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{IndexedSeq, Vector, VectorBuilder}
 import scala.collection.mutable.{ArrayBuffer, Builder, ListBuffer}
 
+/**
+ * Represents a collection of arbitrary nodes ([[com.codecommit.antixml.Node]])).
+ * Note that this collection need not have a single root parent element.  Thus,
+ * a valid `Group` could be as follows:
+ *
+ * {{{
+ * Group(EntityRef("quot"), Text("Daniel is "), Elem(None, "em", Map(), Group(Text("delusional!"))), EntityRef("quot"))
+ * }}}
+ *
+ * This would correspond to the following XML fragment (note: not actually well-formed
+ * XML, since it is lacking a single root element):
+ * 
+ * {{{
+ * &quot;Daniel is <em>delusional!</em>&quot;
+ * }}}
+ *
+ * Note that unlike `scala.xml`, `Group` is ''not'' a special type of [[com.codecommit.antixml.Node]]!
+ * This design decision has a very profound impact on the framework as a whole.
+ * In general, the result is an API which is more consistent and more predictable
+ * than it otherwise would have been.  However, it also resulted in some unfortunate
+ * sacrifices: specifically, full XPath semantics.  The exact semantics of the
+ * `\` and `\\` operators are defined in their respective scaladocs.
+ * 
+ * `Group` is parameterized based on the type of `Node` it contains.  In the
+ * general case (such as the one illustrated above), this will be exactly `Node`.
+ * However, there are some very common cases wherein a `Group` may have a more
+ * specific type than just `Node`.  For example:
+ *
+ * {{{
+ * val ns: Group[Node] = ...
+ * val results = ns \ "name"
+ * }}}
+ *
+ * In this example, `results` will have type `Group[Elem]`.  This is because the
+ * selector employed (`"name"`) can ''only'' produce results of type `Elem`.  This
+ * mechanism forms the basis for the typed selectors mechanism, which is extremely
+ * powerful and serves to eliminate a great deal of boiler-plate casting when
+ * traversing XML hierarchies.
+ *
+ * In the general case, `Group` is backed by an instance of [[scala.collection.immutable.Vector]].
+ * This implementation detail is significant as it implies two things.  First,
+ * the implementation of `Group` is truly immutable, meaning that there are no
+ * tricky concurrency semantics to worry about.  Second, unlike `scala.xml` (which
+ * backs its sequences by either `List` or `ArrayBuffer`, depending on phase of
+ * the moon), it is possible to perform ''efficient'' random-access and updates
+ * across the entire `Group`.  Random access is implemented by the `apply` method,
+ * while random "updates" are implemented by the `updated` method.  Fast prepend
+ * and append operations are also available.
+ *
+ * Beyond this, all standard collection operations are available on `Group` (e.g.
+ * `flatMap`, `exists`, `collect`, `slice`, etc).  The appropriate incantations
+ * have been spoken to allow these methods to return the correct type.  Thus, if
+ * you `map` over a `Group` and your function returns something which extends
+ * `Node`, the result will be a `Group`.  If your function returns something which
+ * does ''not'' extend `Node` (e.g. `Int`), then the result will be something
+ * else (probably a generic `IndexedSeq` backed by `Vector`).  `Group` itself
+ * extends [[scala.collection.immutable.IndexedSeq]] and thus can be used in
+ * situations which require this abstraction.
+ *
+ * @author Daniel Spiewak
+ */
 class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase[A]) extends IndexedSeq[A] 
     with IndexedSeqLike[A, Group[A]] {
   
