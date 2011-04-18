@@ -7,6 +7,8 @@ object BloomFilterSpecs extends Specification with ScalaCheck {
   import Prop._
   import scala.math._
   
+  val numProcessors = Runtime.getRuntime.availableProcessors
+  
   "contains" should {
     "never give a false negative" in {
       val prop = forAll { xs: List[String] =>
@@ -14,7 +16,7 @@ object BloomFilterSpecs extends Specification with ScalaCheck {
         xs mustNotExist { x => !filter.contains(x) }
       }
       
-      prop must pass(set(maxSize -> 1000))
+      prop must pass(set(maxSize -> (numProcessors * 1000), workers -> numProcessors))
     }
   }
 
@@ -37,7 +39,7 @@ object BloomFilterSpecs extends Specification with ScalaCheck {
         xs2 mustNotExist { x => !filter.contains(x) }
       }
       
-      prop must pass(set(maxSize -> 1000))
+      prop must pass(set(maxSize -> (numProcessors * 1000), workers -> numProcessors))
     }
     
     "be commutative" in {
@@ -48,7 +50,7 @@ object BloomFilterSpecs extends Specification with ScalaCheck {
         (filter1 ++ filter2) mustEqual (filter2 ++ filter1)
       }
       
-      prop must pass(set(maxSize -> 1000))
+      prop must pass(set(maxSize -> (numProcessors * 1000), workers -> numProcessors))
     }
   }
 }

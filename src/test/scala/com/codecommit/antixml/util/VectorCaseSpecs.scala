@@ -7,6 +7,8 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
   import Prop._
   import math._
   
+  val numProcessors = Runtime.getRuntime.availableProcessors
+  
   val vector = VectorCase[Int]()
   
   implicit def arbitraryVectorCase[A](implicit arb: Arbitrary[A]): Arbitrary[VectorCase[A]] = {
@@ -27,7 +29,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         vec.length == list.length
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "replace single element" in {
@@ -39,7 +41,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         }
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "fail on apply out-of-bounds" in {
@@ -59,7 +61,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         }
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "store multiple elements in order" in {
@@ -70,7 +72,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         res forall { _ == true }
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "store lots of elements" in {
@@ -92,7 +94,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         vec2.last mustEqual 42
       }
       
-      prop must pass(set(maxSize -> 3000, minTestsOk -> 1000))
+      prop must pass(set(maxSize -> 3000, minTestsOk -> 1000, workers -> numProcessors))
     }
     
     "maintain both old and new versions after update" in {
@@ -107,7 +109,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         }
       }
       
-      prop must pass(set(maxSize -> 3000, minTestsOk -> 1000))
+      prop must pass(set(maxSize -> 3000, minTestsOk -> 1000, workers -> numProcessors))
     }
     
     "implement filter" in {
@@ -123,7 +125,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         back
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "implement foldLeft" in {
@@ -132,7 +134,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         vec.foldLeft(0) { _ + _ } == list.foldLeft(0) { _ + _ }
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "implement forall" in {
@@ -147,7 +149,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         (back && bool) || (!back && !bool)
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "implement flatMap" in {
@@ -176,7 +178,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         back
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "implement map" in {
@@ -190,7 +192,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         back
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "implement reverse" in {
@@ -204,7 +206,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         back
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "append to reverse" in {
@@ -219,7 +221,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         back && add(rev.length) == n
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "map on reverse" in {
@@ -234,7 +236,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         back
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "implement zip" in {
@@ -249,7 +251,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         back
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "implement zipWithIndex" in {
@@ -265,7 +267,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         back
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
     
     "implement equals" in {
@@ -277,7 +279,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
           vecA == vecB
         }
         
-        prop must pass
+        prop must pass(set(workers -> numProcessors))
       }
       
       {
@@ -285,7 +287,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
           vecA.length != vecB.length ==> (vecA != vecB)
         }
         
-        prop must pass
+        prop must pass(set(workers -> numProcessors))
       }
       
       {
@@ -296,13 +298,13 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
           listA != listB ==> (vecA != vecB)
         }
         
-        prop must pass
+        prop must pass(set(workers -> numProcessors))
       }
       
       {
         val prop = forAll { (vec: VectorCase[Int], data: Int) => vec != data }
         
-        prop must pass
+        prop must pass(set(workers -> numProcessors))
       }
     }
     
@@ -314,7 +316,7 @@ object VectorCaseSpecs extends Specification with ScalaCheck {
         vecA.hashCode == vecB.hashCode
       }
       
-      prop must pass
+      prop must pass(set(workers -> numProcessors))
     }
   }
 }
