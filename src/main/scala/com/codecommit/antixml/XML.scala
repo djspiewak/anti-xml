@@ -75,7 +75,7 @@ class SAXParser extends XML {
     val handler = new NodeSeqSAXHandler
     parser.parse(source, handler)
     
-    handler.result
+    handler.result()
   }
 }
 object XML extends SAXParser

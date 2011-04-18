@@ -6,11 +6,11 @@ import util._
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
-private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
-  var elems = List[Group[Node] => Elem]()
-  val text = new StringBuilder
+class NodeSeqSAXHandler extends DefaultHandler {
+  private var elems = List[Group[Node] => Elem]()
+  private val text = new StringBuilder
   
-  var builders = VectorCase.newBuilder[Node] :: Nil
+  private var builders = VectorCase.newBuilder[Node] :: Nil
   
   override def characters(ch: Array[Char], start: Int, length: Int) {
     text.appendAll(ch, start, length)
@@ -45,7 +45,7 @@ private[antixml] class NodeSeqSAXHandler extends DefaultHandler {
     builders.head += EntityRef(entity)
   }
   
-  def result = pop().asInstanceOf[Group[Elem]]       // nasty, but it shouldn't be a problem
+  def result() = pop().asInstanceOf[Group[Elem]]       // nasty, but it shouldn't be a problem
   
   private def pop() = {
     val (back :: builders2) = builders
