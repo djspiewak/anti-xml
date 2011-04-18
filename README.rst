@@ -71,6 +71,7 @@ We haven't pushed any compiled binaries as of yet.  You will need to clone the
 project using Git.  Then, use SBT to build a JAR for the project.  Everything
 you need will be in the ``com.codecommit.antixml`` package.  Enjoy!
 
+The work-in-progress scaladoc can be found here_, archived on `the project CI server`_.
 The API should look fairly familiar to anyone who has used the ``scala.xml``
 package.  For example::
     
@@ -135,6 +136,8 @@ tree around it, ariving at the original structure modulo the change made to the
 third ``<book>`` element deep inside the tree.  For more details, see some of
 the following sections.
 
+.. _here: http://hudson.danielspiewak.org/job/anti-xml/javadoc/?
+.. _the project CI server: http://hudson.danielspiewak.org/job/anti-xml/
 .. _bookstore.xml: https://github.com/djspiewak/anti-xml/blob/master/src/test/resources/bookstore.xml
 .. _node.scala: https://github.com/djspiewak/anti-xml/blob/master/src/main/scala/com/codecommit/antixml/node.scala
 .. _algebraic data type: http://en.wikipedia.org/wiki/Algebraic_data_type
