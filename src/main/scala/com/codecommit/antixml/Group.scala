@@ -319,6 +319,10 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
     selector.elementName map bloomFilter.contains getOrElse true
 }
 
+/**
+ * Factory singleton for `Group`.  This object is primarily used for creating
+ * new `Group`(s) from specified nodes.
+ */
 object Group {
   implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
     new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
@@ -348,9 +352,30 @@ object Group {
   
   def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { new Group(_) }
   
+  /**
+   * @return An empty [[com.codecommit.antixml.Group]] with the given parameter type.
+   */
   def empty[A <: Node] = new Group[A](VectorCase.empty)
   
+  /**
+   * Builds a new group with the specified set of nodes in order.  The most specific
+   * group type possible is selected (e.g. `Group[Elem]`).  This method delegates
+   * to the `fromSeq` method.
+   */
   def apply[A <: Node](nodes: A*) = fromSeq(nodes)
   
+  /**
+   * Builds a new group with the specified set of nodes in order.  The most specific
+   * group type possible is selected (e.g. `Group[Elem]`).  If the given `Seq`
+   * has the ''runtime'' type of [[scala.collection.immutable.Vector]], then no
+   * copying will be performed and the resulting `Group` will be a simple wrapper
+   * around the specified `Vector`.  However, if the `Seq` has ''any'' other
+   * runtime type, its contents will be copied into a new `Vector` internal to
+   * the resulting `Group`.  This design makes it impossible to accidentally
+   * leak a mutable data structure into an XML tree.  If the performance
+   * implications of the copy operation prove prohibitive, then you must attempt
+   * to ensure that the sequences you pass to this method are always of type
+   * `Vector`, since this will avoid the penalty.
+   */
   def fromSeq[A <: Node](seq: Seq[A]) = new Group(VectorCase(seq: _*))
 }
