@@ -573,5 +573,9 @@ The task list for this project is maintained as a public message in `Novell Vibe
 To access this message, simply sign up for a free account (if you haven't already)
 and then hit the following URL: https://vibe.novell.com/thread/41cf4424-15c6-40dd-b79f-497bcbd8e147
 
+Note: before you start contributing to the project, you really should read the
+CONTRIBUTING.rst_ document.  This outlines some basic guidelines, as well as the
+legal mumbo-jumbo required to ensure we all have our copyrights straight.
+
 
 .. _Novell Vibe: https://vibe.novell.com
