@@ -117,6 +117,70 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
+  /**
+   * Performs a shallow-select on the XML tree according to the specified selector
+   * function.  Shallow selection is defined according to the following expression:
+   *
+   * {{{
+   * nodes flatMap {
+   *   case Elem(_, _, _, children) => children collect selector
+   *   case _ => Group()
+   * }
+   * }}}
+   *
+   * In English, this means that a shallow selection works by first selecting
+   * ''only'' the [[com.codecommit.antixml.Elem]](s) at the top level and then
+   * filtering their children according to the selector.  The results of these
+   * filtrations are concatenated together, producing a single flattened result.
+   *
+   * '''Very important:''' This is ''not'' the same as the XPath `/` operator!
+   * (nor does it strive to be)  XPath is inconsistent in its selection semantics,
+   * varying them slightly depending on whether or not you are selecting from
+   * the top level or in the middle of a compound expression.  As a result, it
+   * is categorically ''impossible'' to implement XPath in a combinatorial
+   * fashion.  Rather than give up on combinators, we chose to give up on XPath.
+   * In practice, this "select child `Elem`(s), then filter their children" behavior
+   * tends to be the most useful variant of the XPath selection.  The "missed"
+   * case here is applying a filter to the top-level set of nodes.  This is
+   * currently not handled by the API (perhaps in future).  For now, if you need
+   * this functionality, it's pretty easy to get it using the `filter` method.
+   * 
+   * The results of this function will be a collection of some variety, but the
+   * exact type is determined by the selector itself.  For example:
+   *
+   * {{{
+   * val ns: Group[Node] = ...
+   * ns \ "name"
+   * ns \ *
+   * ns \ text
+   * }}}
+   *
+   * The three selection expressions here produce very different results.  The
+   * first will produce a collection of type [[com.codecommit.antixml.Zipper]]`[`[[com.codecommit.antixml.Elem]]`]`,
+   * the second will produce [[com.codecommit.antixml.Zipper]]`[`[[com.codecommit.antixml.Node]]`]`,
+   * while the third will produce [[scala.collection.Traversable]]`[`[[scala.String]]`]`.
+   * This reflects the fact that the selector produced (by implicit conversion)
+   * from a `String` will only filter for nodes of type [[com.codecommit.antixml.Elem]].
+   * However, the `*` selector will filter for ''all'' nodes (as the wildcard
+   * symbol would suggest) and thus it must return a collection containing the
+   * fully-generic [[com.codecommit.antixml.Node]].  Finally, the `text` selector
+   * specifically pulls out the textual contents of nodes, and thus its results
+   * will not be nodes at all, but raw `String`(s).
+   *
+   * Whenever supported by the resulting collection type, the selection operation
+   * will preserve a "backtrace", or an "undo log" of sorts.  This backtrace is
+   * known as a zipper context.  This context makes it possible to operate on
+   * the collection resulting from performing a selection, then ''unselect'' to
+   * rebuild the original collection around it (modulo the changes made).  This
+   * provides a very clean and powerful way of drilling down into an XML tree,
+   * making some changes and then realizing those changes within the context of
+   * the full tree.  In a sense, it solves the major inconvenience associated
+   * with immutable tree structures: the need to manually rebuild the entire
+   * ancestry of the tree after making a change somewhere within.
+   * 
+   * @see [[com.codecommit.antixml.Zipper]]
+   * @usecase def \(selector: Selector[Node, Zipper[Node]]): Zipper[Node]
+   */
   def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
     if (matches(selector)) {
       // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
@@ -202,10 +266,26 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
     }
   }
   
+  /**
+   * Produces a [[scala.collection.immutable.Vector]] which contains all of the
+   * nodes in this `Group`.  This function is guaranteed to run in constant time.
+   */
   def toVector = nodes.toVector
   
   private[antixml] def toVectorCase: VectorCase[A] = nodes
   
+  /**
+   * Serializes the nodes in this `Group` into their most compact XML representation
+   * and concatenates the result.  Note that the result of this method may not
+   * be well-formed XML, since well-formed XML is required to have only a single
+   * parent element (whereas a `Group` may contain multiple nodes at its top level).
+   *
+   * This is not a pretty-print.  The resulting XML will not be formatted in any
+   * way.  It will be ''precisely'' the XML fragment represented by this `Group`,
+   * no more and no less.
+   *
+   * @return The XML fragment represented by this `Group` in `String` form
+   */
   override def toString = nodes.mkString
 
   private val bloomFilter: BloomFilter = {
