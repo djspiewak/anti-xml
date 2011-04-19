@@ -19,4 +19,9 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify {
       }
     } dependsOn (testCompile, copyTestResources)
   }
+  
+  override def documentOptions =
+    CompoundDocOption("-sourcepath", mainScalaSourcePath.asFile.getCanonicalPath) ::
+    CompoundDocOption("-doc-source-url", "https://github.com/djspiewak/anti-xml/tree/master/src/main/scala€{FILE_PATH}.scala") ::
+    super.documentOptions.toList
 }
