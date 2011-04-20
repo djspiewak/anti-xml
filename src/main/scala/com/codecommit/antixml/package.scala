@@ -17,8 +17,6 @@ package com.codecommit
  * </ul>
  */
 package object antixml {
-  // type NodeSeq = Group[Node]        // TODO triggers a compiler bug
-
   // (from, to, rebuild, internal map)
   private[antixml] type ZContext = (Int, Int, (Group[Node], Map[Int, Set[Int]]) => Node, Map[Int, Set[Int]])
 

@@ -14,18 +14,18 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
   "shallow selector" should {
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
-      ns \ "parent" mustEqual NodeSeq(elem("parent"))
+      ns \ "parent" mustEqual Group(elem("parent"))
     }
     
     "be referentially transparent" in {
       val ns = fromString("<parent><parent/></parent>")
-      ns \ "parent" mustEqual NodeSeq(elem("parent"))
-      ns \ "parent" mustEqual NodeSeq(elem("parent"))
+      ns \ "parent" mustEqual Group(elem("parent"))
+      ns \ "parent" mustEqual Group(elem("parent"))
     }
     
     "find a subset of nodes" in {
       val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>")
-      val result = NodeSeq(elem("a"), elem("a"), elem("a"))
+      val result = Group(elem("a"), elem("a"), elem("a"))
       ns \ "a" mustEqual result
     }
     
@@ -53,12 +53,12 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
   "deep selector" should {
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
-      ns \\ "parent" mustEqual NodeSeq(elem("parent"))
+      ns \\ "parent" mustEqual Group(elem("parent"))
     }
     
     "find a subset of nodes" in {
       val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>")
-      val result = NodeSeq(elem("a"), elem("a"), elem("a"))
+      val result = Group(elem("a"), elem("a"), elem("a"))
       ns \\ "a" mustEqual result
     }
     
@@ -100,5 +100,5 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
     }
   }
   
-  def elem(name: String, children: Node*) = Elem(None, name, Map(), NodeSeq(children: _*))
+  def elem(name: String, children: Node*) = Elem(None, name, Map(), Group(children: _*))
 }

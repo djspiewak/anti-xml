@@ -5,7 +5,7 @@ import org.specs._
 object SelectorSpecs extends Specification {
   "the * selector should" in {
     "select nothing when parent is empty" in {
-      XML.fromString("<parent/>") \ * mustEqual NodeSeq()
+      XML.fromString("<parent/>") \ * mustEqual Group()
     }
     
     "select entire contents of parent" in {
