@@ -81,7 +81,7 @@ class StAXParser extends XML {
 }
 
 object StAXIterator {
-  def fromString(xml: String): StAXIterator =
+  def fromString(xml: String): Iterator[StAXEvents.StAXEvent] =
     new StAXIterator(new StreamSource(new StringReader(xml)))
 }
 /**
@@ -90,7 +90,7 @@ object StAXIterator {
  * Java Streaming API for XML</a>.
  * @see java.xml.stream
  */
-class StAXIterator(source: StreamSource) extends Iterator[StAXEvents.StAXEvent] {
+private[antixml] class StAXIterator(source: StreamSource) extends Iterator[StAXEvents.StAXEvent] {
   import StAXEvents._
   
   private val xmlReader =
