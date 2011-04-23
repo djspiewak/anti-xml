@@ -37,10 +37,53 @@ class Converter[A](a: A) {
 }
 
 
+/**
+ * Typeclass definition for conversions used by the [[com.codecommit.antixml.Converter]] pimp.
+ * Note that this type is ''exactly'' isomorphic to [[scala.Function1]], right
+ * down to the method name (`apply`).  Normally, such a class would in fact extend
+ * `A => B`, rather than simply emulating its interface.  However, because most
+ * instances of `XMLConvertable` will be implicit, we cannot blithely extend
+ * `Function1`.  To do so would polute the scope with an unexpected proliferation
+ * of ''implicit'' conversions which would be automatically injected by the Scala
+ * compiler, rather than allowing us to tag them ''explicitly'' using the `anti` method.
+ * 
+ * @see [[com.codecommit.antixml.Converter]]
+ */
 trait XMLConvertable[-A, +B] {      // note: doesn't extend Function1 to avoid coercion
+  
+  /**
+   * Convert a value of type `A` into a (hopefully equivalent) value of type `B`.
+   */
   def apply(a: A): B
 }
 
+/**
+ * Contains the built-in explicit conversions into Anti-XML.  Currently, these
+ * conversions only cover types in `scala.xml`.  This may be expanded in future.
+ *
+ * All of the members in this object are implicit, and thus it is rare for a user
+ * to need to access them directly.  The membership is contrived in such a way
+ * that the implicit resolution will use the following precedence order:
+ *
+ * <ul>
+ * <li>`ElemConvertable`</li>
+ * <li>`TextConvertable`</li>
+ * <li>`EntityRefConvertable`</li>
+ * <li>`NodeConvertable`</li>
+ * <li>`NodeSeqConvertable`</li>
+ * </ul>
+ *
+ * This corresponds with the roughly-intuitive conversion precedence.  Thus, if
+ * we have a value of type [[scala.xml.Elem]] and we invoke the `anti` method on
+ * that value, the result will be of type [[com.codecommit.antixml.Elem]].  However,
+ * if we take that same value and ascribe it the type of [[scala.xml.Node]],
+ * the `anti` method will return a value of type [[com.codecommit.antixml.Node]].
+ * Finally, we can take this same value and ascribe it the even less-specific type
+ * of [[scala.xml.NodeSeq]] (or even [[scala.Seq]]`[`[[scala.xml.Node]]`]`, for
+ * that matter).  Invoking the `anti` method on this maximally-widened type will
+ * produce a value of type [[com.codecommit.antixml.Group]]`[`[[com.codecommit.antixml.Node]]`]`.
+ * Thus, the most specific conversion is chosen in all cases.
+ */
 object XMLConvertable extends SecondPrecedenceConvertables {
   implicit object ElemConvertable extends XMLConvertable[xml.Elem, Elem] {
     def apply(e: xml.Elem) = {
