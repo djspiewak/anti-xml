@@ -253,6 +253,41 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
     }
   }
   
+  /**
+   * Performs a deep-select on the XML tree according to the specified selector
+   * function.  Deep selection is defined according to the following recursion:
+   *
+   * {{{
+   * val recursive = nodes flatMap {
+   *   case Elem(_, _, _, children) => children \\ selector
+   *   case _ => Group()
+   * }
+   * 
+   * (this \ selector) ++ recursive
+   * }}}
+   *
+   * In English, this means that deep selection is defined simply as the recursive
+   * application of shallow selection (`\`), all the way from the root down to the
+   * leaves.  Note that the recursion does not short circuit when a result is
+   * found.  Thus, if a parent node matches the selector as well as one of its
+   * children, then both the parent ''and'' the child will be returned, with the
+   * parent preceeding the child in the results.
+   *
+   * Just as with shallow selection, the very outermost level of the group is not
+   * considered in the selection.  Thus, deep selection is not ''exactly'' the
+   * same as the XPath `//` operator, since `//` will consider the outermost level,
+   * while Anti-XML's deep selection `\\` will not.
+   *
+   * '''Note:''' For certain selectors (such as an element name selector defined
+   * using a `String` or `Symbol`), the result of this method will be a zipper,
+   * similar to the results from the shallow-select operator (`\`).  This zipper
+   * will ''not'' be valid!  Zipper context synthesis for deep selection is
+   * currently unimplemented.  Thus, any attempt to use the `unselect` method on
+   * the resulting zipper will likely throw an exception.  At the very least, it
+   * won't return a useful result.  The implementation of this feature is ongoing.
+   * 
+   * @usecase def \\(selector: Selector[Node, Zipper[Node]]): Zipper[Node]
+   */
   def \\[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[Node], B, That], cbf2: CanBuildFrom[Traversable[_], B, That]): That = {
     if (matches(selector)) {
       val recursive = this flatMap {
