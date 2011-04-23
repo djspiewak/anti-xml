@@ -51,8 +51,8 @@ This not only ensures thread-safety, it also provides substantially better
 performance and a lower memory footprint.  We've also been re-thinking some
 fundamental aspects of the API.  For example, ``Node`` no longer extends ``NodeSeq``.
 In fact, there is *no* ``NodeSeq``.  Instead, anti-xml provides a ``Group[+A <: Node]``
-type which is far more general and far more convenient convenient in practice.
-(for example, if you really miss ``NodeSeq``, you can just define ``type NodeSeq = Group[Node]``)
+type which is far more general and far more convenient in practice. (for example,
+if you really miss ``NodeSeq``, you can just define ``type NodeSeq = Group[Node]``)
 Selectors have also been revamped and now satisfy a rigidly consistent contract.
 They are also only defined on ``Group`` (*not* ``Node``).  More on this below_.
 
