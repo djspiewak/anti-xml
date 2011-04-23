@@ -68,6 +68,13 @@ asking me to do so.  This prevents me from "stealing" code out from under you.
 It also makes it possible for someone to fork Anti-XML without worrying about me
 taking their work without permission.
 
+If, for whatever reason, you decide after the fact that you *don't* want to
+assign copyright on your code over to me, let me know within 30 days of the pull
+request and I'll remove your code from the repository, no questions asked.  If
+you discover the mistake after the 30 day window, I'll still try to accomodate
+you, but I can't make any guarantees given the fact that additional code may have
+been layered on top of your code by that point.
+
 If you have any questions about this implicit contributor agreement, please do
 not hesitate to email me.  I'm not a lawyer, but I'll try to answer your questions
 as best I can.  My hope is that this scheme represents the most painless way to
