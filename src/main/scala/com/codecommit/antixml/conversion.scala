@@ -42,7 +42,8 @@ private[antixml] sealed trait SecondPrecedenceConvertables extends ThirdPreceden
 }
 
 private[antixml] sealed trait ThirdPrecedenceConvertables { this: XMLConvertable.type =>
-  implicit object NodeSeqConvertable extends XMLConvertable[xml.NodeSeq, Group[Node]] {
-    def apply(ns: xml.NodeSeq) = Group(ns map NodeConvertable.apply: _*)
+  // written against Seq[xml.Node] rather than NodeSeq since scala.xml isn't consistent
+  implicit object NodeSeqConvertable extends XMLConvertable[Seq[xml.Node], Group[Node]] {
+    def apply(ns: Seq[xml.Node]) = Group(ns map NodeConvertable.apply: _*)
   }
 }
