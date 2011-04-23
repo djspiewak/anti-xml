@@ -1,7 +1,38 @@
 package com.codecommit
 package antixml
 
+/**
+ * Pimp container for the explicit conversions into Anti-XML types.  Out of the
+ * box, conversions are provided from `scala.xml` types.  However, this mechanism
+ * is very extensible due to the use of a typeclass ([[com.codecommit.antixml.XMLConvertable]])
+ * to represent the actual conversion.  Thus, it is possible to add conversions
+ * by defining an implicit instance of the typeclass and having it in scope.  It
+ * is even possible to override the built-in conversions for `scala.xml` types
+ * simply by shadowing the conversions for types like [[scala.xml.Elem]].  The
+ * built-in conversions are defined in such a way that Scala's implicit resolution
+ * will give precedence to almost anything you define, as long as it is somehow
+ * in scope.
+ */
 class Converter[A](a: A) {
+  
+  /**
+   * Converts a target type `A` into some result type B (presumably in the Anti-XML
+   * API).  Technically, this function is not just restricted to converting into
+   * Anti-XML types.  However, it would probably minimize confusion if it were
+   * exclusively used for this purpose.  This generality comes from the fact that
+   * the `anti` function itself doesn't perform any conversion, but merely delegates
+   * directly to the `apply` method on whatever instance of `XMLConvertable` it
+   * happens to be passed.
+   *
+   * '''Note:''' If no conversion is available for the target type, then the compiler
+   * will reject this method call.  Similarly, if more than one conversion is in
+   * scope and neither has implicit precedence over the other, then the compiler
+   * will reject this method call as ambiguous.  In such cases, it is always
+   * possible to pass the conversion explicitly.
+   *
+   * @see [[com.codecommit.antixml.XMLConvertable]]
+   * @usecase def anti: Node 
+   */
   def anti[B](implicit conversion: XMLConvertable[A, B]) = conversion(a)
 }
 
