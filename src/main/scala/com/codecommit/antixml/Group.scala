@@ -80,10 +80,22 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   def apply(i: Int) = nodes(i)
   
+  /**
+   * Efficient (and slightly tricky) overload of `+:` on parameters which are
+   * specifically of type [[com.codecommit.antixml.Node]].
+   */
   def +:[B >: A <: Node](node: B) = new Group(node +: nodes)
   
+  /**
+   * Efficient (and slightly tricky) overload of `:+` on parameters which are
+   * specifically of type [[com.codecommit.antixml.Node]].
+   */
   def :+[B >: A <: Node](node: B) = new Group(nodes :+ node)
   
+  /**
+   * Efficient (and slightly tricky) overload of `++` on parameters which are
+   * specifically of type [[com.codecommit.antixml.Group]]`[_]`.
+   */
   def ++[B >: A <: Node](that: Group[B]) = new Group(this.nodes ++ that.nodes)
   
   override def drop(n: Int) = new Group(nodes drop n)
@@ -115,6 +127,10 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   override def takeRight(n: Int) = new Group(nodes takeRight n)
   
+  /**
+   * Efficient (and slightly tricky) overload of `updated` on parameters which are
+   * specifically of type [[com.codecommit.antixml.Node]].
+   */
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
   /**
