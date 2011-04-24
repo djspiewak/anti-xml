@@ -4,7 +4,6 @@ import scala.collection.Traversable
 import scala.collection.immutable.Seq
 
 trait Selector[+A, +Coll <: Traversable[A]] extends PartialFunction[Node, A] {
-
   val elementName: Option[String] = None
 }
 
