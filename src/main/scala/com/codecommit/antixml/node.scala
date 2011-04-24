@@ -32,6 +32,18 @@ package com.codecommit.antixml
  */
 sealed trait Node
 
+private[antixml] object Node {
+  // TODO we should probably find a way to propagate custom entities from DTDs
+  def escapeText(text: String) = text flatMap {
+    case '"' => "&quot;"
+    case '&' => "&amp;"
+    case '\'' => "&apos;"
+    case '<' => "&lt;"
+    case '>' => "&gt;"
+    case c => List(c)
+  }
+}
+
 /**
  * A processing instruction consisting of a `target` and some `data`.  For example:
  *
@@ -65,19 +77,21 @@ case class ProcInstr(target: String, data: String) extends Node {
  */
 case class Elem(ns: Option[String], name: String, attrs: Map[String, String], children: Group[Node]) extends Node {
   override def toString = {
+    import Node._
+    
     val prefix = ns map { _ + ':' } getOrElse ""
     val qName = prefix + name
     
     val attrStr = if (attrs.isEmpty) 
       ""
     else
-      " " + (attrs map { case (key, value) => key + "=\"" + value + '"' } mkString " ")
+      " " + (attrs map { case (key, value) => escapeText(key) + "=\"" + escapeText(value) + '"' } mkString " ")
     
-    val partial = "<" + qName + attrStr
+    val partial = "<" + escapeText(qName) + attrStr
     if (children.isEmpty)
       partial + "/>"
     else
-      partial + '>' + children.toString + "</" + qName + '>'
+      partial + '>' + children.toString + "</" + escapeText(qName) + '>'
   }
 }
 
@@ -102,14 +116,7 @@ case class Elem(ns: Option[String], name: String, attrs: Map[String, String], ch
  * does ''not'' escape characters on output, use [[com.codecommit.antixml.CDATA]].
  */
 case class Text(text: String) extends Node {
-  override def toString = text flatMap {
-    case '"' => "&quot;"
-    case '&' => "&amp;"
-    case '\'' => "&apos;"
-    case '<' => "&lt;"
-    case '>' => "&gt;"
-    case c => List(c)
-  }
+  override def toString = Node.escapeText(text)
 }
 
 /**
