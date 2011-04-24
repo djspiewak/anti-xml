@@ -4,13 +4,24 @@ package antixml
 import util._
 
 import org.xml.sax.Attributes
-import org.xml.sax.helpers.DefaultHandler
+import org.xml.sax.ext.DefaultHandler2
 
-class NodeSeqSAXHandler extends DefaultHandler {
+class NodeSeqSAXHandler extends DefaultHandler2 {
   private var elems = List[Group[Node] => Elem]()
   private val text = new StringBuilder
+  private var isCDATA = false
   
   private var builders = VectorCase.newBuilder[Node] :: Nil
+  
+  override def startCDATA() {
+    clearText()
+    isCDATA = true
+  }
+  
+  override def endCDATA() {
+    clearText()
+    isCDATA = false
+  }
   
   override def characters(ch: Array[Char], start: Int, length: Int) {
     text.appendAll(ch, start, length)
@@ -54,8 +65,10 @@ class NodeSeqSAXHandler extends DefaultHandler {
   }
   
   private def clearText() {
+    val construct = if (isCDATA) CDATA else Text
+    
     if (!text.isEmpty) {
-      builders.head += Text(text.toString)
+      builders.head += construct(text.toString)
       text.clear()
     }
   }
