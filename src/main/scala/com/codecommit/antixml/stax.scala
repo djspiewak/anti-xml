@@ -5,7 +5,7 @@ import org.xml.sax.helpers.AttributesImpl
 import java.io.{InputStream, StringReader, Reader}
 import javax.xml.namespace.{NamespaceContext, QName}
 import javax.xml.stream.{XMLInputFactory, XMLStreamException}
-import javax.xml.stream.XMLStreamConstants._
+import javax.xml.stream.XMLStreamConstants
 import javax.xml.transform.stream.StreamSource
 import javax.xml.XMLConstants.NULL_NS_URI
 
@@ -57,6 +57,12 @@ class StAXParser extends XML {
           val entityRef = event.asInstanceOf[EntityRef]
           handler.skippedEntity(entityRef.text)
         }
+        case 9 => {
+          val cdata = event.asInstanceOf[CDATA]
+          handler.startCDATA()
+          handler.characters(cdata.text.toArray, 0, cdata.text.length)
+          handler.endCDATA()
+        }
         case _ => ()
       }
     }
@@ -92,10 +98,13 @@ object StAXIterator {
  */
 private[antixml] class StAXIterator(source: StreamSource) extends Iterator[StAXEvents.StAXEvent] {
   import StAXEvents._
+  import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD,
+    END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE}
   
   private val xmlReader =
     XMLInputFactory.newInstance().createXMLStreamReader(source)
   override def next: StAXEvent = xmlReader.next match {
+    case `CDATAFlag` => CDATA(xmlReader.getText)
     case `CHARACTERS` => Characters(xmlReader.getText)
     case `COMMENT` => Comment(xmlReader.getText)
     case `DTD` => DocumentTypeDefinition(xmlReader.getText)
@@ -141,6 +150,7 @@ object StAXEvents {
     val ElemStart = 1
     val ElemEnd = 2
     val Characters = 3
+    val CDATA = 9
     val Comment = 4
     val ProcessingInstruction = 5
     val DocumentTypeDefinition = 6
@@ -176,6 +186,10 @@ object StAXEvents {
    * A StAXEvent indicating a text Node.
    */
   case class Characters(text: String) extends StAXEvent(StAXEventNumber.Characters)
+  /**
+   * A StAXEvent indicating a CDATA Node.
+   */
+  case class CDATA(text: String) extends StAXEvent(StAXEventNumber.CDATA)
   /**
    * A StAXEvent indicating a comment Node.
    */
