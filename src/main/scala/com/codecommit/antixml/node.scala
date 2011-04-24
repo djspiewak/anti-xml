@@ -9,6 +9,7 @@ package com.codecommit.antixml
  * data Node = ProcInstr String String
  *           | Elem (Maybe String) String (Map String String) (Group Node)
  *           | Text String
+ *           | CDATA String
  *           | EntityRef String
  * }}}
  *
@@ -24,6 +25,8 @@ package com.codecommit.antixml
  * namespace, a name (or identifier), a set of attributes and a sequence of child nodes</li>
  * <li>[[com.codecommit.antixml.Text]] – A node containing a single string, representing
  * character data in the XML tree</li>
+ * <li>[[com.codecommit.antixml.CDATA]] – A node containing a single string, representing
+ * ''unescaped'' character data in the XML tree</li>
  * <li>[[com.codecommit.antixml.EntityRef]] – An entity reference (e.g. `&amp;`)</li>
  * </ul>
  */
@@ -83,17 +86,52 @@ case class Elem(ns: Option[String], name: String, attrs: Map[String, String], ch
  * For example:
  *
  * {{{
- * Lorem ipsum dolor sit amet
+ * Lorem ipsum &amp; dolor sit amet
  * }}}
  * 
  * This would result in the following node:
  *
  * {{{
- * Text("Lorem ipsum dolor sit amet")
+ * Text("Lorem ipsum & dolor sit amet")
  * }}}
+ *
+ * Note that reserved characters (as defined by the XML 1.0 spec) are escaped
+ * when calling `toString`.  Thus, if you invoke `toString` on the `Text` node
+ * given in the example above, the result will reverse back into the original
+ * text, including the `&amp;` escape.  If you need a text representation which
+ * does ''not'' escape characters on output, use [[com.codecommit.antixml.CDATA]].
  */
 case class Text(text: String) extends Node {
-  override def toString = text
+  override def toString = text flatMap {
+    case '"' => "&quot;"
+    case '&' => "&amp;"
+    case '\'' => "&apos;"
+    case '<' => "&lt;"
+    case '>' => "&gt;"
+    case c => List(c)
+  }
+}
+
+/**
+ * A node containing a single string, representing unescaped character data in
+ * the XML tree.  For example:
+ *
+ * {{{
+ * <![CDATA[Lorem ipsum & dolor sit amet]]>
+ * }}}
+ * 
+ * This would result in the following node:
+ *
+ * {{{
+ * CDATA("Lorem ipsum & dolor sit amet")
+ * }}}
+ *
+ * Note that reserved characters (as defined by the XML 1.0 spec) are ''not''
+ * escaped when calling `toString`.  If you need a text representation which
+ * performs escaping, use [[com.codecommit.antixml.Text]]
+ */
+case class CDATA(text: String) extends Node {
+  override def toString = "<![CDATA[" + text + "]]>"
 }
 
 /**
