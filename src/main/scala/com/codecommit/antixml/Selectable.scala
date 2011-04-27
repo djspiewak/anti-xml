@@ -183,9 +183,9 @@ trait Selectable[+A <: Node] {
     }
   }
   
-  protected def matches(selector: Selector[_, _]): Boolean
+  protected def matches(selector: Selector[_, _]): Boolean = true
   
   def toGroup: Group[A]
   
-  protected def makeAsZipper: Zipper[A]
+  protected def makeAsZipper: Zipper[A] = toGroup.makeAsZipper
 }

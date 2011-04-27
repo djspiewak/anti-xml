@@ -133,7 +133,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
    */
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
-  protected def makeAsZipper: Zipper[A] = {
+  override protected def makeAsZipper: Zipper[A] = {
     new Group(nodes) with Zipper[A] {
       val map = Vector()
       def parent = error("Attempted to move up at root of the tree")
@@ -191,7 +191,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
       ourFilter ++ childFilter
   }
 
-  protected def matches(selector: Selector[_, _]) =
+  override protected def matches(selector: Selector[_, _]) =
     selector.elementName map bloomFilter.contains getOrElse true
 }
 

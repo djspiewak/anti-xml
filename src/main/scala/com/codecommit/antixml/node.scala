@@ -75,7 +75,7 @@ case class ProcInstr(target: String, data: String) extends Node {
  * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Group(Text("Lorem ipsum")))
  * }}}
  */
-case class Elem(ns: Option[String], name: String, attrs: Map[String, String], children: Group[Node]) extends Node {
+case class Elem(ns: Option[String], name: String, attrs: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
   override def toString = {
     import Node._
     
@@ -93,6 +93,8 @@ case class Elem(ns: Option[String], name: String, attrs: Map[String, String], ch
     else
       partial + '>' + children.toString + "</" + escapeText(qName) + '>'
   }
+  
+  def toGroup = Group(this)
 }
 
 /**
