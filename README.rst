@@ -432,6 +432,7 @@ to preserve context.  A full list of context-preserving methods follows below:
 * ``flatMap``
 * ``map``
 * ``updated``
+* ``withFilter``
 
 We're working to add more methods to this list.  A large number of collection-returning
 utility methods can be implemented in terms of ``flatMap``.  Implementing these

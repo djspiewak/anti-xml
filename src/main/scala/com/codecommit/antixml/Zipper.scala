@@ -3,7 +3,7 @@ package antixml
 
 import util._
 
-import scala.collection.generic.CanBuildFrom
+import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 
 trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO dependently-typed HList, maybe?
@@ -88,6 +88,8 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
     case e if f(e) => e
   }
   
+  override def withFilter(f: A => Boolean) = new WithFilter(List(f))
+  
   override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = flatMap {
     case e if pf isDefinedAt e => Some(pf(e))
     case _ => None
@@ -101,4 +103,16 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   }
   
   override protected def makeAsZipper = self
+  
+  class WithFilter(filters: List[A => Boolean]) extends FilterMonadic[A, Group[A]] {
+    def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Group[A], B, That]) =
+      self filter { a => filters forall { _(a) } } map f
+    
+    def flatMap[B, That](f: A => Traversable[B])(implicit bf: CanBuildFrom[Group[A], B, That]) =
+      self filter { a => filters forall { _(a) } } flatMap f
+    
+    def foreach[B](f: A => B) = self foreach f
+    
+    def withFilter(p: A => Boolean) = new WithFilter(p :: filters)
+  }
 }
