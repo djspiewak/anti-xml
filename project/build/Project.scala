@@ -26,4 +26,24 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify wit
     CompoundDocOption("-sourcepath", mainScalaSourcePath.asFile.getCanonicalPath) ::
     CompoundDocOption("-doc-source-url", "https://github.com/djspiewak/anti-xml/tree/master/src/main/scala€{FILE_PATH}.scala") ::
     super.documentOptions.toList
+    
+  override def managedStyle = ManagedStyle.Maven
+  
+  override def packageDocsJar = defaultJarPath("-javadoc.jar")
+  override def packageSrcJar= defaultJarPath("-sources.jar")
+  
+  val sourceArtifact = Artifact.sources(artifactID)
+  val docsArtifact = Artifact.javadoc(artifactID)
+  
+  override def packageToPublishActions = super.packageToPublishActions ++ Seq(packageDocs, packageSrc)
+  
+  override def defaultPublishRepository = {
+    val nexus = "http://nexus.scala-tools.org/content/repositories/"
+    if (version.toString.endsWith("SNAPSHOT"))
+      Some("scala-tools snapshots" at nexus + "snapshots/")
+    else
+      Some("scala-tools releases" at nexus + "releases/")
+  }
+  
+  Credentials(Path.userHome / ".ivy2" / ".credentials", log)
 }
