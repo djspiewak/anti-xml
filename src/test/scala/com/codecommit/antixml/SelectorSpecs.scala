@@ -10,7 +10,7 @@ object SelectorSpecs extends Specification {
     
     "select entire contents of parent" in {
       val xml = XML.fromString("<parent><child1/>Test<child2/>text here we go \n with whitespace<child3>Inside!</child3></parent>")
-      val expected = xml.head.children
+      val expected = xml.children
       xml \ * mustEqual expected
     }
   }

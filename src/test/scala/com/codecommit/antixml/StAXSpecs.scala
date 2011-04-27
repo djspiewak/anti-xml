@@ -60,8 +60,8 @@ object StAXSpecs extends Specification {
     //}
     }
   "StAXParser" should {
-    "parse should generate Groups" in {
-      StAXParser.parse(StAXIterator.fromString("<a:a xmlns:a='a'>hi<b attr='value' /></a:a>")) mustEqual Group(Elem(Some("a"), "a", Map.empty, Group(Text("hi"), Elem(None, "b", Map("attr" -> "value"), Group()))))
+    "parse should generate Elems" in {
+      StAXParser.parse(StAXIterator.fromString("<a:a xmlns:a='a'>hi<b attr='value' /></a:a>")) mustEqual Elem(Some("a"), "a", Map.empty, Group(Text("hi"), Elem(None, "b", Map("attr" -> "value"), Group())))
     }
   }
 }

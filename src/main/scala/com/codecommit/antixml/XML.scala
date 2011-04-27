@@ -12,13 +12,13 @@ import scala.io.Source
  */
 // TODO named arguments for configuration
 trait XML {
-  def fromString(str: String): Group[Elem]
+  def fromString(str: String): Elem
   
-  def fromInputStream(is: InputStream): Group[Elem]
+  def fromInputStream(is: InputStream): Elem
   
-  def fromReader(reader: Reader): Group[Elem]
+  def fromReader(reader: Reader): Elem
 
-  def fromSource(source: Source): Group[Elem] =
+  def fromSource(source: Source): Elem =
     fromReader(new SourceReader(source))
 
   private class SourceReader(source: Source) extends Reader {
@@ -57,16 +57,16 @@ trait XML {
  * @see org.xml.sax
  */
 class SAXParser extends XML {
-  override def fromString(str: String): Group[Elem] =
+  override def fromString(str: String): Elem =
     fromInputSource(new InputSource(new StringReader(str)))
   
-  override def fromInputStream(is: InputStream): Group[Elem] =
+  override def fromInputStream(is: InputStream): Elem =
     fromInputSource(new InputSource(is))
   
-  override def fromReader(reader: Reader): Group[Elem] =
+  override def fromReader(reader: Reader): Elem =
     fromInputSource(new InputSource(reader))
 
-  def fromInputSource(source: InputSource): Group[Elem] = {
+  def fromInputSource(source: InputSource): Elem = {
     val factory = SAXParserFactory.newInstance
     factory.setValidating(true)
     factory.setNamespaceAware(true)
@@ -75,7 +75,7 @@ class SAXParser extends XML {
     val handler = new NodeSeqSAXHandler
     parser.parse(source, handler)
     
-    handler.result()
+    handler.result().head   // safe because anything else won't validate
   }
 }
 object XML extends SAXParser

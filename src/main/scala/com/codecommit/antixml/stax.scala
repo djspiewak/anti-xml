@@ -15,16 +15,19 @@ import javax.xml.XMLConstants.NULL_NS_URI
 class StAXParser extends XML {
   import StAXEvents._
   
-  override def fromInputStream(inputStream: InputStream): Group[Elem] =
+  override def fromInputStream(inputStream: InputStream): Elem =
     fromStreamSource(new StreamSource(inputStream))
-  override def fromReader(reader: Reader): Group[Elem] =
+  
+  override def fromReader(reader: Reader): Elem =
     fromStreamSource(new StreamSource(reader))
-  override def fromString(xml: String): Group[Elem] =
+  
+  override def fromString(xml: String): Elem =
     fromReader(new StringReader(xml))
-  def fromStreamSource(source: StreamSource): Group[Elem] =
+  
+  def fromStreamSource(source: StreamSource): Elem =
     parse(new StAXIterator(source))
 
-  def parse(source: Iterator[StAXEvent]): Group[Elem] = {
+  def parse(source: Iterator[StAXEvent]): Elem = {
     val handler = new NodeSeqSAXHandler()
     while(source.hasNext) {
       val event = source.next
@@ -66,7 +69,7 @@ class StAXParser extends XML {
         case _ => ()
       }
     }
-    handler.result
+    handler.result().head   // safe because anything else won't validate
   }
   
   /**
