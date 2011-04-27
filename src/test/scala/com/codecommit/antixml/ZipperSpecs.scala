@@ -77,6 +77,20 @@ object ZipperSpecs extends Specification {
         case _ => false
       }
     }
+    
+    // my attempt at a "real world" test case"
+    "rebuild after non-trivial for-comprehension" in {
+      val titledBooks = for {
+        bookElem <- bookstore \ "book"
+        title <- bookElem \ "title" \ text
+        if !title.trim.isEmpty
+        val filteredChildren = bookElem.children filter { case Elem(_, "title", _, _) => false case _ => true }
+      } yield bookElem.copy(attrs=(bookElem.attrs + ("title" -> title)), children=filteredChildren)
+      
+      val bookstore2 = titledBooks.unselect
+      val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
+      bookstore2 mustEqual Group(expected)
+    }
   }
   
   def resource(filename: String) =
