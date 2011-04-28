@@ -6,10 +6,19 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 object Performance {
   def main(args: Array[String]) {
-    val tests = if (args.isEmpty)
-      Function.const(true) _
-    else
-      Set((args map { Symbol(_) }): _*)
+    import scala.util.control.Exception.catching
+    val selectedTests: Trial => Boolean = args match {
+      case Array() => _.runLevel == 0
+      case args => {
+        val symbols = Set((args map { Symbol(_) }): _*)
+        (catching(classOf[NumberFormatException]) opt {
+          val runLevel = Integer.parseInt(args(0))
+          (_: Trial).runLevel <= runLevel
+        }) getOrElse { trial: Trial =>
+          symbols.contains(trial.id)
+        }
+      }
+    }
     
     println("-- System Information --")
     println("Heap: " + (Runtime.getRuntime.maxMemory / (1024 * 1024)) + "MB")
@@ -17,17 +26,17 @@ object Performance {
     println("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.version") + " " + System.getProperty("os.arch"))
     println()
     
-    if (tests('memorySmall)) {
+    if (selectedTests(LoadingXmlSmall)) {
       println("-- Memory Usage (7 MB) --")
-      println("anti-xml: " + deepsize(LoadingXmlSmall.antiXml.run(())))
+      println("anti-xml:  " + deepsize(LoadingXmlSmall.antiXml.run(())))
       println("scala.xml: " + deepsize(LoadingXmlSmall.scalaXml.run(())))
       println("javax.xml: " + deepsize(LoadingXmlSmall.javaXml.run(())))
       println()
     }
     
-    if (tests('memoryLarge)) {
+    if (selectedTests(LoadingXmlLarge)) {
       println("-- Memory Usage (30 MB) --")
-      println("anti-xml: " + deepsize(LoadingXmlLarge.antiXml.run(())))
+      println("anti-xml:  " + deepsize(LoadingXmlLarge.antiXml.run(())))
       println("scala.xml: " + deepsize(LoadingXmlLarge.scalaXml.run(())))
       println("javax.xml: " + deepsize(LoadingXmlLarge.javaXml.run(())))
       println()
@@ -40,7 +49,7 @@ object Performance {
       ShallowSelectionLarge,
       DeepSelectionLarge)
     
-    val filtered = trials filter { t => tests(t.id) }
+    val filtered = trials filter selectedTests
     if (!filtered.isEmpty) {
       println("-- Execution Time --")
       filtered foreach timeTrial
@@ -70,6 +79,7 @@ object Performance {
     var implementations: Seq[Implementation[_]] = Seq()
     val warmUps = 5
     val runs = 10
+    val runLevel = 0
 
     object implemented {
       def by(desc: String) = new {
@@ -126,6 +136,7 @@ object Performance {
   }
 
   object LoadingXmlLarge extends Trial('loadLarge, "Loading a 30 MB XML file") {
+    override val runLevel = 2
     val spendingPath = "/discogs_20110201_labels.xml"
     val antiXml = implemented by "anti-xml" in {
       XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
@@ -219,6 +230,7 @@ object Performance {
   }
 
   object ShallowSelectionLarge extends Trial('shallowSelectLarge, "Shallow selection in a 30 MB tree") {
+    override val runLevel = 2
     val spendingPath = "/discogs_20110201_labels.xml"
     
     lazy val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
@@ -271,6 +283,7 @@ object Performance {
   }
 
   object DeepSelectionLarge extends Trial('deepSelectLarge, "Deep selection in a 30 MB tree") {
+    override val runLevel = 2
     val spendingPath = "/discogs_20110201_labels.xml"
     
     lazy val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
@@ -297,10 +310,6 @@ object Performance {
       }
     }
   }
-
-  // def loadDiscogs = Test("anti-xml loading a large file") { () =>
-  //   XML.fromInputStream(getClass.getResourceAsStream("/discogs_20110201_labels.xml"))
-  // }
 
   class TimingResults private(val data: Seq[Long],
                               val min: Long,
