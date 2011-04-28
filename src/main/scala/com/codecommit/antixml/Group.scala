@@ -164,7 +164,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
    */
   override def toString = nodes.mkString
 
-  private val bloomFilter: BloomFilter = {
+  private lazy val bloomFilter: BloomFilter = {
     // note: mutable and horrible for performance
     val names = new ListBuffer[String]
     var childFilter: BloomFilter = null
