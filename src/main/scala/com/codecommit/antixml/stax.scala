@@ -39,10 +39,12 @@ class StAXParser extends XML {
         case `END_ELEMENT` =>
           handler.endElement(null, null, null) // args are ignored
         case `START_ELEMENT` => {
-          val attrs =
-            (Map.empty[String, String] /: (0 until xmlReader.getAttributeCount)) { (attrs, i) =>
-              attrs + (xmlReader.getAttributeLocalName(i) -> xmlReader.getAttributeValue(i))
-                                                                               }
+          var i = 0
+          var attrs = Map.empty[String, String]
+          while(i < xmlReader.getAttributeCount) {
+            attrs = attrs + (xmlReader.getAttributeLocalName(i) -> xmlReader.getAttributeValue(i))
+            i = i + 1
+          }
           handler.startElement(xmlReader.getNamespaceURI, xmlReader.getLocalName, null /* ignored */, attrs)
         }
         case _ =>
