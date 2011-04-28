@@ -25,65 +25,32 @@ class StAXParser extends XML {
     fromReader(new StringReader(xml))
   
   def fromStreamSource(source: StreamSource): Elem =
-    parse(new StAXIterator(source))
+    parse(source)
 
-  def parse(source: Iterator[StAXEvent]): Elem = {
-    import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS,
-    END_ELEMENT, START_ELEMENT, ENTITY_REFERENCE}
+  def parse(source: StreamSource): Elem = {
+    import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE}
+    
+    val xmlReader = XMLInputFactory.newInstance().createXMLStreamReader(source)
     val handler = new NodeSeqSAXHandler()
-    while(source.hasNext) {
-      val event = source.next
-      event.number match {
-        // this match is very active during parsing
-        // the ugliness is to ensure it compiles to a tablelookup instead
-        // of if-elses
+    while(xmlReader.hasNext) {
+      xmlReader.next match {
+        case `CHARACTERS` =>
+          handler.characters(xmlReader.getTextCharacters, xmlReader.getTextStart, xmlReader.getTextLength)
+        case `END_ELEMENT` =>
+          handler.endElement(null, null, null) // args are ignored
         case `START_ELEMENT` => {
-          val elemStart = event.asInstanceOf[ElemStart]
-          handler.startElement(elemStart.uri getOrElse "",
-                               elemStart.name,
-                               elemStart.prefix map ((_: String) + ":" + elemStart.name) getOrElse "",
-                               mapToAttrs(elemStart.attrs))
+          val attrs =
+            (Map.empty[String, String] /: (0 until xmlReader.getAttributeCount)) { (attrs, i) =>
+              attrs + (xmlReader.getAttributeLocalName(i) -> xmlReader.getAttributeValue(i))
+                                                                               }
+          handler.startElement(xmlReader.getNamespaceURI, xmlReader.getLocalName, null /* ignored */, attrs)
         }
-        case `END_ELEMENT` => {
-          val elemEnd = event.asInstanceOf[ElemEnd]
-          handler.endElement(elemEnd.prefix getOrElse "",
-                             elemEnd.name,
-                             elemEnd.prefix map ((_: String) + ":" + elemEnd.name) getOrElse "")
-        }
-        case `CHARACTERS` => {
-          val characters = event.asInstanceOf[Characters]
-          handler.characters(characters.text.toArray, 0, characters.text.length)
-        }
-        case `ENTITY_REFERENCE` => {
-          val entityRef = event.asInstanceOf[EntityRef]
-          handler.skippedEntity(entityRef.text)
-        }
-        case `CDATAFlag` => {
-          val cdata = event.asInstanceOf[CDATA]
-          handler.startCDATA()
-          handler.characters(cdata.text.toArray, 0, cdata.text.length)
-          handler.endCDATA()
-        }
-        case _ => ()
+        case _ =>
+        //   throw new XMLStreamException("Unexpected StAX event of type " +
+        //                                xmlReader.getEventType)
       }
     }
-    handler.result().head   // safe because anything else won't validate
-  }
-  
-  /**
-   * Returns an equivalent Attributes for a Map of QNames to Strings.
-   * @return an equivalent Attributes for a Map of QNames to Strings.
-   */
-  private def mapToAttrs(attrs: Map[QName, String]): Attributes = {
-    val result = new AttributesImpl()
-    attrs foreach { case (qname, value) =>
-      result.addAttribute(qname.getNamespaceURI,
-                          qname.getLocalPart,
-                          qname.toString,
-                          "",
-                          value)
-    }
-    result
+    handler.result.head
   }
 }
 

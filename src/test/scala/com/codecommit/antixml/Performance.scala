@@ -113,6 +113,10 @@ object Performance {
     val antiXml = implemented by "anti-xml" in {
       XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
     }
+    object StAXParser extends StAXParser
+    val antiXmlStAX = implemented by "anti-xml StAX" in {
+      StAXParser.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    }
     val scalaXml = implemented by "scala.xml" in {
       scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
     }
