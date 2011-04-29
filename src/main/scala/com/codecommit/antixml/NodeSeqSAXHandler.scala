@@ -41,16 +41,6 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     }
   }
 
-  def startElement(uri: String, localName: String, qName: String, attrs: Map[String, String]) {
-    clearText()
-    
-    builders ::= VectorCase.newBuilder
-    elems ::= { children =>
-      val ns = if (uri == null || uri == "") None else Some(uri)
-      Elem(ns, localName, attrs, children)
-    }
-  }
-  
   override def endElement(uri: String, localName: String, qName: String) {
     clearText()
     

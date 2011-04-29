@@ -1,5 +1,6 @@
 package com.codecommit.antixml
 
+import util.VectorCase
 import org.xml.sax.{Attributes, ContentHandler}
 import org.xml.sax.helpers.AttributesImpl
 import java.io.{InputStream, StringReader, Reader}
@@ -27,32 +28,51 @@ class StAXParser extends XML {
   def fromStreamSource(source: StreamSource): Elem =
     parse(source)
 
+  private case class ElemBuilder(ns: Option[String], name: String, attrs: Map[String, String])
+
   def parse(source: StreamSource): Elem = {
     import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE}
-    
+
     val xmlReader = XMLInputFactory.newInstance().createXMLStreamReader(source)
-    val handler = new NodeSeqSAXHandler()
+    var elems: List[ElemBuilder] = Nil
+    var results = VectorCase.newBuilder[Node] :: Nil
+    val text = new StringBuilder
     while(xmlReader.hasNext) {
       xmlReader.next match {
         case `CHARACTERS` =>
-          handler.characters(xmlReader.getTextCharacters, xmlReader.getTextStart, xmlReader.getTextLength)
-        case `END_ELEMENT` =>
-          handler.endElement(null, null, null) // args are ignored
+          text.appendAll(xmlReader.getTextCharacters, xmlReader.getTextStart, xmlReader.getTextLength)
+        case `END_ELEMENT` => {
+          val elem = elems.head
+          val parents = elems.tail
+          val children = results.head
+          val ancestors = results.tail
+          if (text.size > 0) {
+            children += Text(text.result)
+            text.clear()
+          }
+          ancestors.head += Elem(elem.ns, elem.name, elem.attrs, Group fromSeq children.result)
+          elems = parents
+          results = ancestors
+        }
         case `START_ELEMENT` => {
+          if (text.size > 0) {
+            results.head += Text(text.result)
+            text.clear()
+          }
           var i = 0
           var attrs = Map.empty[String, String]
-          while(i < xmlReader.getAttributeCount) {
+          while (i < xmlReader.getAttributeCount) {          
             attrs = attrs + (xmlReader.getAttributeLocalName(i) -> xmlReader.getAttributeValue(i))
             i = i + 1
           }
-          handler.startElement(xmlReader.getNamespaceURI, xmlReader.getLocalName, null /* ignored */, attrs)
+          val uri = xmlReader.getNamespaceURI
+          elems ::= ElemBuilder(if (uri == null || uri == "") None else Some(uri), xmlReader.getLocalName, attrs)
+           results ::= VectorCase.newBuilder[Node]           
         }
         case _ =>
-        //   throw new XMLStreamException("Unexpected StAX event of type " +
-        //                                xmlReader.getEventType)
       }
     }
-    handler.result.head
+    results.head.result.head.asInstanceOf[Elem]
   }
 }
 
