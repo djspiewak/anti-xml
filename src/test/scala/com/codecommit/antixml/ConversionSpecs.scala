@@ -65,6 +65,7 @@ object ConversionSpecs extends Specification with ScalaCheck {
     "convert entity references" verifies { str: String =>
       val ref = xml.EntityRef(str)
       ref.anti mustEqual EntityRef(str)
+      (ref: xml.Node).anti mustEqual EntityRef(str)
     }
     
     "convert elem names without namespaces" in {
