@@ -120,8 +120,9 @@ object Performance {
 
   object LoadingXmlSmall extends Trial('loadSmall, "Loading a 7 MB XML file") {
     val spendingPath = "/spending.xml"
+    object SAXParser extends SAXParser
     val antiXml = implemented by "anti-xml" in {
-      XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+      SAXParser.fromInputStream(getClass.getResourceAsStream(spendingPath))
     }
     object StAXParser extends StAXParser
     val antiXmlStAX = implemented by "anti-xml StAX" in {
@@ -138,8 +139,14 @@ object Performance {
   object LoadingXmlLarge extends Trial('loadLarge, "Loading a 30 MB XML file") {
     override val runLevel = 2
     val spendingPath = "/discogs_20110201_labels.xml"
+    
+    object SAXParser extends SAXParser
     val antiXml = implemented by "anti-xml" in {
-      XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+      SAXParser.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    }
+    object StAXParser extends StAXParser
+    val antiXmlStAX = implemented by "anti-xml StAX" in {
+      StAXParser.fromInputStream(getClass.getResourceAsStream(spendingPath))
     }
     val scalaXml = implemented by "scala.xml" in {
       scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
