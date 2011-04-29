@@ -68,6 +68,11 @@ object ConversionSpecs extends Specification with ScalaCheck {
       (ref: xml.Node).anti mustEqual EntityRef(str)
     }
     
+    "not convert groups" in {
+      val g = xml.Group(List(<foo/>, <bar/>))
+      g.anti must throwA[RuntimeException]
+    }
+    
     "convert elem names without namespaces" in {
       val e = <test/>.anti
       e.ns mustEqual None
