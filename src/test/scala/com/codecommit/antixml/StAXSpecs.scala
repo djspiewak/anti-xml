@@ -63,7 +63,7 @@ object StAXSpecs extends Specification {
     }
   "StAXParser" should {
     "parse StreamSource should generate Elems" in {
-      StAXParser.parse(new StreamSource(new StringReader("<a:a xmlns:a='a'>hi<b attr='value' /></a:a>"))) mustEqual Elem(Some("a"), "a", Map.empty, Group(Text("hi"), Elem(None, "b", Map("attr" -> "value"), Group())))
+      StAXParser.parse(new StreamSource(new StringReader("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>"))) mustEqual Elem(Some("a"), "a", Map.empty, Group(Text("hi"), Elem(None, "b", Map("attr" -> "value"), Group()), Text(" there")))
     }
   }
 }
