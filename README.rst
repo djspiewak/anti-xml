@@ -67,9 +67,42 @@ will be interesting to see where things go!
 Usage
 =====
 
-We haven't pushed any compiled binaries as of yet.  You will need to clone the
-project using Git.  Then, use SBT to build a JAR for the project.  Everything
-you need will be in the ``com.codecommit.antixml`` package.  Enjoy!
+The Maven artifact descriptor for the latest *stable* version of
+Anti-XML is as follows: ``com.codecommit:anti-xml_2.8.1:0.1``.  We also regularly
+push ``-SNAPSHOT`` releases to the Scala-Tools_ "snapshots" repository, for all
+five of you who like to live dangerously.  You should be able to use this
+descriptor to easily add Anti-XML as a dependency to any project with a
+Maven-compatible build system (Maven, Buildr, SBT, Gradle, Ivy, etc). The stable
+artifacts themselves are hosted in the Scala-Tools_ "releases" repository.  For
+reference, here are a few copy/paste snippets you can use for some of the common
+build systems.
+
+**SBT**::
+  
+    val antiXML = "com.codecommit" %% "anti-xml" % "0.1"
+  
+**Buildr**::
+  
+    compile.with 'com.codecommit:anti-xml:jar:0.1'
+  
+**Maven2**::
+  
+    <dependency>
+      <groupId>com.codecommit</groupId>
+      <artifactId>anti-xml_2.8.1</artifactId>
+      <version>0.1</version>
+    </dependency>
+  
+It's worth noting that Anti-XML is *currently* only cross-built for Scala 2.8.1.
+This is mostly due to the test dependencies, which are themselves only cross-built
+for Scala 2.8.1.  Eventually, we intend to push artifacts for the entire 2.8.x
+stream, as well as the nascent 2.9 stream.  In the interim, you should be able to
+use the 2.8.1 JAR in a 2.8.0 project.  However, if you want to use Anti-XML with
+2.9, you will need to build it yourself (due to changes in some of the traits in
+the Scala standard library).
+
+Random Snippets
+---------------
 
 The work-in-progress scaladoc can be found here_, archived on `the project CI server`_.
 The API should look fairly familiar to anyone who has used the ``scala.xml``
@@ -136,6 +169,7 @@ tree around it, ariving at the original structure modulo the change made to the
 third ``<book>`` element deep inside the tree.  For more details, see some of
 the following sections.
 
+.. _Scala-Tools: http://scala-tools.org
 .. _here: http://hudson.danielspiewak.org/job/anti-xml/javadoc/?
 .. _the project CI server: http://hudson.danielspiewak.org/job/anti-xml/
 .. _bookstore.xml: https://github.com/djspiewak/anti-xml/blob/master/src/test/resources/bookstore.xml
@@ -538,6 +572,10 @@ The Task List
 The task list for this project is maintained as a public message in `Novell Vibe`_.
 To access this message, simply sign up for a free account (if you haven't already)
 and then hit the following URL: https://vibe.novell.com/thread/41cf4424-15c6-40dd-b79f-497bcbd8e147
+
+Note: before you start contributing to the project, you really should read the
+CONTRIBUTING.rst_ document.  This outlines some basic guidelines, as well as the
+legal mumbo-jumbo required to ensure we all have our copyrights straight.
 
 
 .. _Novell Vibe: https://vibe.novell.com

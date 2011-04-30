@@ -1,7 +1,9 @@
 import sbt._
-import de.element34.sbteclipsify._
 
-class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify {
+import de.element34.sbteclipsify._
+import reaktor.scct.ScctProject
+
+class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify with ScctProject {
 
   val scalaCheck = "org.scala-tools.testing" %% "scalacheck" % "1.8" % "test" withSources
   val specs = "org.scala-tools.testing" %% "specs" % "1.6.7.1" % "test" withSources
@@ -24,4 +26,24 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify {
     CompoundDocOption("-sourcepath", mainScalaSourcePath.asFile.getCanonicalPath) ::
     CompoundDocOption("-doc-source-url", "https://github.com/djspiewak/anti-xml/tree/master/src/main/scala€{FILE_PATH}.scala") ::
     super.documentOptions.toList
+    
+  override def managedStyle = ManagedStyle.Maven
+  
+  override def packageDocsJar = defaultJarPath("-javadoc.jar")
+  override def packageSrcJar= defaultJarPath("-sources.jar")
+  
+  val sourceArtifact = Artifact.sources(artifactID)
+  val docsArtifact = Artifact.javadoc(artifactID)
+  
+  override def packageToPublishActions = super.packageToPublishActions ++ Seq(packageDocs, packageSrc)
+  
+  override def defaultPublishRepository = {
+    val nexus = "http://nexus.scala-tools.org/content/repositories/"
+    if (version.toString.endsWith("SNAPSHOT"))
+      Some("scala-tools snapshots" at nexus + "snapshots/")
+    else
+      Some("scala-tools releases" at nexus + "releases/")
+  }
+  
+  Credentials(Path.userHome / ".ivy2" / ".credentials", log)
 }
