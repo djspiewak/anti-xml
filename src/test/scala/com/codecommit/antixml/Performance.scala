@@ -74,6 +74,8 @@ object Performance {
       LoadingXmlLarge,
       ShallowSelectionSmall,
       DeepSelectionSmall,
+      ShallowSelectionSmallCold,
+      DeepSelectionSmallCold,
       ShallowSelectionLarge,
       DeepSelectionLarge)
     
@@ -216,6 +218,52 @@ object Performance {
       scalaTree \\ "fubar"
     }
     val javaXml = implemented by "javax.xml" in {
+      {
+        val result = domTree getElementsByTagName "MajorFundingAgency2"
+        (0 until result.getLength) foreach (result item)
+      }
+      
+      {
+        val result = domTree getElementsByTagName "fubar"
+        (0 until result.getLength) foreach (result item)
+      }
+    }
+  }
+
+  object ShallowSelectionSmallCold extends Trial('shallowSelectSmallCol, "Shallow selection in a cold 7 MB tree") {
+    override val runLevel = 1
+    val spendingPath = "/spending.xml"
+    
+    def antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    def scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
+    
+    val antiXml = implemented by "anti-xml" preload antiTree in { antiTree =>
+      antiTree \ "result" \ "doc" \ "MajorFundingAgency2"
+      antiTree \ "foo" \ "bar" \ "MajorFundingAgency2"
+    }
+    val scalaXml = implemented by "scala.xml" preload scalaTree in { scalaTree =>
+      scalaTree \ "result" \ "doc" \ "MajorFundingAgency2"
+      scalaTree \ "foo" \ "bar" \ "MajorFundingAgency2"
+    }
+  }
+
+  object DeepSelectionSmallCold extends Trial('deepSelectSmallCold, "Deep selection in a cold 7 MB tree") {
+    override val runLevel = 1
+    val spendingPath = "/spending.xml"
+    
+    def antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    def scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
+    def domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
+    
+    val antiXml = implemented by "anti-xml" preload antiTree in { antiTree =>
+      antiTree \\ "MajorFundingAgency2"
+      antiTree \\ "fubar"
+    }
+    val scalaXml = implemented by "scala.xml" preload scalaTree in { scalaTree =>
+      scalaTree \\ "MajorFundingAgency2"
+      scalaTree \\ "fubar"
+    }
+    val javaXml = implemented by "javax.xml" preload domTree in { domTree =>
       {
         val result = domTree getElementsByTagName "MajorFundingAgency2"
         (0 until result.getLength) foreach (result item)
