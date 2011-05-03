@@ -68,7 +68,7 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
       Elem(ns, localName, map, children)
     }
   }
-  
+
   override def endElement(uri: String, localName: String, qName: String) {
     clearText()
     

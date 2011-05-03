@@ -106,5 +106,5 @@ class SAXParser extends XML {
     handler.result().head   // safe because anything else won't validate
   }
 }
-object XML extends SAXParser
+object XML extends StAXParser
 

@@ -28,6 +28,7 @@
 
 package com.codecommit.antixml
 
+import util.VectorCase
 import org.xml.sax.{Attributes, ContentHandler}
 import org.xml.sax.helpers.AttributesImpl
 import java.io.{InputStream, StringReader, Reader}
@@ -53,67 +54,53 @@ class StAXParser extends XML {
     fromReader(new StringReader(xml))
   
   def fromStreamSource(source: StreamSource): Elem =
-    parse(new StAXIterator(source))
+    parse(source)
 
-  def parse(source: Iterator[StAXEvent]): Elem = {
-    val handler = new NodeSeqSAXHandler()
-    while(source.hasNext) {
-      val event = source.next
-      event.number match {
-        // this match is very active during parsing
-        // using integer literals compiles to a single tableswitch
-        // the techniques below become sequential if-elses on scala 2.8.1:
-        // - referencing StAXEventNumber fields
-        // - caching StAXEventNumbers as fields of StAXParser
-        // - caching StAXEventNumbers as local vals
-        // - matching on the class of the event
-        case 1 => {
-          val elemStart = event.asInstanceOf[ElemStart]
-          handler.startElement(elemStart.uri getOrElse "",
-                               elemStart.name,
-                               elemStart.prefix map ((_: String) + ":" + elemStart.name) getOrElse "",
-                               mapToAttrs(elemStart.attrs))
+  private case class ElemBuilder(ns: Option[String], name: String, attrs: Map[String, String])
+
+  def parse(source: StreamSource): Elem = {
+    import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE}
+
+    val xmlReader = XMLInputFactory.newInstance().createXMLStreamReader(source)
+    var elems: List[ElemBuilder] = Nil
+    var results = VectorCase.newBuilder[Node] :: Nil
+    val text = new StringBuilder
+    while(xmlReader.hasNext) {
+      xmlReader.next match {
+        case `CHARACTERS` =>
+          text.appendAll(xmlReader.getTextCharacters, xmlReader.getTextStart, xmlReader.getTextLength)
+        case `END_ELEMENT` => {
+          val elem = elems.head
+          val parents = elems.tail
+          val children = results.head
+          val ancestors = results.tail
+          if (text.size > 0) {
+            children += Text(text.result)
+            text.clear()
+          }
+          ancestors.head += Elem(elem.ns, elem.name, elem.attrs, Group fromSeq children.result)
+          elems = parents
+          results = ancestors
         }
-        case 2 => {
-          val elemEnd = event.asInstanceOf[ElemEnd]
-          handler.endElement(elemEnd.prefix getOrElse "",
-                             elemEnd.name,
-                             elemEnd.prefix map ((_: String) + ":" + elemEnd.name) getOrElse "")
+        case `START_ELEMENT` => {
+          if (text.size > 0) {
+            results.head += Text(text.result)
+            text.clear()
+          }
+          var i = 0
+          var attrs = Map.empty[String, String]
+          while (i < xmlReader.getAttributeCount) {          
+            attrs = attrs + (xmlReader.getAttributeLocalName(i) -> xmlReader.getAttributeValue(i))
+            i = i + 1
+          }
+          val uri = xmlReader.getNamespaceURI
+          elems ::= ElemBuilder(if (uri == null || uri == "") None else Some(uri), xmlReader.getLocalName, attrs)
+           results ::= VectorCase.newBuilder[Node]           
         }
-        case 3 => {
-          val characters = event.asInstanceOf[Characters]
-          handler.characters(characters.text.toArray, 0, characters.text.length)
-        }
-        case 8 => {
-          val entityRef = event.asInstanceOf[EntityRef]
-          handler.skippedEntity(entityRef.text)
-        }
-        case 9 => {
-          val cdata = event.asInstanceOf[CDATA]
-          handler.startCDATA()
-          handler.characters(cdata.text.toArray, 0, cdata.text.length)
-          handler.endCDATA()
-        }
-        case _ => ()
+        case _ =>
       }
     }
-    handler.result().head   // safe because anything else won't validate
-  }
-  
-  /**
-   * Returns an equivalent Attributes for a Map of QNames to Strings.
-   * @return an equivalent Attributes for a Map of QNames to Strings.
-   */
-  private def mapToAttrs(attrs: Map[QName, String]): Attributes = {
-    val result = new AttributesImpl()
-    attrs foreach { case (qname, value) =>
-      result.addAttribute(qname.getNamespaceURI,
-                          qname.getLocalPart,
-                          qname.toString,
-                          "",
-                          value)
-    }
-    result
+    results.head.result.head.asInstanceOf[Elem]
   }
 }
 
@@ -177,17 +164,7 @@ private[antixml] class StAXIterator(source: StreamSource) extends Iterator[StAXE
 }
 
 object StAXEvents {
-  object StAXEventNumber {
-    val ElemStart = 1
-    val ElemEnd = 2
-    val Characters = 3
-    val CDATA = 9
-    val Comment = 4
-    val ProcessingInstruction = 5
-    val DocumentTypeDefinition = 6
-    val DocumentEnd = 7
-    val EntityRef = 8
-  }
+  import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE}
 
   /**
    * A base trait for StAXParser generated events.
@@ -204,7 +181,7 @@ object StAXEvents {
   case class ElemStart(prefix: Option[String],
                        name: String,
                        attrs: Map[QName, String],
-                       uri: Option[String]) extends StAXEvent(StAXEventNumber.ElemStart) {
+                       uri: Option[String]) extends StAXEvent(START_ELEMENT) {
     def attrs(name: String): String = attrs(new QName(NULL_NS_URI, name))
   }
   /**
@@ -212,30 +189,30 @@ object StAXEvents {
    */
   case class ElemEnd(prefix: Option[String],
                      name: String,
-                     uri: Option[String]) extends StAXEvent(StAXEventNumber.ElemEnd)
+                     uri: Option[String]) extends StAXEvent(END_ELEMENT)
   /**
    * A StAXEvent indicating a text Node.
    */
-  case class Characters(text: String) extends StAXEvent(StAXEventNumber.Characters)
+  case class Characters(text: String) extends StAXEvent(CHARACTERS)
   /**
    * A StAXEvent indicating a CDATA Node.
    */
-  case class CDATA(text: String) extends StAXEvent(StAXEventNumber.CDATA)
+  case class CDATA(text: String) extends StAXEvent(CDATAFlag)
   /**
    * A StAXEvent indicating a comment Node.
    */
-  case class Comment(text: String) extends StAXEvent(StAXEventNumber.Comment)
+  case class Comment(text: String) extends StAXEvent(COMMENT)
   /**
    * A StAXEvent indicating a processing instruction Node.
    */
-  case class ProcessingInstruction(target: String, data: String) extends StAXEvent(StAXEventNumber.ProcessingInstruction)
+  case class ProcessingInstruction(target: String, data: String) extends StAXEvent(PROCESSING_INSTRUCTION)
   /**
    * A StAXEvent indicating a DocumentTypeDefinition (DTD).
    */
-  case class DocumentTypeDefinition(declaration: String) extends StAXEvent(StAXEventNumber.DocumentTypeDefinition)
-  case class EntityRef(localName: String, text: String) extends StAXEvent(StAXEventNumber.EntityRef)
+  case class DocumentTypeDefinition(declaration: String) extends StAXEvent(DTD)
+  case class EntityRef(localName: String, text: String) extends StAXEvent(ENTITY_REFERENCE)
   /**
    * A StAXEvent indicating the end of an XML document.
    */
-  object DocumentEnd extends StAXEvent(StAXEventNumber.DocumentEnd)
+  object DocumentEnd extends StAXEvent(END_DOCUMENT)
 }

@@ -502,12 +502,7 @@ bloom filters to optimize selection over arbitrarily large trees.  This is why
 both shallow and deep selection are almost unacountably fast under Anti-XML (when
 compared to ``scala.xml`` and even ``javax.xml``).  Unfortunately, it is also why
 Anti-XML trees require noticably more memory than ``scala.xml``, and why Anti-XML
-parse times are longer.  When bloom filters are disabled, Anti-XML parse times are
-solidly ahead of ``scala.xml``, while the memory usage is comfortably lower.
-However, disabling bloom filters means that selection performance suffers (it brings
-things about even with ``scala.xml``).  Considering that selection is likely to
-be more common than parsing, we have decided to optimize the former case at the
-expense of the latter.
+parse times tend toward the long side.
 
 All of the tests below were performed on a 2010 MacBook Pro with a Dual core,
 2.66 Ghz Core i7 (Turbo up to 3 Ghz) and hyperthreading enabled, 8 GB of 1067 Mhz
@@ -517,15 +512,15 @@ tests can be found in the repository.
 Memory
 ------
 
-.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+MB&chxr=1,0,350,50&chds=0,350,0,350,0,350&chd=t:48.36,326.5|45.33,197.5|37.89,168.1&chxl=0:|spending.xml+(7+MB)|discogs.xml+(30+MB)
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+MB&chxr=1,0,350,50&chds=0,350,0,350,0,350&chd=t:50.39,250.9|45.33,197.5|37.89,168.1&chxl=0:|spending.xml+(7+MB)|discogs.xml+(30+MB)
    :height: 300px
    :width:  600px
 
 ===========     ========        =============       =============
 Source Size     Anti-XML        ``scala.xml``       ``javax.xml``
 ===========     ========        =============       =============
-7.1 MB          48.36 MB        45.33 MB            37.89 MB
-32 MB           326.5 MB        179.5 MB            168.1 MB
+7.1 MB          50.39 MB        45.33 MB            37.89 MB
+32 MB           250.9 MB        179.5 MB            168.1 MB
 ===========     ========        =============       =============
 
 
@@ -535,31 +530,31 @@ Runtime
 spending.xml
 ~~~~~~~~~~~~
 
-.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,300,50&chds=0,300,0,300,0,300,0,300&chd=t:263,6,9|144,26,154|115,_,20&chxl=0:|Parse|Shallow-Select|Deep-Select
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,300,50&chds=0,300,0,300,0,300,0,300&chd=t:195,6,5|232,15,265|97,_,16&chxl=0:|Parse|Shallow-Select|Deep-Select
    :height: 300px
    :width:  600px
 
 ==============     ========        =============       =============
 Action             Anti-XML        ``scala.xml``       ``javax.xml``
 ==============     ========        =============       =============
-Parse              274 ms          137 ms              109 ms
-Shallow-Select     5 ms            33 ms               869 ms
-Deep-Select        10 ms           256 ms              26 ms
+Parse              195 ms          232 ms              97 ms
+Shallow-Select     6 ms            15 ms               ``-``
+Deep-Select        5 ms            265 ms              16 ms
 ==============     ========        =============       =============
 
 discogs.xml
 ~~~~~~~~~~~
 
-.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,2100,300&chds=0,2100,0,2100,0,2100,0,2100&chd=t:2024,415,707|947,207,961|491,_,92&chxl=0:|Parse|Shallow-Select|Deep-Select
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,2100,300&chds=0,2100,0,2100,0,2100,0,2100&chd=t:1119,620,342|1161,84,1220|692,_,50&chxl=0:|Parse|Shallow-Select|Deep-Select
    :height: 300px
    :width:  600px
 
 ==============     ========        =============       =============
 Action             Anti-XML        ``scala.xml``       ``javax.xml``
 ==============     ========        =============       =============
-Parse              2024 ms         947 ms              491 ms
-Shallow-Select     415 ms          207 ms              ``-``
-Deep-Select        707 ms          961 ms              92 ms
+Parse              1119 ms         1161 ms             692 ms
+Shallow-Select     620 ms          84 ms               ``-``
+Deep-Select        342 ms          1220 ms             50 ms
 ==============     ========        =============       =============
 
 
