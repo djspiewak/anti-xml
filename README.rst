@@ -574,3 +574,4 @@ legal mumbo-jumbo required to ensure we all have our copyrights straight.
 
 
 .. _Novell Vibe: https://vibe.novell.com
+.. _CONTRIBUTING.rst: tree/master/CONTRIBUTING.rst
