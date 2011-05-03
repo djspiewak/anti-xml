@@ -29,7 +29,7 @@ The problems with ``scala.xml`` boil down to three major categories:
   
   * Pervasive concurrency bugs and race conditions
   * Very surprising (and buggy) ``equals`` implementations
-  * Use of mutability means that bugs can *occaisionally* create recursive XML
+  * Use of mutability means that bugs can *occasionally* create recursive XML
     trees (not seen since Scala 2.7.5, but I thought I'd mention it)
   
 * **Extremely poor performance** (especially in terms of memory use)
