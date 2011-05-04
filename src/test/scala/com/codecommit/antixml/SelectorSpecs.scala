@@ -45,13 +45,13 @@ object SelectorSpecs extends Specification {
   
   "the element selector(s)" should {
     "select nothing when parent is empty" in {
-      (<parent/>).anti \ "parent" mustEqual Group()
-      (<parent/>).anti \ 'parent mustEqual Group()
+      <parent/>.anti \ "parent" mustEqual Group()
+      <parent/>.anti \ 'parent mustEqual Group()
     }
     
     "select only the named element(s)" in {
-      (<parent><foo/><bar/>Baz<foo/></parent>).anti \ "foo" mustEqual Group(<foo/>.anti, <foo/>.anti)
-      (<parent><foo/><bar/>Baz<foo/></parent>).anti \ 'foo mustEqual Group(<foo/>.anti, <foo/>.anti)
+      <parent><foo/><bar/>Baz<foo/></parent>.anti \ "foo" mustEqual Group(<foo/>.anti, <foo/>.anti)
+      <parent><foo/><bar/>Baz<foo/></parent>.anti \ 'foo mustEqual Group(<foo/>.anti, <foo/>.anti)
     }
   }
 }

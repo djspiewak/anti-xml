@@ -35,7 +35,7 @@ object NodeSpecs extends Specification {
   
   "elements" should {
     "serialize empty elements correctly" in {
-      (<br/>).anti.toString mustEqual "<br/>"
+      <br/>.anti.toString mustEqual "<br/>"
     }
     
     "escape reserved characters in the name" in {
@@ -77,7 +77,7 @@ object NodeSpecs extends Specification {
     }
     
     "select text within self" in {
-      ((<parent>Text</parent>).anti \\ text mkString) mustEqual "Text"
+      (<parent>Text</parent>.anti \\ text mkString) mustEqual "Text"
     }
   }
   
