@@ -57,12 +57,12 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
     
     "be fully specified by flatMap / collect" in check { (ns: Group[Node], selector: Selector[Node, Zipper[Node]]) =>
-        val result = ns \ selector
-        val expected = ns flatMap {
-          case Elem(_, _, _, children) => children collect selector
-          case _ => Group()
-        }
-        result.toList mustEqual expected.toList
+      val result = ns \ selector
+      val expected = ns flatMap {
+        case Elem(_, _, _, children) => children collect selector
+        case _ => Group()
+      }
+      result.toList mustEqual expected.toList
     }
     
     "work with an alternative selector" in {
@@ -91,23 +91,23 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
     
     "be fully specified by recursive flatMap / collect" in check { (ns: Group[Node], selector: Selector[Node, Zipper[Node]]) =>
-        def loop(ns: Group[Node]): Group[Node] = {
-          val recursive = ns flatMap {
-            case Elem(_, _, _, children) => loop(children)
-            case _ => Group()
-          }
-          
-          val shallow = ns flatMap {
-            case Elem(_, _, _, children) => children collect selector
-            case _ => Group()
-          }
-          
-          shallow ++ recursive
+      def loop(ns: Group[Node]): Group[Node] = {
+        val recursive = ns flatMap {
+          case Elem(_, _, _, children) => loop(children)
+          case _ => Group()
         }
-        val result = ns \\ selector
-        val expected = loop(ns)
         
-        result.toList mustEqual expected.toList
+        val shallow = ns flatMap {
+          case Elem(_, _, _, children) => children collect selector
+          case _ => Group()
+        }
+        
+        shallow ++ recursive
+      }
+      val result = ns \\ selector
+      val expected = loop(ns)
+      
+      result.toList mustEqual expected.toList
     }
     
     "work with an alternative selector" in {
