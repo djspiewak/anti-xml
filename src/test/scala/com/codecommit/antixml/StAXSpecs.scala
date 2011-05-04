@@ -48,7 +48,7 @@ class StAXSpecs extends Specification {
     }
     "parse namespace prefixes in ElemStarts" in {
       StAXIterator.fromString("<a:a xmlns:a='a' />").next must beLike {
-        case elemStart: ElemStart => elemStart.prefix === Some("a")
+        case elemStart: ElemStart => elemStart.prefix mustEqual Some("a")
       }
     }
     "gerenate ElemEnds" in {
@@ -57,23 +57,23 @@ class StAXSpecs extends Specification {
     "generate namespace URIs" in {
       StAXIterator.fromString("<a:a xmlns:a='http://example.com' />").next must beLike {
         case elemStart: ElemStart => {
-          elemStart.uri === Some("http://example.com")
+          elemStart.uri mustEqual Some("http://example.com")
         }
       }
     }
     "generate Characters" in {
       StAXIterator.fromString("<a>a</a>").drop(1).next must beLike {
-        case chars: Characters => chars.text === "a"
+        case chars: Characters => chars.text mustEqual "a"
       }
     }
     "generate Comment" in {
       StAXIterator.fromString("<!--comment--><a />").next must beLike {
-        case comment: Comment => comment.text === "comment"
+        case comment: Comment => comment.text mustEqual "comment"
       }
     }
     "generate ProcessingInstruction" in {
       StAXIterator.fromString("<?target data?><a />").next must beLike {
-        case pi: ProcessingInstruction => (pi.target, pi.data) === ("target", "data")
+        case pi: ProcessingInstruction => (pi.target, pi.data) mustEqual ("target", "data")
       }
     }
     "generate DocumentEnd" in {
