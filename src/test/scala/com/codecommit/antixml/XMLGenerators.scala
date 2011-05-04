@@ -37,7 +37,7 @@ trait XMLGenerators {
   
   val MaxGroupDepth = 3
   
-  val identifiers = (Source fromURL (getClass getResource ("/identifiers.txt")) getLines).toList
+  lazy val identifiers = (Source fromURL (getClass getResource ("/identifiers.txt")) getLines).toList
   
   implicit val arbSelector: Arbitrary[Selector[Node, Zipper[Node]]] =
     Arbitrary(oneOf(nodeSelectorGenerator, elemSelectorGenerator))

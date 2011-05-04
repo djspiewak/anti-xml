@@ -1,4 +1,5 @@
 target/
+out/
 project/boot/
 lib_managed/
 project/plugins/project/
