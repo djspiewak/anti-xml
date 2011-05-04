@@ -28,48 +28,52 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
+import org.specs2.matcher.DataTables
 
-object NodeSpecs extends Specification {
-  detailedDiffs()
-  
+class NodeSpecs extends Specification with DataTables {
+    
   "elements" should {
     "serialize empty elements correctly" in {
       (<br/>).anti.toString mustEqual "<br/>"
     }
     
     "escape reserved characters in the name" in {
-      Elem(None, "\"", Map(), Group()).toString mustEqual "<&quot;/>"
-      Elem(None, "&", Map(), Group()).toString mustEqual "<&amp;/>"
-      Elem(None, "'", Map(), Group()).toString mustEqual "<&apos;/>"
-      Elem(None, "<", Map(), Group()).toString mustEqual "<&lt;/>"
-      Elem(None, ">", Map(), Group()).toString mustEqual "<&gt;/>"
+      "character" || "elem.toString" |>
+      "\""        !! "<&quot;/>"    |
+      "&"         !! "<&amp;/>"     |
+      "'"         !! "<&apos;/>"    |
+      "<"         !! "<&lt;/>"      |
+      ">"         !! "<&gt;/>"      | { (c, r) => Elem(None, c, Map(), Group()).toString mustEqual r }
     }
     
     "escape reserved characters in the namespace" in {
-      Elem(Some("\""), "foo", Map(), Group()).toString mustEqual "<&quot;:foo/>"
-      Elem(Some("&"), "foo", Map(), Group()).toString mustEqual "<&amp;:foo/>"
-      Elem(Some("'"), "foo", Map(), Group()).toString mustEqual "<&apos;:foo/>"
-      Elem(Some("<"), "foo", Map(), Group()).toString mustEqual "<&lt;:foo/>"
-      Elem(Some(">"), "foo", Map(), Group()).toString mustEqual "<&gt;:foo/>"
+      "character" || "elem.toString" |>
+      "\""        !! "<&quot;:foo/>" |
+      "&"         !! "<&amp;:foo/>"  |
+      "'"         !! "<&apos;:foo/>" |
+      "<"         !! "<&lt;:foo/>"   |
+      ">"         !! "<&gt;:foo/>"   | { (c, r) => Elem(Some(c), "foo", Map(), Group()).toString mustEqual r }
     }
     
     "escape reserved characters in attribute keys" in {
-      Elem(None, "foo", Map("\"" -> "bar"), Group()).toString mustEqual "<foo &quot;=\"bar\"/>"
-      Elem(None, "foo", Map("&" -> "bar"), Group()).toString mustEqual "<foo &amp;=\"bar\"/>"
-      Elem(None, "foo", Map("'" -> "bar"), Group()).toString mustEqual "<foo &apos;=\"bar\"/>"
-      Elem(None, "foo", Map("<" -> "bar"), Group()).toString mustEqual "<foo &lt;=\"bar\"/>"
-      Elem(None, "foo", Map(">" -> "bar"), Group()).toString mustEqual "<foo &gt;=\"bar\"/>"
+      "character" || "elem.toString"         |>
+      "\""        !! "<foo &quot;=\"bar\"/>" |
+      "&"         !! "<foo &amp;=\"bar\"/>"  |
+      "'"         !! "<foo &apos;=\"bar\"/>" |
+      "<"         !! "<foo &lt;=\"bar\"/>"   |
+      ">"         !! "<foo &gt;=\"bar\"/>"   | { (c, r) => Elem(None, "foo", Map(c -> "bar"), Group()).toString mustEqual r }
     }
     
     "escape reserved characters in attribute values" in {
-      Elem(None, "foo", Map("bar" -> "\""), Group()).toString mustEqual "<foo bar=\"&quot;\"/>"
-      Elem(None, "foo", Map("bar" -> "&"), Group()).toString mustEqual "<foo bar=\"&amp;\"/>"
-      Elem(None, "foo", Map("bar" -> "'"), Group()).toString mustEqual "<foo bar=\"&apos;\"/>"
-      Elem(None, "foo", Map("bar" -> "<"), Group()).toString mustEqual "<foo bar=\"&lt;\"/>"
-      Elem(None, "foo", Map("bar" -> ">"), Group()).toString mustEqual "<foo bar=\"&gt;\"/>"
+      "character" || "elem.toString"         |>
+      "\""        !! "<foo bar=\"&quot;\"/>" |
+      "&"         !! "<foo bar=\"&amp;\"/>"  |
+      "'"         !! "<foo bar=\"&apos;\"/>" |
+      "<"         !! "<foo bar=\"&lt;\"/>"   |
+      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem(None, "foo", Map("bar" -> c), Group()).toString mustEqual r }
     }
-    
+
     "select against self" in {
       val bookstore = <bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book><book><title>I, Robot</title><author>Isaac Asimov</author></book><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
       (bookstore \ "book") mustEqual bookstore.children
