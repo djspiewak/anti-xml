@@ -28,10 +28,11 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
 import scala.io.Source
+import org.specs2.matcher.MustExpectable._
 
-object ZipperSpecs extends Specification {
+class ZipperSpecs extends Specification {
   val bookstore = resource("bookstore.xml")
   
   "zipper updates within '\\' results" should {
@@ -100,10 +101,7 @@ object ZipperSpecs extends Specification {
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
       
-      (bookstore2 \ "book" \ "title" \ *) forall {
-        case Text(str) => str mustEqual "Programming Scala"
-        case _ => false
-      }
+      (bookstore2 \ "book" \ "title" \ *) must beLike((_:Node) match { case Text("Programming Scala") => ok }).forall
     }
     
     // my attempt at a "real world" test case"

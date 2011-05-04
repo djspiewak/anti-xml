@@ -30,54 +30,54 @@ package com.codecommit.antixml
 
 import java.io.StringReader
 import javax.xml.transform.stream.StreamSource
-import org.specs._
+import org.specs2.mutable._
 
-object StAXSpecs extends Specification {
+class StAXSpecs extends Specification {
   import StAXEvents._
   
   object StAXParser extends StAXParser
   
   "StAXIterator" should {
     "generate ElemStarts" in {
-      StAXIterator.fromString("<a />").next must_== ElemStart("a", Map.empty)
+      StAXIterator.fromString("<a />").next mustEqual ElemStart("a", Map.empty)
     }
     "parse attributes in ElemStarts" in {
       StAXIterator.fromString("<a attr='value' />").next must beLike {
-        case elemStart: ElemStart => elemStart.attrs("attr") must_== "value"
+        case elemStart: ElemStart => elemStart.attrs("attr") mustEqual "value"
       }
     }
     "parse namespace prefixes in ElemStarts" in {
       StAXIterator.fromString("<a:a xmlns:a='a' />").next must beLike {
-        case elemStart: ElemStart => elemStart.prefix == Some("a")
+        case elemStart: ElemStart => elemStart.prefix mustEqual Some("a")
       }
     }
     "gerenate ElemEnds" in {
-      StAXIterator.fromString("<a />").drop(1).next must_== ElemEnd(None, "a", None)
+      StAXIterator.fromString("<a />").drop(1).next mustEqual ElemEnd(None, "a", None)
     }
     "generate namespace URIs" in {
       StAXIterator.fromString("<a:a xmlns:a='http://example.com' />").next must beLike {
         case elemStart: ElemStart => {
-          elemStart.uri == Some("http://example.com")
+          elemStart.uri mustEqual Some("http://example.com")
         }
       }
     }
     "generate Characters" in {
       StAXIterator.fromString("<a>a</a>").drop(1).next must beLike {
-        case chars: Characters => chars.text == "a"
+        case chars: Characters => chars.text mustEqual "a"
       }
     }
     "generate Comment" in {
       StAXIterator.fromString("<!--comment--><a />").next must beLike {
-        case comment: Comment => comment.text == "comment"
+        case comment: Comment => comment.text mustEqual "comment"
       }
     }
     "generate ProcessingInstruction" in {
       StAXIterator.fromString("<?target data?><a />").next must beLike {
-        case pi: ProcessingInstruction => pi.target == "target" && pi.data == "data"
+        case pi: ProcessingInstruction => (pi.target, pi.data) mustEqual ("target", "data")
       }
     }
     "generate DocumentEnd" in {
-      StAXIterator.fromString("<a />").drop(2).next must_== DocumentEnd
+      StAXIterator.fromString("<a />").drop(2).next mustEqual DocumentEnd
     }
     // XMLStreamReader does some costly DTD validation so skipping...
     // "generate DocumentTypeDefinition" in {

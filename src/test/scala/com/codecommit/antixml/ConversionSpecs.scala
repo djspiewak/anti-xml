@@ -28,12 +28,13 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
+import org.specs2.ScalaCheck
 import org.scalacheck._
 
 import scala.xml
 
-object ConversionSpecs extends Specification with ScalaCheck {
+class ConversionSpecs extends Specification with ScalaCheck {
   import Prop._
   
   "scala.xml explicit conversions" should {
@@ -57,12 +58,12 @@ object ConversionSpecs extends Specification with ScalaCheck {
       validate[Group[Node]](ns2)
     }
     
-    "convert text nodes" verifies { str: String =>
+    "convert text nodes" in check { str: String =>
       val node = xml.Text(str)
       node.anti mustEqual Text(str)
     }
     
-    "convert entity references" verifies { str: String =>
+    "convert entity references" in check { str: String =>
       val ref = xml.EntityRef(str)
       ref.anti mustEqual EntityRef(str)
       (ref: xml.Node).anti mustEqual EntityRef(str)
@@ -92,7 +93,7 @@ object ConversionSpecs extends Specification with ScalaCheck {
     
     "convert elem children" in {
       val e = <test>Text1<child/>Text2</test>.anti
-      e.children must haveSize(3)
+      e.children must have size(3)
       e.children(0) mustEqual Text("Text1")
       e.children(1) mustEqual Elem(None, "child", Map(), Group())
       e.children(2) mustEqual Text("Text2")
@@ -111,6 +112,6 @@ object ConversionSpecs extends Specification with ScalaCheck {
   }
   
   def validate[Expected] = new {
-    def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence mustNotBe null
+    def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull
   }
 }

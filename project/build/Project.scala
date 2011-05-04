@@ -7,7 +7,11 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify wit
 
   val scalaCheck = "org.scala-tools.testing" %% "scalacheck" % "1.8" % "test" withSources
   val specs = "org.scala-tools.testing" %% "specs" % "1.6.7.1" % "test" withSources
+  val specs2 = "org.specs2" %% "specs2" % "1.3-SNAPSHOT" % "test" withSources
   val jvmSizeOf = "com.github.dmlap" %% "sizeof" % "0.1" % "test" from "http://cloud.github.com/downloads/dmlap/jvm-sizeof/jvm-sizeof-0.1.jar"
+
+  def specs2Framework = new TestFramework("org.specs2.runner.SpecsFramework")
+  override def testFrameworks = super.testFrameworks ++ Seq(specs2Framework)
 
   /* Performance Tests */
   val perfDependencies = testClasspath +++ testDependencies.all
@@ -46,4 +50,6 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify wit
   }
   
   Credentials(Path.userHome / ".ivy2" / ".credentials", log)
+  
+  val snapshots = "snapshots repository" at "http://scala-tools.org/repo-snapshots"
 }

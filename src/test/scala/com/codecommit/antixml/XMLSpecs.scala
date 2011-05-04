@@ -28,9 +28,9 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
 
-object XMLSpecs extends Specification {
+class XMLSpecs extends Specification {
   import XML._
   
   "xml parsing" should {

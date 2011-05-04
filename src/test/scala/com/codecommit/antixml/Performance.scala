@@ -30,7 +30,7 @@ package com.codecommit.antixml
 
 import scala.io.Source
 import com.github.dmlap.sizeof.SizeOf.deepsize
-import javax.xml.parsers.DocumentBuilderFactory 
+import javax.xml.parsers.DocumentBuilderFactory
 
 object Performance {
   def main(args: Array[String]) {
