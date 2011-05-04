@@ -50,4 +50,6 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify wit
   }
   
   Credentials(Path.userHome / ".ivy2" / ".credentials", log)
+  
+  val snapshots = "snapshots repository" at "http://scala-tools.org/repo-snapshots"
 }
