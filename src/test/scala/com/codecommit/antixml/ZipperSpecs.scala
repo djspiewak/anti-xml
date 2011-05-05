@@ -117,6 +117,36 @@ class ZipperSpecs extends Specification {
       val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
       bookstore2 mustEqual Group(expected)
     }
+    
+    "rebuild following identity map with selection miss at the top level" >> {
+      "with suffix miss" in {
+        val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti, <miss/>.anti)
+        val xml2 = (xml \ "sub") map identity unselect
+        
+        xml2 mustEqual xml
+      }
+      
+      "with prefix miss" in {
+        val xml = Group(<miss/>.anti, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti)
+        val xml2 = (xml \ "sub") map identity unselect
+        
+        xml2 mustEqual xml
+      }
+      
+      "with prefix and suffix miss" in {
+        val xml = Group(<miss/>.anti, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti, <miss/>.anti)
+        val xml2 = (xml \ "sub") map identity unselect
+        
+        xml2 mustEqual xml
+      }
+    }
+    
+    "rebuild following identity map with selection miss at the second level" in {
+      val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><miss/><sub bar="test2"/></parent>.anti)
+      val xml2 = (xml \ "sub") map identity unselect
+      
+      xml2 mustEqual xml
+    }
   }
   
   def resource(filename: String) =
