@@ -230,7 +230,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
 object Group {
   implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
     new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
-      def apply(from: Traversable[_], baseMap: =>Vector[ZContext]): Builder[A, Zipper[A]] = {
+      def apply(from: Traversable[_], baseMap: =>Vector[Option[ZContext]]): Builder[A, Zipper[A]] = {
         VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             lazy val map = baseMap
@@ -243,7 +243,7 @@ object Group {
         }
       }
       
-      def apply(baseMap: =>Vector[ZContext]): Builder[A, Zipper[A]] = {
+      def apply(baseMap: =>Vector[Option[ZContext]]): Builder[A, Zipper[A]] = {
         VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             lazy val map = baseMap

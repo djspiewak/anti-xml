@@ -140,18 +140,22 @@ trait Selectable[+A <: Node] {
             rebuildBuilder += (rebuild _)
           }
           
-          case _ =>
+          case _ => {
+            chunkBuilder += 0
+            childMapBuilder += Map()
+            rebuildBuilder += { (_, _) => error("invoked rebuild for non-match") }
+          }
         }
       }
       
       val cat = catBuilder.result
       
       lazy val (_, map) = {
-        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[ZContext]())) {
+        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[Option[ZContext]]())) {
           case ((i, acc), ((length, f), childMap)) if length != 0 =>
-            (i + length, acc :+ (i, i + length, f, childMap))
+            (i + length, acc :+ Some((i, i + length, f, childMap)))
           
-          case ((i, acc), _) => (i, acc)
+          case ((i, acc), _) => (i, acc :+ None)
         }
       }
       

@@ -36,7 +36,7 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 trait Zipper[+A <: Node] extends Group[A] { self =>
   // TODO dependently-typed HList, maybe?
 
-  protected def map: Vector[ZContext]
+  protected def map: Vector[Option[ZContext]]
   protected def parent: Zipper[Node]
 
   // TODO this *may* be a poor choice of words...
@@ -44,8 +44,8 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   
   def unselect: Zipper[Node] = {
     val nodes2 = (map zip parent.toVectorCase).foldLeft(VectorCase[Node]()) {
-      case (acc, ((from, to, _, _), _: Elem)) if from == to => acc
-      case (acc, ((from, to, rebuild, childMap), _: Elem)) => acc :+ rebuild(self.slice(from, to), childMap)
+      case (acc, (Some((from, to, _, _)), _: Elem)) if from == to => acc
+      case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) => acc :+ rebuild(self.slice(from, to), childMap)
       case (acc, (_, e)) => acc :+ e
     }
 
@@ -69,39 +69,45 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
     case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
       val result = toVectorCase.toVector map f
 
-      val intermedMap = for ((from, to, rebuild, childMap) <- map) yield {
-        // get the mapping from *our* indexes to source indexes
-        val inverseMap = {
-          val maps = for ((source, targets) <- childMap)
-            yield (Map[Int, Int]() /: targets) { (acc, t) => acc + (t -> source) }
-
-          (Map[Int, Int]() /: maps) { _ ++ _ }
-        }
-
-        val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), Map[Int, Set[Int]]())) {
-          case ((start, acc, childMap2), (chunk, i)) => {
-            val size = chunk.size
-            val source = inverseMap(i)
-
-            val contrib = Set(start until (start + size): _*)
-            val set2 = childMap2.getOrElse(source, contrib) ++ contrib
-
-            (start + size, acc ++ chunk, childMap2.updated(source, set2))
+      val intermedMap = map map {
+        case Some((from, to, rebuild, childMap)) => {
+          // get the mapping from *our* indexes to source indexes
+          val inverseMap = {
+            val maps = for ((source, targets) <- childMap)
+              yield (Map[Int, Int]() /: targets) { (acc, t) => acc + (t -> source) }
+  
+            (Map[Int, Int]() /: maps) { _ ++ _ }
           }
+  
+          val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), Map[Int, Set[Int]]())) {
+            case ((start, acc, childMap2), (chunk, i)) => {
+              val size = chunk.size
+              val source = inverseMap(i)
+  
+              val contrib = Set(start until (start + size): _*)
+              val set2 = childMap2.getOrElse(source, contrib) ++ contrib
+  
+              (start + size, acc ++ chunk, childMap2.updated(source, set2))
+            }
+          }
+  
+          val length = aggregate.length
+          val delta = length - (to - from)
+          Some((from, to + delta, rebuild, childMap2, aggregate, delta))
         }
-
-        val length = aggregate.length
-        val delta = length - (to - from)
-        (from, to + delta, rebuild, childMap2, aggregate, delta)
+        
+        case None => None
       }
 
-      val (_, map2, chunks) = intermedMap.foldLeft((0, Vector[ZContext](), Vector[Vector[B]]())) {
-        case ((offset, map2, acc), (from, to, rebuild, childMap, aggregate, delta)) => {
+      val (_, map2, chunks) = intermedMap.foldLeft((0, Vector[Option[ZContext]](), Vector[Vector[B]]())) {
+        case ((offset, map2, acc), Some((from, to, rebuild, childMap, aggregate, delta))) => {
           val from2 = from + offset
           val to2 = to + offset
           val offset2 = offset + delta
-          (offset2, map2 :+ (from2, to2, rebuild, childMap), acc :+ aggregate)
+          (offset2, map2 :+ Some((from2, to2, rebuild, childMap)), acc :+ aggregate)
         }
+        
+        case ((offset, map2, acc), None) => (offset, map2 :+ None, acc)
       }
 
       val builder = cbf(parent.asInstanceOf[Group[A]], map2)
