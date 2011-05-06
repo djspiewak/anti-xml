@@ -2,6 +2,7 @@ target/
 out/
 project/boot/
 lib_managed/
+src_managed/
 project/plugins/project/
 project/plugins/src_managed/
 *.iml

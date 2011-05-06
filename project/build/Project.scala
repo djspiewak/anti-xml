@@ -31,6 +31,9 @@ import sbt._
 import de.element34.sbteclipsify._
 import reaktor.scct.ScctProject
 
+import java.io.{BufferedWriter, File, FileWriter}
+import scala.io.Source
+
 class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify with ScctProject {
 
   val scalaCheck = "org.scala-tools.testing" %% "scalacheck" % "1.8" % "test" withSources
@@ -39,6 +42,83 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify wit
 
   def specs2Framework = new TestFramework("org.specs2.runner.SpecsFramework")
   override def testFrameworks = super.testFrameworks ++ Seq(specs2Framework)
+  
+  val managedSourcePathRoot = path("src_managed")
+  val managedSourcePath = managedSourcePathRoot / ("scala_" + buildScalaVersion)
+  
+  lazy val cleanManagedSource = task {
+    def recursiveDelete(file: File) {
+      if (file.isDirectory) {
+        file.listFiles foreach recursiveDelete
+      }
+      file.delete()
+    }
+    
+    if (managedSourcePath.exists) {
+      log.info("Deleting directory " + managedSourcePath.absString)
+      recursiveDelete(managedSourcePath.asFile)
+    }
+    None
+  }
+  
+  // Scala compatibility hack
+  lazy val generateCompatibilityTrait = task {
+    log.info("Generating compatibility trait for Scala version " + buildScalaVersion)
+    
+    if (!managedSourcePathRoot.exists) {
+      managedSourcePathRoot.asFile.mkdir()
+    }
+    
+    if (!managedSourcePath.exists) {
+      managedSourcePath.asFile.mkdir()
+    }
+    
+    val prefix = if (buildScalaVersion startsWith "2.9") {
+      """
+      package scala.collection {
+        package object bippy {
+          type ImplementableGenTraversableOnce[A] = GenTraversableOnce[A]
+        }
+      }
+      """
+    } else {
+      ""
+    }
+    
+    val body = if (buildScalaVersion startsWith "2.9") {
+      """type CompatTraversable[A] = scala.collection.bippy.ImplementableGenTraversableOnce[A]"""
+    } else {
+      """type CompatTraversable[A] = Traversable[A]"""
+    }
+    
+    val fullSource = prefix + """
+      package com.codecommit.antixml {
+        private[antixml] trait ScalaCompat {""" + body + """}
+      }
+      """
+    val outFile = managedSourcePath / "CompatTraversable.scala"
+    
+    val upToDate = if (outFile.exists)
+      (Source fromFile outFile.asFile mkString) == fullSource
+    else
+      false
+    
+    if (!upToDate) {
+      val writer = new BufferedWriter(new FileWriter(outFile.asFile))
+      try {
+        writer.append(fullSource)
+      } finally {
+        writer.close()
+      }
+    }
+    None
+  }
+  
+  override def compileAction = super.compileAction dependsOn generateCompatibilityTrait
+  
+  override def cleanAction = super.cleanAction dependsOn cleanManagedSource
+  
+  override def mainSourceRoots = super.mainSourceRoots +++ (managedSourcePath ##)
 
   /* Performance Tests */
   val perfDependencies = testClasspath +++ testDependencies.all
