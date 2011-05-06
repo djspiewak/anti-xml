@@ -67,6 +67,9 @@ will be interesting to see where things go!
 Usage
 =====
 
+* `Scaladoc for the master branch`_
+* `Scaladoc for the latest stable release`_
+
 The Maven artifact descriptor for the latest *stable* version of
 Anti-XML is as follows: ``com.codecommit:anti-xml_2.8.1:0.1``.  We also regularly
 push ``-SNAPSHOT`` releases to the Scala-Tools_ "snapshots" repository, for all
@@ -92,6 +95,7 @@ build systems.
       <artifactId>anti-xml_2.8.1</artifactId>
       <version>0.1</version>
     </dependency>
+    
   
 Supported Versions of Scala
 ---------------------------
@@ -115,7 +119,6 @@ led to the conclusion that cross-building for 2.8.0 just isn't worth the effort.
 Random Snippets
 ---------------
 
-The work-in-progress scaladoc can be found here_, archived on `the project CI server`_.
 The API should look fairly familiar to anyone who has used the ``scala.xml``
 package.  For example::
     
@@ -180,8 +183,9 @@ tree around it, ariving at the original structure modulo the change made to the
 third ``<book>`` element deep inside the tree.  For more details, see some of
 the following sections.
 
+.. _Scaladoc for the master branch: http://www.danielspiewak.com/anti-xml/doc
+.. _Scaladoc for the latest stable release: http://www.danielspiewak.com/anti-xml/v0.1/doc
 .. _Scala-Tools: http://scala-tools.org
-.. _here: http://hudson.danielspiewak.org/job/anti-xml/javadoc/?
 .. _the project CI server: http://hudson.danielspiewak.org/job/anti-xml/
 .. _bookstore.xml: https://github.com/djspiewak/anti-xml/blob/master/src/test/resources/bookstore.xml
 .. _node.scala: https://github.com/djspiewak/anti-xml/blob/master/src/main/scala/com/codecommit/antixml/node.scala
