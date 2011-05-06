@@ -83,7 +83,7 @@ build systems.
   
 **Buildr**::
   
-    compile.with 'com.codecommit:anti-xml:jar:0.1'
+    compile.with "com.codecommit:anti-xml_#{Scala.version}:jar:0.1"
   
 **Maven2**::
   
