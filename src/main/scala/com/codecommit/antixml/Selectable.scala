@@ -159,7 +159,7 @@ trait Selectable[+A <: Node] {
         }
       }
       
-      val builder = cbf(makeAsZipper, map)
+      val builder = cbf(toZipper, map)
       builder ++= cat
       builder.result
     } else {
@@ -215,9 +215,9 @@ trait Selectable[+A <: Node] {
     }
   }
   
-  protected def matches(selector: Selector[_, _]): Boolean = true
+  def matches(selector: Selector[_, _]): Boolean = true
   
   def toGroup: Group[A]
   
-  protected def makeAsZipper: Zipper[A] = toGroup.makeAsZipper
+  def toZipper: Zipper[A] = toGroup.toZipper
 }

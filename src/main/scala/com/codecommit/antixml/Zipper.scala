@@ -33,7 +33,7 @@ import util._
 
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 
-trait Zipper[+A <: Node] extends Group[A] { self =>
+trait Zipper[+A <: Node] extends Group[A] with ScalaCompat { self =>
   // TODO dependently-typed HList, maybe?
 
   protected def map: Vector[Option[ZContext]]
@@ -65,7 +65,7 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
     case _ => super.map(f)(cbf)
   }
 
-  override def flatMap[B, That](f: A => Traversable[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
+  override def flatMap[B, That](f: A => CompatTraversable[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
     case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
       val result = toVectorCase.toVector map f
 
@@ -124,10 +124,8 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   
   override def withFilter(f: A => Boolean) = new WithFilter(List(f))
   
-  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = flatMap {
-    case e if pf isDefinedAt e => Some(pf(e))
-    case _ => None
-  }
+  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That =
+    flatMap(pf.lift andThen { _.toTraversable })
   
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVectorCase) with Zipper[B] {
@@ -136,13 +134,13 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
     }
   }
   
-  override protected def makeAsZipper = self
+  override def toZipper = self
   
   class WithFilter(filters: List[A => Boolean]) extends FilterMonadic[A, Group[A]] {
     def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Group[A], B, That]) =
       self filter { a => filters forall { _(a) } } map f
     
-    def flatMap[B, That](f: A => Traversable[B])(implicit bf: CanBuildFrom[Group[A], B, That]) =
+    def flatMap[B, That](f: A => CompatTraversable[B])(implicit bf: CanBuildFrom[Group[A], B, That]) =
       self filter { a => filters forall { _(a) } } flatMap f
     
     def foreach[B](f: A => B) = self foreach f
