@@ -52,10 +52,6 @@ private[antixml] class LazyVector[S, +A] private (
     new LazyVector(body2, tail2, state, f2)
   }
   
-  def flatMap[B](f: A => LazyVector[S, B]): LazyVector[S, B] = null
-  
-  def collect[B](pf: PartialFunction[A, B]): LazyVector[S, B] = null
-  
   def force: Vector[A] = extend(Int.MaxValue).body
   
   private def extend(i: Int) = {
