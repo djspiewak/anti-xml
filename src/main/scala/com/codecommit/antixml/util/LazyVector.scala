@@ -78,15 +78,6 @@ private[antixml] class LazyVector[S, +A] private (
     }
   }
   
-  override def equals(a: Any) = a match {
-    case that: LazyVector[S, A] =>
-      this.body == that.body && this.tail == that.tail && this.state == that.state && this.f == that.f
-      
-    case _ => false
-  }
-  
-  override def hashCode = body.hashCode + tail.hashCode + state.hashCode + f.hashCode
-  
   override def toString = "LazyGroup(%s, %s, %s, %s)".format(body, tail, state, f)
 }
 
