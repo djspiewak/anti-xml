@@ -21,5 +21,6 @@ private[antixml] class LazyVector[S, +A] private (body: Vector[A], tail: Vector[
 }
 
 private[antixml] object LazyVector {
-  def apply[S, A](init: S)(f: S => (S, A)): LazyVector[S, A] = null
+  def apply[S, A](init: S)(f: S => Option[(S, A)]): LazyVector[S, A] =
+    new LazyVector(Vector(), Vector(), init, f)
 }
