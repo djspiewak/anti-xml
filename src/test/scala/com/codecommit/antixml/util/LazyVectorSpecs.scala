@@ -33,10 +33,17 @@ import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 
 object LazyVectorSpecs extends Specification with ScalaCheck {
-   val emptyVector = LazyVector(0)((_: Int) => None)
+   def emptyVector[S, A](z: S) = LazyVector[S, A](z)((_: S) => None)
+  def listToVector[A](xs: List[A]): LazyVector[List[A], A] = {
+   LazyVector(xs) {
+      case x :: xs => Some(xs, x)
+      case _ => None
+    }
+  }
+
   "LazyVector" >> {
     "apply should preserve the ordering of its elements" in {
-      def next(n: Int): Option[(Int, Int)] = Some(n + 1 -> n)
+      def next(n: Int): Option[(Int, Int)] = Some(n + 1, n)
       val naturals = LazyVector(0)(next)
       choose(0, 100000) must pass { x: Int => naturals(x)._1 mustEqual x }
     }
@@ -48,32 +55,40 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
     }
     "prepending to empty should be equivalent to the singleton LazyVector" in {
       choose(0, 100000) must pass { x: Int =>
-        x +: emptyVector mustEqual LazyVector(x)((_: Int) => None)
+        x +: emptyVector(0) mustEqual LazyVector(x)((_: Int) => None)
       }
     }
     "prepending should be equivalent to appending on empty" in {
       choose(0, 100000) must pass { x: Int =>
-        x +: emptyVector mustEqual emptyVector :+ x
+        x +: emptyVector(0) mustEqual emptyVector(0) :+ x
       }
     }
     "appending to empty should be equivalent to the singleton LazyVector" in {
       choose(0, 100000) must pass { x: Int =>
-        emptyVector :+ x mustEqual LazyVector(x)((_: Int) => None)
+        emptyVector(0) :+ x mustEqual LazyVector(x)((_: Int) => None)
       }
     }
     "lazy ++ should be isomorphic to List ++" in {
       forAll {(l: List[String], r: List[String]) =>
-        def listToVector[A](xs: List[A]): LazyVector[List[A], A] =
-          LazyVector(xs)({
-            case x :: xs => Some(xs, x)
-            case _ => None
-          })
         (l ++ r) == ((listToVector(l) ++ listToVector(r)).force.toList)
       } must pass
     }
-    "map" in {
+    "mapping id must equal the original" in {
+      forAll { xs: List[String] =>
+        listToVector(xs).map(x => x) mustEqual listToVector(xs)
+       } must pass
     }
-    "flatMap" in {
+    "map f . g should be equivalent to map f . map g" in {
+      forAll { xs: List[Int] =>
+        def f = { x: Int =>  x + 1 }
+        def g = { x: Int => x * 2 }
+        listToVector(xs).map(g).map(f) mustEqual listToVector(xs).map(f andThen g)
+      } must pass
+    }
+    "flatMap const empty should equal empty" in {
+      forAll { xs: List[String] =>
+        listToVector(xs) flatMap { _ => emptyVector(Nil) } mustEqual emptyVector(Nil)
+      } must pass
     }
     "collect" in {
     }
