@@ -43,7 +43,7 @@ private[antixml] class LazyVector[S, +A] private (
   
   def collect[B](pf: PartialFunction[A, B]): LazyVector[S, B] = null
   
-  def force: Vector[A] = null
+  def force: Vector[A] = extend(Int.MaxValue).body
   
   private def extend(i: Int) = {
     if (i < body.length) {
