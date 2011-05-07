@@ -1,35 +1,28 @@
 package com.codecommit.antixml.util
 
-private[antixml] class LazyVector[S, +A] private (body: Vector[A], tail: Vector[A], state: S, f: S => Option[(S, A)]) {
+private[antixml] class LazyVector[S, +A] private (
+    private val body: Vector[A],
+    private val tail: Vector[A],
+    private val state: S,
+    private val f: S => Option[(S, A)]) {
   
   def apply(i: Int): (A, LazyVector[S, A]) = {
-    if (i < body.length) {
-      (body(i), this)
-    } else {
-      val shifted = i - body.length
-      
-      def gen(state: S): Stream[(S, A)] =
-        f(state) map { case tuple @ (state2, _) => tuple #:: gen(state2) } getOrElse Stream.Empty
-      
-      val stream = gen(state) take shifted
-      val body2 = body ++ (stream map { case (_, a) => a })
-      
-      if (i < body2.length) {
-        val (state2, back) = stream(shifted)
-        (back, new LazyVector(body2, tail, state2, f))
-      } else {
-        lazy val finalState = stream.lastOption map { case (s, _) => s } getOrElse state
-        val shifted2 = i - body2.length
-        
-        if (shifted2 < tail.length)
-          (tail(i), new LazyVector(body2 ++ tail, Vector(), finalState, f))       // we're basically done at this point
-        else
-          throw new IndexOutOfBoundsException(i.toString)
-      }
-    }
+    val this2 = extend(i)
+    if (i < this2.body.length)
+      (this2.body(i), this2)
+    else
+      throw new IndexOutOfBoundsException(i.toString)
   }
   
-  def updated[B >: A](i: Int, b: B): LazyVector[S, B] = null
+  def updated[B >: A](i: Int, b: B): LazyVector[S, B] = {
+    val this2 = extend(i)
+    val body2 = if (i < this2.body.length)
+      this2.body.updated(i, b)
+    else
+      throw new IndexOutOfBoundsException(i.toString)
+    
+    new LazyVector(body2, this2.tail, this2.state, this2.f)
+  }
   
   def +:[B >: A](b: B): LazyVector[S, B] =
     new LazyVector(b +: body, tail, state, f)
@@ -51,6 +44,26 @@ private[antixml] class LazyVector[S, +A] private (body: Vector[A], tail: Vector[
   def collect[B](pf: PartialFunction[A, B]): LazyVector[S, B] = null
   
   def force: Vector[A] = null
+  
+  private def extend(i: Int) = {
+    if (i < body.length) {
+      this
+    } else {
+      val shifted = i - body.length
+      
+      def gen(state: S): Stream[(S, A)] =
+        f(state) map { case tuple @ (state2, _) => tuple #:: gen(state2) } getOrElse Stream.Empty
+      
+      val stream = gen(state) take shifted
+      val body2 = body ++ (stream map { case (_, a) => a })
+      lazy val state2 = stream.lastOption map { case (s, _) => s } getOrElse state
+      
+      if (i < body2.length)
+        new LazyVector(body2, tail, state2, f)
+      else
+        new LazyVector(body2 ++ tail, Vector(), state2, f)       // we're basically done at this point
+    }
+  }
 }
 
 private[antixml] object LazyVector {
