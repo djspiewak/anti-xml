@@ -33,22 +33,22 @@ import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 
 object LazyVectorSpecs extends Specification with ScalaCheck {
-   val emptyVector = new LazyVector(Vector.empty, Vector.empty, 0, (_: Int) => None)
+   val emptyVector = LazyVector(0)((_: Int) => None)
   "LazyVector" >> {
     "apply should preserve the ordering of its elements" in {
       def next(n: Int): Option[(Int, Int)] = Some(n + 1 -> n)
-      val naturals = new LazyVector(Vector.empty, Vector.empty, 0, next)
+      val naturals = LazyVector(0)(next)
       choose(0, 100000) must pass { x: Int => naturals(x)._1 mustEqual x }
     }
     "updated should be pure" in {
-      def one = new LazyVector(Vector(1), Vector.empty, 1, (_: Int) => None)
+      def one = LazyVector(1)((_: Int) => None)
       choose(0, 100000) must pass { x: Int =>
         one.updated(0, x) mustEqual one.updated(0, x)
       }
     }
     "prepending to empty should be equivalent to the singleton LazyVector" in {
       choose(0, 100000) must pass { x: Int =>
-        x +: emptyVector mustEqual new LazyVector(Vector(x), Vector.empty, x, (_: Int) => None)
+        x +: emptyVector mustEqual LazyVector(x)((_: Int) => None)
       }
     }
     "prepending should be equivalent to appending on empty" in {
@@ -58,13 +58,13 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
     }
     "appending to empty should be equivalent to the singleton LazyVector" in {
       choose(0, 100000) must pass { x: Int =>
-        emptyVector :+ x mustEqual new LazyVector(Vector(x), Vector.empty, x, (_: Int) => None)
+        emptyVector :+ x mustEqual LazyVector(x)((_: Int) => None)
       }
     }
     "lazy ++ should be isomorphic to List ++" in {
       forAll {(l: List[String], r: List[String]) =>
         def listToVector[A](xs: List[A]): LazyVector[List[A], A] =
-          new LazyVector(Vector.empty, Vector.empty, xs, {
+          LazyVector(xs)({
             case x :: xs => Some(xs, x)
             case _ => None
           })
