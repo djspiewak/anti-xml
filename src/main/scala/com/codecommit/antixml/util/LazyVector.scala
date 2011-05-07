@@ -62,7 +62,7 @@ private[antixml] class LazyVector[S, +A] private (
     if (i < body.length) {
       this
     } else {
-      val shifted = i - body.length
+      val shifted = i - body.length + 1
       
       def gen(state: S): Stream[(S, A)] =
         f(state) map { case tuple @ (state2, _) => tuple #:: gen(state2) } getOrElse Stream.Empty
