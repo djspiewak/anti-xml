@@ -43,7 +43,7 @@ private[antixml] class LazyVector[S, +A] private (
     new LazyVector(body2, tail2, state, f2)
   }
   
-  def force: Vector[A] = extend(Int.MaxValue).body
+  def force: Vector[A] = extend(Int.MaxValue - 1).body
   
   private def extend(i: Int) = {
     if (i < body.length) {
