@@ -30,7 +30,20 @@ private[antixml] class LazyVector[S, +A] private (
   def :+[B >: A](b: B): LazyVector[S, B] =
     new LazyVector(body, tail :+ b, state, f)
   
-  def ++[B >: A](that: LazyVector[S, B]): LazyVector[S, B] = null
+  def ++[B >: A](that: LazyVector[S, B]): LazyVector[S, B] = {
+    if (tail.isEmpty && that.body.isEmpty) {
+      val f2: S => Option[(S, B)] = { s =>
+        f(s) orElse that.f(s)
+      }
+      
+      new LazyVector(body, that.tail, state, f2)
+    } else {
+      new LazyVector(force ++ that.body, that.tail, that.state, that.f)
+    }
+  }
+  
+  def ++[B >: A](that: Vector[B]): LazyVector[S, B] =
+    new LazyVector(body, tail ++ that, state, f)
   
   def map[B](f: A => B): LazyVector[S, B] = {
     val body2 = body map f
