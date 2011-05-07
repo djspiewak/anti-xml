@@ -36,7 +36,7 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
    val emptyVector = new LazyVector(Vector.empty, Vector.empty, 0, (_: Int) => None)
   "LazyVector" >> {
     "apply should preserve the ordering of its elements" in {
-      def next(n: Int): Option[(Int, Int)] = Some(n, n + 1)
+      def next(n: Int): Option[(Int, Int)] = Some(n + 1 -> n)
       val naturals = new LazyVector(Vector.empty, Vector.empty, 0, next)
       choose(0, 100000) must pass { x: Int => naturals(x)._1 mustEqual x }
     }
