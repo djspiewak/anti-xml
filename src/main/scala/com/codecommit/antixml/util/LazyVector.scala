@@ -39,7 +39,12 @@ private[antixml] class LazyVector[S, +A] private (body: Vector[A], tail: Vector[
   
   def ++[B >: A](that: LazyVector[S, B]): LazyVector[S, B] = null
   
-  def map[B](f: A => B): LazyVector[S, B] = null
+  def map[B](f: A => B): LazyVector[S, B] = {
+    val body2 = body map f
+    val tail2 = tail map f
+    val f2 = this.f andThen { _ map { case (s, a) => (s, f(a)) } }
+    new LazyVector(body2, tail2, state, f2)
+  }
   
   def flatMap[B](f: A => LazyVector[S, B]): LazyVector[S, B] = null
   
