@@ -84,14 +84,5 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
         listToVector(xs).map(g).map(f) mustEqual listToVector(xs).map(f andThen g)
       } must pass
     }
-    "flatMap const empty should equal empty" in {
-      forAll { xs: List[String] =>
-        listToVector(xs) flatMap { _ => emptyVector(Nil) } mustEqual emptyVector(Nil)
-      } must pass
-    }
-    "collect" in {
-    }
-    "force" in {
-    }
   }
 }
