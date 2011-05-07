@@ -31,9 +31,11 @@ private[antixml] class LazyVector[S, +A] private (body: Vector[A], tail: Vector[
   
   def updated[B >: A](i: Int, b: B): LazyVector[S, B] = null
   
-  def +:[B >: A](b: B): LazyVector[S, B] = null
+  def +:[B >: A](b: B): LazyVector[S, B] =
+    new LazyVector(b +: body, tail, state, f)
   
-  def :+[B >: A](b: B): LazyVector[S, B] = null
+  def :+[B >: A](b: B): LazyVector[S, B] =
+    new LazyVector(body, tail :+ b, state, f)
   
   def ++[B >: A](that: LazyVector[S, B]): LazyVector[S, B] = null
   
