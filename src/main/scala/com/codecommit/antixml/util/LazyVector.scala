@@ -1,6 +1,6 @@
 package com.codecommit.antixml.util
 
-private[antixml] class LazyVector[S, +A] private (body: Vector[A], tail: Vector[A], state: S, f: S => Option[(S, A)]) {
+private[antixml] class LazyVector[S, +A] private[antixml] (body: Vector[A], tail: Vector[A], state: S, f: S => Option[(S, A)]) {
   def apply(i: Int): (A, LazyVector[S, A]) = null
   
   def updated[B >: A](i: Int, b: B): LazyVector[S, B] = null
