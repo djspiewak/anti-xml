@@ -33,9 +33,11 @@ import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 
 object LazyVectorSpecs extends Specification with ScalaCheck {
-   def emptyVector[S, A](z: S) = LazyVector[S, A](z)((_: S) => None)
+  
+  def emptyVector[S, A](z: S) = LazyVector[S, A](z) { (_: S) => None }
+  
   def listToVector[A](xs: List[A]): LazyVector[List[A], A] = {
-   LazyVector(xs) {
+    LazyVector(xs) {
       case x :: xs => Some(xs, x)
       case _ => None
     }
