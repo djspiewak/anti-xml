@@ -1,6 +1,6 @@
 package com.codecommit.antixml.util
 
-private[antixml] class LazyVector[S, +A] private (
+private[antixml] class LazyVector[S, +A] private[antixml] (
     private val body: Vector[A],
     private val tail: Vector[A],
     private val state: S,
