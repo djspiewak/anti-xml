@@ -1,6 +1,6 @@
 package com.codecommit.antixml.util
 
-private[antixml] class LazyVector[S, +A] private[antixml] (
+private[antixml] class LazyVector[S, +A] private (
     private val body: Vector[A],
     private val tail: Vector[A],
     private val state: S,
@@ -62,7 +62,7 @@ private[antixml] class LazyVector[S, +A] private[antixml] (
     if (i < body.length) {
       this
     } else {
-      val shifted = i - body.length
+      val shifted = i - body.length + 1
       
       def gen(state: S): Stream[(S, A)] =
         f(state) map { case tuple @ (state2, _) => tuple #:: gen(state2) } getOrElse Stream.Empty
@@ -77,6 +77,8 @@ private[antixml] class LazyVector[S, +A] private[antixml] (
         new LazyVector(body2 ++ tail, Vector(), state2, f)       // we're basically done at this point
     }
   }
+  
+  override def toString = "LazyGroup(%s, %s, %s, %s)".format(body, tail, state, f)
 }
 
 private[antixml] object LazyVector {
