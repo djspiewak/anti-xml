@@ -40,13 +40,13 @@ import scala.io.Source
  * @see org.xml.sax
  */
 class SAXParser extends XMLParser {
-  override def fromString(str: String): Elem =
+  def fromString(str: String): Elem =
     fromInputSource(new InputSource(new StringReader(str)))
   
-  override def fromInputStream(is: InputStream): Elem =
+  def fromInputStream(is: InputStream): Elem =
     fromInputSource(new InputSource(is))
   
-  override def fromReader(reader: Reader): Elem =
+  def fromReader(reader: Reader): Elem =
     fromInputSource(new InputSource(reader))
 
   def fromInputSource(source: InputSource): Elem = {
