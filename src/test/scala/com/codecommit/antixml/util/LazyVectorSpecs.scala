@@ -34,6 +34,9 @@ import org.scalacheck.Prop._
 
 object LazyVectorSpecs extends Specification with ScalaCheck {
   
+  lazy val numProcessors = Runtime.getRuntime.availableProcessors
+  implicit val params = set(workers -> numProcessors)
+  
   def emptyVector[S, A](z: S) = LazyVector[S, A](z) { (_: S) => None }
   
   def singletonVector[A](a: A): LazyVector[Boolean, A] =
@@ -98,7 +101,7 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
     }
     
     "lazy ++ should be isomorphic to Vector ++" in {
-      val prop = forAll { (left: List[String], right: List[String]) =>
+      val prop = forAll { (left: List[Int], right: List[Int]) =>
         (listToVector(left) ++ listToVector(right)).force mustEqual Vector(left ++ right: _*)
       }
       
@@ -106,7 +109,7 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
     }
     
     "mapping id must equal the original" in {
-      val prop = forAll { xs: List[String] =>
+      val prop = forAll { xs: List[Int] =>
         (listToVector(xs) map identity force) mustEqual listToVector(xs).force
       }
       
