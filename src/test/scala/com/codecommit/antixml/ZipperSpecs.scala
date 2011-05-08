@@ -35,6 +35,13 @@ import org.specs2.matcher.MustExpectable._
 class ZipperSpecs extends Specification {
   val bookstore = resource("bookstore.xml")
   
+  "Zipper#stripZipper" should {
+    "effectively strip zipper context" in {
+      val books = bookstore \ "book"
+      books.stripZipper.isInstanceOf[Zipper[Node]] mustEqual false
+    }
+  }
+  
   "zipper updates within '\\' results" should {
     "rebuild updated at one level" in {
       val books = bookstore \ "book"
