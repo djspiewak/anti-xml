@@ -219,7 +219,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
       ourFilter ++ childFilter
   }
 
-  override protected def matches(selector: Selector[_, _]) =
+  override protected def matches(selector: Selector[_]) =
     selector.elementName map bloomFilter.contains getOrElse true
 }
 
@@ -228,9 +228,9 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
  * new `Group`(s) from specified nodes.
  */
 object Group {
-  implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] = {
-    new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {
-      def apply(from: Traversable[_], baseMap: =>Vector[ZContext]): Builder[A, Zipper[A]] = {
+  implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Group[_], A, Zipper[A]] = {
+    new CanBuildFromWithZipper[Group[_], A, Zipper[A]] {
+      def apply(from: Group[_], baseMap: =>Vector[ZContext]): Builder[A, Zipper[A]] = {
         VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             lazy val map = baseMap
@@ -251,6 +251,8 @@ object Group {
           }
         }
       }
+      
+      def append(left: Zipper[A], right: Zipper[A]) = left ++ right
     }
   }
   

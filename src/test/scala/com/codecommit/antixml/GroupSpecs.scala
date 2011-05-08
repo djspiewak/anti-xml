@@ -58,7 +58,7 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
     }
     
     "be fully specified by flatMap / collect" in {
-      val prop = forAll { (ns: Group[Node], selector: Selector[Node, Zipper[Node]]) =>
+      val prop = forAll { (ns: Group[Node], selector: Selector[Node]) =>
         val result = ns \ selector
         val expected = ns flatMap {
           case Elem(_, _, _, children) => children collect selector
@@ -97,7 +97,7 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
     }
     
     "be fully specified by recursive flatMap / collect" in {
-      val prop = forAll { (ns: Group[Node], selector: Selector[Node, Zipper[Node]]) =>
+      val prop = forAll { (ns: Group[Node], selector: Selector[Node]) =>
         def loop(ns: Group[Node]): Group[Node] = {
           val recursive = ns flatMap {
             case Elem(_, _, _, children) => loop(children)

@@ -39,7 +39,7 @@ trait XMLGenerators {
   
   val identifiers = (Source fromURL (getClass getResource ("/identifiers.txt")) getLines).toList
   
-  implicit val arbSelector: Arbitrary[Selector[Node, Zipper[Node]]] =
+  implicit val arbSelector: Arbitrary[Selector[Node]] =
     Arbitrary(oneOf(nodeSelectorGenerator, elemSelectorGenerator))
   
   implicit def arbGroup[A <: Node](implicit arb: Arbitrary[A]): Arbitrary[Group[A]] =
@@ -54,7 +54,7 @@ trait XMLGenerators {
   
   lazy val elemSelectorGenerator = oneOf(identifiers) map stringToSelector
   
-  lazy val nodeSelectorGenerator: Gen[Selector[Node, Zipper[Node]]] = for {
+  lazy val nodeSelectorGenerator: Gen[Selector[Node]] = for {
     flag <- arbitrary[Boolean]
     xform <- arbitrary[Node => Node]
   } yield Selector({

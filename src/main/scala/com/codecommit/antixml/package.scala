@@ -53,7 +53,7 @@ package object antixml {
    * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
    * For example: `ns \ "name"`
    */
-  implicit def stringToSelector(name: String): Selector[Elem, Zipper[Elem]] =
+  implicit def stringToSelector(name: String): Selector[Elem] =
     Selector({ case e @ Elem(_, `name`, _, _) => e }, Some(name))
 
   /**
@@ -61,7 +61,7 @@ package object antixml {
    * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
    * For example: `ns \ 'name`
    */
-  implicit def symbolToSelector(sym: Symbol): Selector[Elem, Zipper[Elem]] = {
+  implicit def symbolToSelector(sym: Symbol): Selector[Elem] = {
     val Symbol(name) = sym
     stringToSelector(name)
   }
@@ -81,7 +81,7 @@ package object antixml {
    * Wildcard selector which passes ''all'' nodes unmodified.  This is analogous
    * to the `"_"` selector syntax in `scala.xml`.  For example: `ns \ * \ "name"`
    */
-  val `*`: Selector[Node, Zipper[Node]] = Selector({ case n: Node => n })
+  val `*`: Selector[Node] = Selector({ case n: Node => n })
   
   /**
    * Non-node selector which finds exclusively [[com.codecommit.antixml.Text]]
@@ -92,5 +92,5 @@ package object antixml {
    * example: `ns \\ text mkString` (this is analogous, but not quite equivalent
    * to calling `ns.text` in `scala.xml`).
    */
-  val text: Selector[String, Traversable[String]] = Selector({ case Text(str) => str })
+  val text: Selector[String] = Selector({ case Text(str) => str })
 }
