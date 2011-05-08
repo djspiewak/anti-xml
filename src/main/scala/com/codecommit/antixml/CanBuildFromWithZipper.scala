@@ -32,6 +32,22 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.Vector
 import scala.collection.mutable.Builder
 
+/**
+ * An extension of [[scala.collection.generic.CanBuildFrom]] with functionality
+ * required to generate zippers (during selection).  In addition to providing the
+ * standard CanBuildFrom functionality (producing an instance
+ * of [[scala.collection.mutable.Builder]]) with respect to a provided zipper
+ * context, this typeclass also provides a monoidal append method on the `To` type.
+ * This is required for deep-select on [[com.codecommit.antixml.Group]].
+ *
+ * A default implicit "lifting" is provided from [[scala.collection.generic.CanBuildFrom]] to
+ * an instances of [[com.codecommit.antixml.CanBuildFromWithZipper]] for all target
+ * types which are implicitly convertable to [[scala.collection.Traversable]].
+ * (the reason for this restriction is to allow a default implementation of the
+ * aforementioned monoidal append)  This implicit lifting is defined in the
+ * companion object for this trait, giving it lower priority in the implicit
+ * resolution, but still accessible without requiring an explicit import.
+ */
 trait CanBuildFromWithZipper[-From, -Elem, To] extends CanBuildFrom[From, Elem, To] {
   def apply(from: From): Builder[Elem, To] = apply(from, Vector())
   def apply(): Builder[Elem, To] = apply(Vector())
@@ -39,10 +55,31 @@ trait CanBuildFromWithZipper[-From, -Elem, To] extends CanBuildFrom[From, Elem, 
   def apply(from: From, map: =>Vector[Option[ZContext]]): Builder[Elem, To]
   def apply(map: =>Vector[Option[ZContext]]): Builder[Elem, To]
   
+  /**
+   */
   def append(left: To, right: To): To
 }
 
+/**
+ * Serves as a simple container for the implicit lifting
+ * of [[scala.collection.generic.CanBuildFrom]] to [[com.codecommit.antixml.CanBuildFromWithZipper]].
+ */
 object CanBuildFromWithZipper {
+  
+  /**
+   * Implicitly "lifts" an existing instance of [[scala.collection.generic.CanBuildFrom]] into
+   * an instance of [[com.codecommit.antixml.CanBuildFromWithZipper]], provided
+   * that the result type of the builder is implicitly convertable (potentially
+   * via `identity`) to [[scala.collection.Traversable]].  In practice, this
+   * should be effectively all conceivable instances of [[scala.collection.generic.CanBuildFrom]],
+   * so this should not be a problematic restriction.
+   *
+   * This implicit lifting makes it possible to define instances
+   * of [[com.codecommit.antixml.Selector]] which produce
+   * non-[[com.codecommit.antixml.Node]] result types.  More precisely, it allows
+   * such selectors to be ''used'' with the `\` and `\\` methods
+   * on [[com.codecommit.antixml.Group]].
+   */
   implicit def identityCanBuildFrom[From, Elem, To](implicit cbf: CanBuildFrom[From, Elem, To], coerce: To => Traversable[Elem]): CanBuildFromWithZipper[From, Elem, To] = new CanBuildFromWithZipper[From, Elem, To] {
     def apply(from: From, map: =>Vector[Option[ZContext]]) = cbf(from)
     def apply(map: =>Vector[Option[ZContext]]) = cbf()

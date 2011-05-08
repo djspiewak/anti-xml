@@ -34,6 +34,17 @@ import util._
 import org.xml.sax.Attributes
 import org.xml.sax.ext.DefaultHandler2
 
+/**
+ * Defines a SAX2 handler which produces an instance
+ * of [[com.codecommit.antixml.Group]]`[`[[com.codecommit.antixml.Elem]]`]` as
+ * a result.  This is the handler which is used internally by [[com.codecommit.antixml.SAXParser]].
+ * It is provided as part of the public API to allow Anti-XML to be used with
+ * alternative SAX2 event sources (such as HTML parsers like TagSoup).  The
+ * resulting [[com.codecommit.antixml.Group]] is obtained (at the conclusion of
+ * the parse) from the `result()` method.
+ *
+ * @see [[com.codecommit.antixml.SAXParser]]
+ */
 class NodeSeqSAXHandler extends DefaultHandler2 {
   private var elems = List[Group[Node] => Elem]()
   private val text = new StringBuilder
@@ -86,6 +97,13 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     builders.head += EntityRef(entity)
   }
   
+  /**
+   * Returns the [[com.codecommit.antixml.Group]] instance resulting from the
+   * SAX2 event stream.  This method is ''not'' thread-safe and should only be
+   * called once (in fact, calling it multiple times ''will'' throw an exception).
+   * Additionally, this method should only be called after the SAX2 stream has
+   * fully completed.  The result of this method is undefined if invoked prematurely.
+   */
   def result() = pop().asInstanceOf[Group[Elem]]       // nasty, but it shouldn't be a problem
   
   private def pop() = {

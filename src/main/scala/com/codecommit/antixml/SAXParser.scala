@@ -36,8 +36,10 @@ import javax.xml.parsers.SAXParserFactory
 import scala.io.Source
 
 /**
- * An XML provider implemented on top of the platform-default SAX parser.
- * @see org.xml.sax
+ * An XML parser build on top of `org.w3c.sax`.  This implements the same
+ * API as [[com.codecommit.antixml.StAXParser]], but the runtime performance is
+ * on the order of 13% slower.  The SAX2 event handler used under the surface is
+ * part of the public API in the form of [[com.codecommit.antixml.NodeSeqSAXHandler]].
  */
 class SAXParser extends XMLParser {
   def fromString(str: String): Elem =

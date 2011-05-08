@@ -39,7 +39,9 @@ import javax.xml.transform.stream.StreamSource
 import javax.xml.XMLConstants.NULL_NS_URI
 
 /**
- * An XML provider build on top of StAXIterator.
+ * An XML parser build on top of `javax.xml.stream`.  This implements the same
+ * API as [[com.codecommit.antixml.SAXParser]], but the runtime performance is
+ * on the order of 12% faster.
  */
 class StAXParser extends XMLParser {
   import StAXEvents._

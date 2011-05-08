@@ -28,4 +28,26 @@
 
 package com.codecommit.antixml
 
+/**
+ * The default XML parser instance for the Anti-XML framework.  This is really
+ * just a convenience instance of [[com.codecommit.antixml.XMLParser]].  The
+ * default parser (currently) uses the Java StAX framework under the surface,
+ * though the parser interface is also 100% compatible with the SAX2 framework
+ * (see: [[com.codecommit.antixml.SAXParser]]).  The StAX implementation is the
+ * default primarily for performance reasons.
+ *
+ * It is possible to reuse some of Anti-XML's internal parser infrastructure to
+ * parse into Anti-XML trees from alternative parse frameworks, such as HTML
+ * parsers (think: [[http://home.ccil.org/~cowan/XML/tagsoup/ TagSoup]]).
+ * This infrastructure is exposed via
+ * the [[com.codecommit.antixml.NodeSeqSAXHandler]] class.  Unlike scala.xml,
+ * Anti-XML does not allow extension of its [[com.codecommit.antixml.Node]] construction
+ * process.  Thus, it is not possible to define (or directly parse into)
+ * custom [[com.codecommit.antixml.Node]] instances.  This capability wouldn't
+ * make much sense though, since [[com.codecommit.antixml.Node]] is sealed. It
+ * is not possible to even ''define'' custom instances, much less produce them
+ * as part of the parse process.
+ * 
+ * @see [[com.codecommit.antixml.StAXParser]], [[com.codecommit.antixml.SAXParser]]
+ */
 object XML extends StAXParser
