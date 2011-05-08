@@ -29,10 +29,7 @@
 package com.codecommit.antixml
 
 import util.VectorCase
-import org.xml.sax.{Attributes, ContentHandler}
-import org.xml.sax.helpers.AttributesImpl
 import java.io.{InputStream, StringReader, Reader}
-import javax.xml.namespace.{NamespaceContext, QName}
 import javax.xml.stream.{XMLInputFactory, XMLStreamException}
 import javax.xml.stream.XMLStreamConstants
 import javax.xml.transform.stream.StreamSource

@@ -31,7 +31,7 @@ package antixml
 
 import util._
 
-import org.xml.sax.Attributes
+import org.xml.sax.{Attributes => SAXAttributes}
 import org.xml.sax.ext.DefaultHandler2
 
 /**
@@ -66,10 +66,10 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     text.appendAll(ch, start, length)
   }
   
-  override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
+  override def startElement(uri: String, localName: String, qName: String, attrs: SAXAttributes) {
     clearText()
     
-    // need to do this early since Attributes objects may be reused
+    // need to do this early since SAXAttributes objects may be reused
     val map = (0 until attrs.getLength).foldLeft(Map[String, String]()) { (map, i) =>
       map + (attrs.getQName(i) -> attrs.getValue(i))    // TODO namespacing
     }

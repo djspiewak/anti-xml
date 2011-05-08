@@ -42,6 +42,11 @@ package com.codecommit
  * technically makes the `anti` method available on all types.  However, that
  * method will only be callable on very specific types in the `scala.xml`
  * library, and thus it shouldn't cause any collsion issues.</li>
+ * <li>`(String, String) => (QName, String)` – Required to get nice syntax for
+ * unqualified attribute names.  Note there is an additional conversion of type
+ * `String => QName`, but that conversion is defined on the companion object for
+ * [[com.codecommit.antixml.QName]], which prevents it from cluttering the dispatch
+ * implicit space (i.e. it only applies as a type coercion, ''not'' a pimp).</li>
  * </ul>
  */
 package object antixml {
@@ -76,6 +81,12 @@ package object antixml {
    * @see [[com.codecommit.antixml.XMLConvertable]]
    */
   implicit def nodeSeqToConverter[A](a: A): Converter[A] = new Converter(a)
+  
+  // I feel justified in this global implicit since it doesn't pimp anything
+  implicit def stringTupleToQNameTuple(pair: (String, String)): (QName, String) = {
+    val (key, value) = pair
+    (QName(None, key), value)
+  }
 
   /**
    * Wildcard selector which passes ''all'' nodes unmodified.  This is analogous
