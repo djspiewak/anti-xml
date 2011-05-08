@@ -226,7 +226,7 @@ is (in principle) defined as the following::
       }
     }
     
-This is to say, shallow-select finds all of the ``Elem``(s) in the current ``Group``
+This is to say, shallow-select finds all of the ``Elem`` in the current ``Group``
 and filters their children against the selector (which extends ``PartialFunction``).
 The filtered children are then concatenated together into a single ``Group``.
 
@@ -254,7 +254,7 @@ A selector is an object of type ``Selector[A]``, which is really just a
 ``PartialFunction[Node, A]`` with some extra trimming (for optimization).  This
 function is used to search and transform (in a single pass) the result set on a
 select.  In principle, selectors can return *any* results.  For example, one could
-write a ``text`` selector which produces a collection of ``String``(s) representing
+write a ``text`` selector which produces a collection of ``String`` representing
 the contents of all of the ``Text`` nodes in the tree. This selector would be
 defined in the following way::
     
@@ -304,7 +304,7 @@ collection resulting from the select will be of type ``Group[Elem]``::
     val results: Group[Elem] = xml \ "book"
     
 However, if you select using the wildcard selector (``*``), the result will
-naturally be of type ``Group[Node]`` since every node (including non-``Elem``(s))
+naturally be of type ``Group[Node]`` since every node (including non-``Elem`` )
 will be returned::
     
     val xml: Group[Node] = ...
@@ -316,7 +316,7 @@ the ``text`` selector::
     val xml: Group[Node] = ...
     val results: IndexedSeq[String] = xml \ text
     
-This is logical since selection using ``text`` will return a sequence of ``String``(s),
+This is logical since selection using ``text`` will return a sequence of ``String``,
 which obviously cannot be contained within a ``Group``.  The exact return type
 is based on the instance of ``CanBuildFromWithZipper`` which is in implicit
 scope at the call-site.  Any selector which produces ``Node`` (or a subtype) will
