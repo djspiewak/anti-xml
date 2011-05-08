@@ -96,9 +96,9 @@ trait Selectable[+A <: Node] {
    * ancestry of the tree after making a change somewhere within.
    * 
    * @see [[com.codecommit.antixml.Zipper]]
-   * @usecase def \(selector: Selector[Node, Zipper[Node]]): Zipper[Node]
+   * @usecase def \(selector: Selector[Node]): Zipper[Node]
    */
-  def \[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
+  def \[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
     if (matches(selector)) {
       // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
       
@@ -200,22 +200,22 @@ trait Selectable[+A <: Node] {
    * the resulting zipper will likely throw an exception.  At the very least, it
    * won't return a useful result.  The implementation of this feature is ongoing.
    * 
-   * @usecase def \\(selector: Selector[Node, Zipper[Node]]): Zipper[Node]
+   * @usecase def \\(selector: Selector[Node]): Zipper[Node]
    */
-  def \\[B, That <: Traversable[B]](selector: Selector[B, That])(implicit cbf: CanBuildFromWithZipper[Zipper[Node], B, That], cbf2: CanBuildFrom[Traversable[_], B, That]): That = {
+  def \\[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
     if (matches(selector)) {
-      val recursive = toGroup flatMap {
+      val recursive = toGroup collect {
         case Elem(_, _, _, children) => children \\ selector
         case _ => cbf().result
       }
       
-      (this \ selector) ++ recursive
+      ((this \ selector) /: recursive)(cbf.append)
     } else {
       cbf().result
     }
   }
   
-  def matches(selector: Selector[_, _]): Boolean = true
+ def matches(selector: Selector[_]): Boolean = true
   
   def toGroup: Group[A]
   

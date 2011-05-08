@@ -38,11 +38,20 @@ trait CanBuildFromWithZipper[-From, -Elem, To] extends CanBuildFrom[From, Elem, 
   
   def apply(from: From, map: =>Vector[Option[ZContext]]): Builder[Elem, To]
   def apply(map: =>Vector[Option[ZContext]]): Builder[Elem, To]
+  
+  def append(left: To, right: To): To
 }
 
 object CanBuildFromWithZipper {
-  implicit def identityCanBuildFrom[From, Elem, To](implicit cbf: CanBuildFrom[From, Elem, To]): CanBuildFromWithZipper[From, Elem, To] = new CanBuildFromWithZipper[From, Elem, To] {
-    def apply(from: From, map: =>Vector[Option[ZContext]]) = cbf.apply(from)
-    def apply(map: =>Vector[Option[ZContext]]) = cbf.apply()
+  implicit def identityCanBuildFrom[From, Elem, To](implicit cbf: CanBuildFrom[From, Elem, To], coerce: To => Traversable[Elem]): CanBuildFromWithZipper[From, Elem, To] = new CanBuildFromWithZipper[From, Elem, To] {
+    def apply(from: From, map: =>Vector[Option[ZContext]]) = cbf(from)
+    def apply(map: =>Vector[Option[ZContext]]) = cbf()
+    
+    def append(left: To, right: To) = {
+      val builder = cbf()
+      builder ++= left
+      builder ++= right
+      builder.result()
+    }  
   }
 }
