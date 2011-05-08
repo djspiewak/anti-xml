@@ -36,50 +36,28 @@ import javax.xml.parsers.SAXParserFactory
 import scala.io.Source
 
 /**
- * A trait for objects which construct antixml from XML sources.
+ * An XML provider implemented on top of the platform-default SAX parser.
+ * @see org.xml.sax
  */
-// TODO named arguments for configuration
-trait XML {
-  def fromString(str: String): Elem
+class SAXParser extends XML {
+  override def fromString(str: String): Elem =
+    fromInputSource(new InputSource(new StringReader(str)))
   
-  def fromInputStream(is: InputStream): Elem
+  override def fromInputStream(is: InputStream): Elem =
+    fromInputSource(new InputSource(is))
   
-  def fromReader(reader: Reader): Elem
+  override def fromReader(reader: Reader): Elem =
+    fromInputSource(new InputSource(reader))
 
-  def fromSource(source: Source): Elem =
-    fromReader(new SourceReader(source))
-
-  private class SourceReader(source: Source) extends Reader {
-    import scala.util.control.Breaks._
+  def fromInputSource(source: InputSource): Elem = {
+    val factory = SAXParserFactory.newInstance
+    factory.setValidating(true)
+    factory.setNamespaceAware(true)
     
-    def read(ch: Array[Char], offset: Int, length: Int) = {
-      if (!source.hasNext) {
-        -1
-      } else {
-        var i = offset
-        breakable {
-          while (i < offset + length) {
-            if (!source.hasNext) {
-              break
-            }
-            
-            ch(i) = source.next()
-            i += 1
-          }
-        }
-        i - offset
-      }
-    }
+    val parser = factory.newSAXParser
+    val handler = new NodeSeqSAXHandler
+    parser.parse(source, handler)
     
-    override def reset() {
-      source.reset()
-    }
-    
-    override def close() {
-      source.close()
-    }
+    handler.result().head   // safe because anything else won't validate
   }
 }
-
-object XML extends StAXParser
-
