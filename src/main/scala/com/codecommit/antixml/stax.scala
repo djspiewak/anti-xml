@@ -41,7 +41,7 @@ import javax.xml.XMLConstants.NULL_NS_URI
 /**
  * An XML provider build on top of StAXIterator.
  */
-class StAXParser extends XML {
+class StAXParser extends XMLParser {
   import StAXEvents._
   
   override def fromInputStream(inputStream: InputStream): Elem =

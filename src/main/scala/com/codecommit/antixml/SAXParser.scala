@@ -39,7 +39,7 @@ import scala.io.Source
  * An XML provider implemented on top of the platform-default SAX parser.
  * @see org.xml.sax
  */
-class SAXParser extends XML {
+class SAXParser extends XMLParser {
   override def fromString(str: String): Elem =
     fromInputSource(new InputSource(new StringReader(str)))
   

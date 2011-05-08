@@ -28,4 +28,55 @@
 
 package com.codecommit.antixml
 
-object XML extends StAXParser
+import org.xml.sax._
+
+import java.io.{InputStream, Reader, StringReader}
+import javax.xml.parsers.SAXParserFactory
+
+import scala.io.Source
+
+/**
+ * A trait for objects which construct antixml from XML sources.
+ */
+// TODO named arguments for configuration
+trait XMLParser {
+  def fromString(str: String): Elem
+  
+  def fromInputStream(is: InputStream): Elem
+  
+  def fromReader(reader: Reader): Elem
+
+  def fromSource(source: Source): Elem =
+    fromReader(new SourceReader(source))
+
+  private class SourceReader(source: Source) extends Reader {
+    import scala.util.control.Breaks._
+    
+    def read(ch: Array[Char], offset: Int, length: Int) = {
+      if (!source.hasNext) {
+        -1
+      } else {
+        var i = offset
+        breakable {
+          while (i < offset + length) {
+            if (!source.hasNext) {
+              break
+            }
+            
+            ch(i) = source.next()
+            i += 1
+          }
+        }
+        i - offset
+      }
+    }
+    
+    override def reset() {
+      source.reset()
+    }
+    
+    override def close() {
+      source.close()
+    }
+  }
+}
