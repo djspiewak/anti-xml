@@ -274,22 +274,34 @@ private[antixml] case class VectorN[+A](vector: Vector[A]) extends VectorCase[A]
   
   def ++[B >: A](that: VectorCase[B]) = VectorN(vector ++ that.toVector)
   
-  override def drop(n: Int) = (vector.length - n) match {
-    case x if x <= 0 => Vector0
-    case 1 => Vector1(vector(vector.length - 1))
-    case 2 => Vector2(vector(vector.length - 2), vector(vector.length - 1))
-    case 3 => Vector3(vector(vector.length - 3), vector(vector.length - 2), vector(vector.length - 1))
-    case 4 => Vector4(vector(vector.length - 4), vector(vector.length - 3), vector(vector.length - 2), vector(vector.length - 1))
-    case _ => VectorN(vector drop n)
+  override def drop(n: Int) = {
+    if (n <= 0) {
+      this
+    } else {
+      (vector.length - n) match {
+        case x if x <= 0 => Vector0
+        case 1 => Vector1(vector(vector.length - 1))
+        case 2 => Vector2(vector(vector.length - 2), vector(vector.length - 1))
+        case 3 => Vector3(vector(vector.length - 3), vector(vector.length - 2), vector(vector.length - 1))
+        case 4 => Vector4(vector(vector.length - 4), vector(vector.length - 3), vector(vector.length - 2), vector(vector.length - 1))
+        case _ => VectorN(vector drop n)
+      }
+    }
   }
   
-  override def dropRight(n: Int) = (vector.length - n) match {
-    case x if x <= 0 => Vector0
-    case 1 => Vector1(vector(0))
-    case 2 => Vector2(vector(0), vector(1))
-    case 3 => Vector3(vector(0), vector(1), vector(2))
-    case 4 => Vector4(vector(0), vector(1), vector(2), vector(3))
-    case _ => VectorN(vector dropRight n)
+  override def dropRight(n: Int) = {
+    if (n <= 0) {
+      this
+    } else {
+      (vector.length - n) match {
+        case x if x <= 0 => Vector0
+        case 1 => Vector1(vector(0))
+        case 2 => Vector2(vector(0), vector(1))
+        case 3 => Vector3(vector(0), vector(1), vector(2))
+        case 4 => Vector4(vector(0), vector(1), vector(2), vector(3))
+        case _ => VectorN(vector dropRight n)
+      }
+    }
   }
   
   override def init = VectorN(vector.init)    // TODO

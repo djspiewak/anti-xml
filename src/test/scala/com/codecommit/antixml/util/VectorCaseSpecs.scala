@@ -46,6 +46,24 @@ class VectorCaseSpecs extends Specification with ScalaCheck {
       v2(0) mustEqual 42
     }
     
+    "implement +:" in check { (vec: VectorCase[Int], i: Int) =>
+      val vec2 = i +: vec
+      vec2.length mustEqual (vec.length + 1)
+      vec2.head mustEqual i
+      vec.zipWithIndex forall {
+        case (x, i) => vec2(i + 1) mustEqual x
+      }
+    }
+    
+    "implement :+" in check { (vec: VectorCase[Int], i: Int) =>
+      val vec2 = vec :+ i
+      vec2.length mustEqual (vec.length + 1)
+      vec2.last mustEqual i
+      vec.zipWithIndex forall {
+        case (x, i) => vec2(i) mustEqual x
+      }
+    }
+    
     "implement length" in check { list: List[Int] =>
       val vec = list.foldLeft(VectorCase[Int]()) { _ :+ _ }
       vec.length === list.length
@@ -99,7 +117,29 @@ class VectorCaseSpecs extends Specification with ScalaCheck {
         vec2(idx) mustEqual 42
       }
     }
-
+    
+    "implement drop matching Vector semantics (for at least 4 base cases)" in check { vec: VectorCase[Int] =>
+      for (len <- (vec.length - 4) to vec.length) {
+        (vec drop len toVector) mustEqual (vec.toVector drop len)
+      }
+      true
+    }
+    
+    "implement drop matching Vector semantics (in general case)" in check { (vec: VectorCase[Int], len: Int) =>
+      (vec drop len toVector) mustEqual (vec.toVector drop len)
+    }
+    
+    "implement dropRight matching Vector semantics (for at least 4 base cases)" in check { vec: VectorCase[Int] =>
+      for (len <- (vec.length - 4) to vec.length) {
+        (vec dropRight len toVector) mustEqual (vec.toVector dropRight len)
+      }
+      true
+    }
+    
+    "implement dropRight matching Vector semantics (in general case)" in check { (vec: VectorCase[Int], len: Int) =>
+      (vec dropRight len toVector) mustEqual (vec.toVector dropRight len)
+    }
+    
     "implement filter" in check { (vec: VectorCase[Int], f: (Int)=>Boolean) =>
       val filtered = vec filter f
 
@@ -153,6 +193,12 @@ class VectorCaseSpecs extends Specification with ScalaCheck {
       back
     }
     
+    "implement init matching Vector semantics" in check { vec: VectorCase[Int] =>
+      !vec.isEmpty ==> {
+        vec.init.toVector mustEqual vec.toVector.init
+      }
+    }
+    
     "implement map" in check { (vec: VectorCase[Int], f: (Int)=>Int) =>
       val mapped = vec map f
       
@@ -193,6 +239,33 @@ class VectorCaseSpecs extends Specification with ScalaCheck {
         back &&= mapped(i) == f(rev(i))
       }
       back
+    }
+    
+    /* "implement slice matching Vector semantics" in check { (vec: VectorCase[Int], from: Int, until: Int) =>
+      // skip("Vector slice semantics are inconsistent with Traversable")
+      vec.slice(from, until).toVector mustEqual vec.toVector.slice(from, until)
+    } */
+    
+    "implement splitAt matching Vector semantics" in check { (vec: VectorCase[Int], i: Int) =>
+      val (left, right) = vec splitAt i
+      val (expectLeft, expectRight) = vec.toVector splitAt i
+      
+      left mustEqual expectLeft
+      right mustEqual expectRight
+    }
+    
+    "implement tail matching Vector semantics" in check { vec: VectorCase[Int] =>
+      !vec.isEmpty ==> {
+        vec.tail.toVector mustEqual vec.toVector.tail
+      }
+    }
+    
+    "implement take matching Vector semantics" in check { (vec: VectorCase[Int], len: Int) =>
+      (vec take len toVector) mustEqual (vec.toVector take len)
+    }
+    
+    "implement takeRight matching Vector semantics" in check { (vec: VectorCase[Int], len: Int) =>
+      (vec takeRight len toVector) mustEqual (vec.toVector takeRight len)
     }
     
     "implement zip" in check { (first: VectorCase[Int], second: VectorCase[Double]) =>
@@ -247,7 +320,9 @@ class VectorCaseSpecs extends Specification with ScalaCheck {
       data <- Arbitrary.arbitrary[List[A]]
     } yield data.foldLeft(VectorCase[A]()) { _ :+ _ })
   }
+  
   val numProcessors = Runtime.getRuntime.availableProcessors
+  implicit val params: Parameters = set(workers -> numProcessors)
 }
 
   
