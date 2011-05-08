@@ -235,25 +235,25 @@ also matched by the selector, both *a* and *b* will be returned by ``\\``.
 Selectors
 ---------
 
-A selector is an object of type ``Selector[A, Coll]``, which is really just a
+A selector is an object of type ``Selector[A]``, which is really just a
 ``PartialFunction[Node, A]`` with some extra trimming (for optimization).  This
 function is used to search and transform (in a single pass) the result set on a
 select.  In principle, selectors can return *any* results.  For example, one could
-write a ``text`` selector which results in a ``List[String]`` object containing
-the respective contents of the ``Text`` nodes in the tree. This selector would
-be defined in the following way::
+write a ``text`` selector which produces a collection of ``String``(s) representing
+the contents of all of the ``Text`` nodes in the tree. This selector would be
+defined in the following way::
     
-    val text: Selector[String, List[String]] = Selector({
+    val text: Selector[String] = Selector({
       case Text(str) => str
     })
     
 This selector could then be used just like any other::
     
     val xml: Group[Node] = ...
-    xml \ text        // => List[String]
+    xml \ text        // => Vector[String]
     
 In this way, the selector mechanism is fully extensible to almost any use-case.
-There are three build-in selectors:
+There are four build-in selectors:
 
 * Select only ``Elem`` nodes based on name
 
@@ -263,6 +263,11 @@ There are three build-in selectors:
 * Select all nodes (basically, the identity selector)
 
   * Defined as the ``*`` operator
+  
+* Select the *contents* of ``Text`` and ``CDATA`` nodes
+
+  * Defined as ``text`` (e.g. ``xml \ text``)
+  * Very close to the example given above
 
 
 Type Safety
@@ -270,10 +275,10 @@ Type Safety
 
 Every selector is typed on a resulting element and collection type.  For example::
     
-    val `*`: Selector[Node, Group[Node]] = ...
+    val `*`: Selector[Node] = ...
     
-    implicit def strToSelector(str: String): Selector[Elem, Group[Elem]] = ...
-    implicit def symToSelector(str: Symbol): Selector[Elem, Group[Elem]] = ...
+    implicit def strToSelector(str: String): Selector[Elem] = ...
+    implicit def symToSelector(str: Symbol): Selector[Elem] = ...
 
 Notably, any select method will return a collection of the type specified by
 the selector.  This is quite useful in many ways.  For example, if you select
@@ -289,6 +294,41 @@ will be returned::
     
     val xml: Group[Node] = ...
     val results: Group[Node] = xml \ *
+
+The result of a selection need not be of type ``Group``!  For example, consider
+the ``text`` selector::
+    
+    val xml: Group[Node] = ...
+    val results: IndexedSeq[String] = xml \ text
+    
+This is logical since selection using ``text`` will return a sequence of ``String``(s),
+which obviously cannot be contained within a ``Group``.  The exact return type
+is based on the instance of ``CanBuildFromWithZipper`` which is in implicit
+scope at the call-site.  Any selector which produces ``Node`` (or a subtype) will
+match the default instance of ``CanBuildFromWithZipper`` which produces an object
+of type ``Group`` (actually, ``Zipper``; see below).  Selectors which produce
+other types (such as ``String``, in the case of the ``text`` selector) will fall
+back on an implicit "lift" of ``CanBuildFrom`` to ``CanBuildFromWithZipper``.
+Thus, the fallback resolution is for the compiler to find an instance of
+``CanBuildFrom`` in implicit scope at the call-site and lift that into an instance
+of ``CanBuildFromWithZipper``.  Since there is a ``CanBuildFrom`` defined for
+elements of type ``String`` which produces an ``IndexedSeq[String]``, that becomes
+the type of the resultant of applying a selector of type ``Selector[String]``.
+
+There is a slight catch to this implicit "lift" mechanism: it only works for
+result types which are implicitly convertable to ``Traversable[A]``, where the
+selector is of type ``Selector[A]``.  In practice, the only instances of
+``CanBuildFrom`` which are particularly useful are those which return collections
+(or objects implicitly convertable to collections).  However, it is theoretically
+possible to have a ``CanBuildFrom`` which produces something which is not a
+``Traversable``.  In this case, you will need to define a custom implicit
+``CanBuildFromWithZipper`` for that type, rather than relying on the built-in
+lifting.  Such a definition is almost exactly the same as defining an instance
+of ``CanBuildFrom``.  The primary difference is that the result type must be
+monoidal.  This is to say, it must be possible to define a function of type
+``(A, A) => A`` where ``A`` is the result type of the ``CanBuildFromWithZipper``,
+and this function definition must behave according to the monoidal laws regarding
+composition (or at least, it must if you want deep-select to return sane results).
 
 
 Zippers
