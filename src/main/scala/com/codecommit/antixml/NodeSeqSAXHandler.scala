@@ -58,12 +58,14 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
   override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
     clearText()
     
+    // need to do this early since Attributes objects may be reused
+    val map = (0 until attrs.getLength).foldLeft(Map[String, String]()) { (map, i) =>
+      map + (attrs.getQName(i) -> attrs.getValue(i))    // TODO namespacing
+    }
+    
     builders ::= VectorCase.newBuilder
     elems ::= { children =>
       val ns = if (uri == "") None else Some(uri)
-      val map = (0 until attrs.getLength).foldLeft(Map[String, String]()) { (map, i) =>
-        map + (attrs.getQName(i) -> attrs.getValue(i))    // TODO namespacing
-      }
       
       Elem(ns, localName, map, children)
     }

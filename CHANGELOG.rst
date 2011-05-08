@@ -17,3 +17,4 @@ CHANGELOG
 * Bug Fixes
 
   * Zipper#unselect with a top-level select miss
+  * SAX2 sometimes reuses Attributes objects, confusing NodeSeqSAXHandler
