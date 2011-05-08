@@ -36,7 +36,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
   import Prop._
   import XML._
   lazy val numProcessors = Runtime.getRuntime.availableProcessors()
-  implicit val params = set(minTestsOk -> numProcessors * 200, maxSize -> 30, workers -> numProcessors)
+  implicit val params = set(workers -> numProcessors)
 
   "shallow selector" should {
     "find an immediate descendant" in {
@@ -56,14 +56,15 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       ns \ "a" mustEqual result
     }
     
-    "be fully specified by flatMap / collect" in check { (ns: Group[Node], selector: Selector[Node, Zipper[Node]]) =>
+    // currently takes a lot of time and heap, but doesn't produce any valuable results
+    /* "be fully specified by flatMap / collect" in check { (ns: Group[Node], selector: Selector[Node, Zipper[Node]]) =>
       val result = ns \ selector
       val expected = ns flatMap {
         case Elem(_, _, _, children) => children collect selector
         case _ => Group()
       }
       result.toList mustEqual expected.toList
-    }
+    } */
     
     "work with an alternative selector" in {
       val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
@@ -90,7 +91,8 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       ns \\ "target" mustEqual result.children
     }
     
-    "be fully specified by recursive flatMap / collect" in check { (ns: Group[Node], selector: Selector[Node, Zipper[Node]]) =>
+    // currently takes a lot of time and heap, but doesn't produce any valuable results
+    /* "be fully specified by recursive flatMap / collect" in check { (ns: Group[Node], selector: Selector[Node, Zipper[Node]]) =>
       def loop(ns: Group[Node]): Group[Node] = {
         val recursive = ns flatMap {
           case Elem(_, _, _, children) => loop(children)
@@ -108,7 +110,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       val expected = loop(ns)
       
       result.toList mustEqual expected.toList
-    }
+    } */
     
     "work with an alternative selector" in {
       val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
