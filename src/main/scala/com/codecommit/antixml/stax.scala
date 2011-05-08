@@ -53,12 +53,9 @@ class StAXParser extends XMLParser {
   override def fromString(xml: String): Elem =
     fromReader(new StringReader(xml))
   
-  def fromStreamSource(source: StreamSource): Elem =
-    parse(source)
-
   private case class ElemBuilder(ns: Option[String], name: String, attrs: Map[String, String])
 
-  def parse(source: StreamSource): Elem = {
+  private def fromStreamSource(source: StreamSource): Elem = {
     import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE}
 
     val xmlReader = XMLInputFactory.newInstance().createXMLStreamReader(source)

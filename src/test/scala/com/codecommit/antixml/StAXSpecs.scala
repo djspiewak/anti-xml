@@ -28,8 +28,6 @@
 
 package com.codecommit.antixml
 
-import java.io.StringReader
-import javax.xml.transform.stream.StreamSource
 import org.specs2.mutable._
 
 class StAXSpecs extends Specification {
@@ -91,7 +89,7 @@ class StAXSpecs extends Specification {
     }
   "StAXParser" should {
     "parse a StreamSource and generate an Elem" in {
-      StAXParser.parse(new StreamSource(new StringReader("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>"))) mustEqual Elem(Some("a"), "a", Map.empty, Group(Text("hi"), Elem(None, "b", Map("attr" -> "value"), Group()), Text(" there")))
+      StAXParser.fromString("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>") mustEqual Elem(Some("a"), "a", Map.empty, Group(Text("hi"), Elem(None, "b", Map("attr" -> "value"), Group()), Text(" there")))
     }
   }
 }
