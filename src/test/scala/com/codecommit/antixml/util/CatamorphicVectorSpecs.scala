@@ -32,26 +32,26 @@ import org.specs._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 
-object LazyVectorSpecs extends Specification with ScalaCheck {
+object CatamorphicVectorSpecs extends Specification with ScalaCheck {
   
   lazy val numProcessors = Runtime.getRuntime.availableProcessors
   implicit val params = set(workers -> numProcessors)
   
-  def emptyVector[S, A](z: S) = LazyVector[S, A](z) { (_: S) => None }
+  def emptyVector[S, A](z: S) = CatamorphicVector[S, A](z) { (_: S) => None }
   
-  def singletonVector[A](a: A): LazyVector[Boolean, A] =
-    LazyVector(true) { (b: Boolean) => if (b) Some(false -> a) else None }
+  def singletonVector[A](a: A): CatamorphicVector[Boolean, A] =
+    CatamorphicVector(true) { (b: Boolean) => if (b) Some(false -> a) else None }
   
-  def listToVector[A](xs: List[A]): LazyVector[List[A], A] = {
-    LazyVector(xs) {
+  def listToVector[A](xs: List[A]): CatamorphicVector[List[A], A] = {
+    CatamorphicVector(xs) {
       case hd :: tail => Some(tail -> hd)
       case Nil => None
     }
   }
 
-  "LazyVector" >> {
+  "CatamorphicVector" >> {
     "apply should preserve the ordering of its elements" in {
-      val naturals = LazyVector(0) { (n: Int) => Some(n + 1 -> n) }
+      val naturals = CatamorphicVector(0) { (n: Int) => Some(n + 1 -> n) }
       
       choose(0, 10000) must pass { x: Int =>
         val (result, naturals2) = naturals(x)
@@ -65,7 +65,7 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
     }
     
     "updated should modify the specified index (and only that index)" in {
-      val naturals = LazyVector(0) { (n: Int) => Some(n + 1 -> n) }
+      val naturals = CatamorphicVector(0) { (n: Int) => Some(n + 1 -> n) }
       
       choose(0, 10000) must pass { x: Int =>
         var naturals2 = naturals.updated(x, -42)      // not a natural...
@@ -82,7 +82,7 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
       }
     }
     
-    "prepending to empty should have the same elements as the singleton LazyVector" in {
+    "prepending to empty should have the same elements as the singleton CatamorphicVector" in {
       choose(0, 100000) must pass { x: Int =>
         (x +: emptyVector(0)).force mustEqual singletonVector(x).force
       }
@@ -94,7 +94,7 @@ object LazyVectorSpecs extends Specification with ScalaCheck {
       }
     }
     
-    "appending to empty should be equivalent to the singleton LazyVector" in {
+    "appending to empty should be equivalent to the singleton CatamorphicVector" in {
       choose(0, 100000) must pass { x: Int =>
         (emptyVector(0) :+ x).force mustEqual singletonVector(x).force
       }
