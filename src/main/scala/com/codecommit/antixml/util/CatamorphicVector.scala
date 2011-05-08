@@ -93,7 +93,7 @@ private[antixml] class CatamorphicVector[S, +A] private (
     }
   }
   
-  override def toString = "LazyGroup(%s, %s, %s, %s)".format(body, tail, state, f)
+  override def toString = "CatamorphicVector(%s, %s, %s, %s)".format(body, tail, state, f)
 }
 
 private[antixml] object CatamorphicVector {
