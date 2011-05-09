@@ -52,6 +52,9 @@ trait XMLGenerators {
   implicit val arbText: Arbitrary[Text] = Arbitrary(textGenerator)
   implicit val arbEntityRef: Arbitrary[EntityRef] = Arbitrary(entityRefGenerator)
   
+  implicit val arbAttributes: Arbitrary[Attributes] = Arbitrary(genAttributes)
+  implicit val arbQName: Arbitrary[QName] = Arbitrary(genQName)
+  
   lazy val elemSelectorGenerator = oneOf(identifiers) map stringToSelector
   
   lazy val nodeSelectorGenerator: Gen[Selector[Node]] = for {
@@ -93,11 +96,15 @@ trait XMLGenerators {
   
   private lazy val genAttributes: Gen[Attributes] = {
     val genTuple = for {
-      ns <- genSaneOptionString
-      name <- genSaneString
+      qname <- genQName
       value <- genSaneString
-    } yield (QName(ns, name), value)
+    } yield (qname, value)
     
     listOf(genTuple) map { Attributes(_: _*) }
   }
+  
+  private lazy val genQName: Gen[QName] = for {
+    ns <- genSaneOptionString
+    name <- genSaneString
+  } yield QName(ns, name)
 }
