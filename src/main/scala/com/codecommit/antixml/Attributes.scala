@@ -32,13 +32,85 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.{HashMap, Map, MapLike}
 import scala.collection.mutable.Builder
 
+/**
+ * A special implementation of [[scala.collection.Map]]`[`[[com.codecommit.antixml.QName]]`, String]` with
+ * nice overloading and some implicit magic designed for use containing element
+ * attributes in [[com.codecommit.antixml.Elem]].  The actual stored keys are of
+ * type [[com.codecommit.antixml.QName]].  This is how (optional) namespace
+ * information for attributes is stored in Anti-XML trees.  However, there are
+ * some syntactic tricks which allow you to ignore
+ * the [[com.codecommit.antixml.QName]] boiler-plate when you don't actually need
+ * namespace support.  For example:
+ *
+ * {{{
+ * val attrs = Attributes("foo" -> "bar", "baz" -> "bin")
+ * attrs("foo")                  // => "bar"
+ * attrs(QName(None, "foo"))     // => "bar"
+ *
+ * val attrs2 = attrs + ("even" -> "more")                       // => Attributes(...)
+ * val attrs3 = attrs + (QName(Some("pre"), "even" -> "less")    // => Attributes(...)
+ * }}}
+ *
+ * With very, ''very'' few exceptions, `String` and [[com.codecommit.antixml.QName]] are interchangable.
+ * Of course, this is being done with implicit conversions.  However, you don't
+ * need to worry about the conversion `String => QName` poluting the implicit
+ * dispatch space!  The conversion is defined on the companion object
+ * for [[com.codecommit.antixml.QName]], meaning that the compiler will only
+ * select it when the result of an expression is ''explicitly'' of type `QName`.
+ * It will not automatically inject the conversion to satisfy method dispatch on
+ * `String`.  For example:
+ *
+ * {{{
+ * val str = "fubar"
+ * 
+ * val qn: QName = str      // works!
+ * str.ns                   // won't compile!
+ * }}}
+ *
+ * In this example, it is important to note that `ns` is a method
+ * on [[com.codecommit.antixml.QName]].  Thus, if the implicit conversion were
+ * pimp-enabling, the compiler would have accepted the last line of the example.
+ * However, as you can see, the implicit dispatch space has not been cluttered
+ * while the convenience of `String` rather than [[com.codecommit.antixml.QName]] has
+ * been preserved.
+ *
+ * One implicit space-cluttering that ''couldn't'' be avoided is the conversion
+ * defined as ``(String, String) => (QName, String)``.  This is required to enable
+ * the nice `String` syntax on things like the `+` method and the companion
+ * object `apply` factory.  Unfortunately, this conversion had to be defined in
+ * the [[com.codecommit.antixml]] companion object.  Fortunately, it is a conversion
+ * within the same type (simply different parameters passed to `Tuple2`).  Thus,
+ * it shouldn't cause any scoping problems.
+ * 
+ * @see [[com.codecommit.antixml.QName]]
+ */
 class Attributes(delegate: Map[QName, String]) extends Map[QName, String] with MapLike[QName, String, Attributes] {
   override def empty = new Attributes(Map())
   
   // totally shadowed by the overload; compiler won't even touch it without ascribing a supertype
   def +[B >: String](kv: (QName, B)) = delegate + kv
   
-  // don't tell anyone I did something this evil...
+  /**
+   * Special overload of the `+` method to return `Attributes` rather than
+   * `Map[QName, String]`.  Unfortunately, the `+` method is one of those places
+   * where the magic of the 2.8 collections library really falls flat.  The good
+   * news is that Scala's overload resolution will select ''this'' version of the
+   * `+` method for all where the second tuple value is of type `String` (this
+   * precedence is ensured by the `DummyImplicit` parameter).  Implicit conversions
+   * can be applied to the parameter.  Thus, it is possible to invoke `+` on
+   * `Attributes` passing a value of type `(String, String)`.  That value will
+   * be implicitly converted to `(QName, String)` and ''this'' version of `+`
+   * will be invoked.
+   
+   * In short, the only time the "other" overload of `+` is dispatched is when
+   * you attempt to add a key/value pair where the value is ''not'' of type
+   * `String`, or if you ascribe the super-type of `Map[QName, String]` to
+   * something of type `Attributes`.  Neither of these are common scenarios, so
+   * this implicit overload trick should be sufficient to practically support
+   * the illusion of [[com.codecommit.antixml.QName]] / `String` interchangability.
+   *
+   * @usecase def +(kv: (QName, String)): Attributes
+   */
   def +(kv: (QName, String))(implicit d: DummyImplicit) = new Attributes(delegate + kv)
   
   def -(key: QName) = new Attributes(delegate - key)
@@ -48,6 +120,12 @@ class Attributes(delegate: Map[QName, String]) extends Map[QName, String] with M
   def get(key: QName) = delegate get key
 }
 
+/**
+ * Factory companion for the [[com.codecommit.antixml.Attributes]] specialized
+ * `Map`.  The only method of serious interest in this object is the `apply` method,
+ * which works exactly the same as the `apply` method on any `Map` companion
+ * object.
+ */
 object Attributes {
   implicit val canBuildFrom: CanBuildFrom[Attributes, (QName, String), Attributes] = new CanBuildFrom[Attributes, (QName, String), Attributes] {
     def apply() = newBuilder
