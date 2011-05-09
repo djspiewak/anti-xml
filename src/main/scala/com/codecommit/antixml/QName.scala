@@ -28,7 +28,9 @@
 
 package com.codecommit.antixml
 
-case class QName(ns: Option[String], name: String)
+case class QName(ns: Option[String], name: String) {
+  override def toString = (ns map { _.toString + ':' } getOrElse "") + name
+}
 
 object QName extends ((Option[String], String) => QName) {
   implicit def stringToQName(str: String) = QName(None, str)

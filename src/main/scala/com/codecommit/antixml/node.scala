@@ -103,7 +103,7 @@ case class ProcInstr(target: String, data: String) extends Node {
  * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Group(Text("Lorem ipsum")))
  * }}}
  */
-case class Elem(ns: Option[String], name: String, attrs: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
+case class Elem(ns: Option[String], name: String, attrs: Attributes, children: Group[Node]) extends Node with Selectable[Elem] {
   override def toString = {
     import Node._
     
@@ -113,7 +113,7 @@ case class Elem(ns: Option[String], name: String, attrs: Map[String, String], ch
     val attrStr = if (attrs.isEmpty) 
       ""
     else
-      " " + (attrs map { case (key, value) => escapeText(key) + "=\"" + escapeText(value) + '"' } mkString " ")
+      " " + (attrs map { case (key, value) => escapeText(key.toString) + "=\"" + escapeText(value) + '"' } mkString " ")
     
     val partial = "<" + escapeText(qName) + attrStr
     if (children.isEmpty)

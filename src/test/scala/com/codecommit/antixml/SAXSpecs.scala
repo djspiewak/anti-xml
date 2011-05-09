@@ -35,7 +35,7 @@ class SAXSpecs extends Specification {
   
   "SAXParser" should {
     "parse a String and generate an Elem" in {
-      SAXParser.fromString("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>") mustEqual Elem(Some("a"), "a", Map.empty, Group(Text("hi"), Elem(None, "b", Map("attr" -> "value"), Group()), Text(" there")))
+      SAXParser.fromString("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>") mustEqual Elem(Some("a"), "a", Attributes(), Group(Text("hi"), Elem(None, "b", Attributes("attr" -> "value"), Group()), Text(" there")))
     }
   }
 }

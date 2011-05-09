@@ -119,5 +119,5 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
   }
   
-  def elem(name: String, children: Node*) = Elem(None, name, Map(), Group(children: _*))
+  def elem(name: String, children: Node*) = Elem(None, name, Attributes(), Group(children: _*))
 }

@@ -44,7 +44,7 @@ class NodeSpecs extends Specification with DataTables {
       "&"         !! "<&amp;/>"     |
       "'"         !! "<&apos;/>"    |
       "<"         !! "<&lt;/>"      |
-      ">"         !! "<&gt;/>"      | { (c, r) => Elem(None, c, Map(), Group()).toString mustEqual r }
+      ">"         !! "<&gt;/>"      | { (c, r) => Elem(None, c, Attributes(), Group()).toString mustEqual r }
     }
     
     "escape reserved characters in the namespace" in {
@@ -53,7 +53,7 @@ class NodeSpecs extends Specification with DataTables {
       "&"         !! "<&amp;:foo/>"  |
       "'"         !! "<&apos;:foo/>" |
       "<"         !! "<&lt;:foo/>"   |
-      ">"         !! "<&gt;:foo/>"   | { (c, r) => Elem(Some(c), "foo", Map(), Group()).toString mustEqual r }
+      ">"         !! "<&gt;:foo/>"   | { (c, r) => Elem(Some(c), "foo", Attributes(), Group()).toString mustEqual r }
     }
     
     "escape reserved characters in attribute keys" in {
@@ -62,7 +62,7 @@ class NodeSpecs extends Specification with DataTables {
       "&"         !! "<foo &amp;=\"bar\"/>"  |
       "'"         !! "<foo &apos;=\"bar\"/>" |
       "<"         !! "<foo &lt;=\"bar\"/>"   |
-      ">"         !! "<foo &gt;=\"bar\"/>"   | { (c, r) => Elem(None, "foo", Map(c -> "bar"), Group()).toString mustEqual r }
+      ">"         !! "<foo &gt;=\"bar\"/>"   | { (c, r) => Elem(None, "foo", Attributes(c -> "bar"), Group()).toString mustEqual r }
     }
     
     "escape reserved characters in attribute values" in {
@@ -71,7 +71,7 @@ class NodeSpecs extends Specification with DataTables {
       "&"         !! "<foo bar=\"&amp;\"/>"  |
       "'"         !! "<foo bar=\"&apos;\"/>" |
       "<"         !! "<foo bar=\"&lt;\"/>"   |
-      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem(None, "foo", Map("bar" -> c), Group()).toString mustEqual r }
+      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem(None, "foo", Attributes("bar" -> c), Group()).toString mustEqual r }
     }
 
     "select against self" in {

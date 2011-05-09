@@ -70,8 +70,18 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     clearText()
     
     // need to do this early since SAXAttributes objects may be reused
-    val map = (0 until attrs.getLength).foldLeft(Map[String, String]()) { (map, i) =>
-      map + (attrs.getQName(i) -> attrs.getValue(i))    // TODO namespacing
+    val map = (0 until attrs.getLength).foldLeft(Attributes()) { (map, i) =>
+      val ns = {
+        val back = attrs.getURI(i)
+        if (back == "") None else Some(back)
+      }
+      
+      val localName = {
+        val back = attrs.getLocalName(i)
+        if (back == "") attrs.getQName(i) else back
+      }
+    
+      map + (QName(ns, localName) -> attrs.getValue(i))
     }
     
     builders ::= VectorCase.newBuilder

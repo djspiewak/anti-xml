@@ -39,7 +39,7 @@ class Attributes(delegate: Map[QName, String]) extends Map[QName, String] with M
   def +[B >: String](kv: (QName, B)) = delegate + kv
   
   // don't tell anyone I did something this evil...
-  def +(kv: (QName, String))(implicit f: String => String) = new Attributes(delegate + kv)
+  def +(kv: (QName, String))(implicit d: DummyImplicit) = new Attributes(delegate + kv)
   
   def -(key: QName) = new Attributes(delegate - key)
   

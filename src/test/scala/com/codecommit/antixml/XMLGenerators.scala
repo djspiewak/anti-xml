@@ -78,7 +78,7 @@ trait XMLGenerators {
   def elemGenerator(depth: Int = 0): Gen[Elem] = for {
     ns <- genSaneOptionString
     name <- genSaneString
-    attrs <- genSaneMapStringString
+    attrs <- genAttributes
     children <- if (depth > MaxGroupDepth) value(Group()) else (listOf(nodeGenerator(depth + 1)) map Group.fromSeq)
   } yield Elem(ns, name, attrs, children)
   
@@ -91,12 +91,13 @@ trait XMLGenerators {
   private lazy val genSaneOptionString: Gen[Option[String]] =
     frequency(5 -> (genSaneString map { Some(_) }), 1 -> None)
   
-  private lazy val genSaneMapStringString: Gen[Map[String, String]] = {
+  private lazy val genAttributes: Gen[Attributes] = {
     val genTuple = for {
-      _1 <- genSaneString
-      _2 <- genSaneString
-    } yield (_1, _2)
+      ns <- genSaneOptionString
+      name <- genSaneString
+      value <- genSaneString
+    } yield (QName(ns, name), value)
     
-    listOf(genTuple) map { Map(_: _*) }
+    listOf(genTuple) map { Attributes(_: _*) }
   }
 }

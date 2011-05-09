@@ -88,14 +88,14 @@ class ConversionSpecs extends Specification with ScalaCheck {
     
     "convert elem attributes" in {
       (<test/>).anti.attrs mustEqual Map()
-      (<test a="1" b="foo"/>).anti.attrs mustEqual Map("a" -> "1", "b" -> "foo")
+      (<test a:c="1" b="foo"/>).anti.attrs mustEqual Attributes(QName(Some("a"), "c") -> "1", "b" -> "foo")
     }
     
     "convert elem children" in {
       val e = <test>Text1<child/>Text2</test>.anti
       e.children must have size(3)
       e.children(0) mustEqual Text("Text1")
-      e.children(1) mustEqual Elem(None, "child", Map(), Group())
+      e.children(1) mustEqual Elem(None, "child", Attributes(), Group())
       e.children(2) mustEqual Text("Text2")
     }
     
@@ -103,8 +103,8 @@ class ConversionSpecs extends Specification with ScalaCheck {
       xml.NodeSeq.fromSeq(Nil).anti mustEqual Group()
       
       val result = xml.NodeSeq.fromSeq(List(<test1/>, <test2/>, xml.Text("text"))).anti
-      val expected = Group(Elem(None, "test1", Map(), Group()),
-        Elem(None, "test2", Map(), Group()),
+      val expected = Group(Elem(None, "test1", Attributes(), Group()),
+        Elem(None, "test2", Attributes(), Group()),
         Text("text"))
         
       result mustEqual expected

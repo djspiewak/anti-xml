@@ -51,7 +51,7 @@ class StAXParser extends XMLParser {
   override def fromString(xml: String): Elem =
     fromReader(new StringReader(xml))
   
-  private case class ElemBuilder(ns: Option[String], name: String, attrs: Map[String, String])
+  private case class ElemBuilder(ns: Option[String], name: String, attrs: Attributes)
 
   private def fromStreamSource(source: StreamSource): Elem = {
     import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE}
@@ -83,9 +83,11 @@ class StAXParser extends XMLParser {
             text.clear()
           }
           var i = 0
-          var attrs = Map.empty[String, String]
-          while (i < xmlReader.getAttributeCount) {          
-            attrs = attrs + (xmlReader.getAttributeLocalName(i) -> xmlReader.getAttributeValue(i))
+          var attrs = Attributes()
+          while (i < xmlReader.getAttributeCount) {
+            val ns = Option(xmlReader.getAttributeNamespace(i))
+            val localName = xmlReader.getAttributeLocalName(i)
+            attrs = attrs + (QName(ns, localName) -> xmlReader.getAttributeValue(i))
             i = i + 1
           }
           val uri = xmlReader.getNamespaceURI

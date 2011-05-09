@@ -116,7 +116,13 @@ object XMLConvertable extends SecondPrecedenceConvertables {
   implicit object ElemConvertable extends XMLConvertable[xml.Elem, Elem] {
     def apply(e: xml.Elem) = {
       val ns = if (e.prefix == null) None else Some(e.prefix)
-      val attrs = e.attributes.asAttrMap
+        
+      val attrs = (Attributes() /: e.attributes) {
+        case (attrs, pa: xml.PrefixedAttribute) => attrs + (QName(Some(pa.pre), pa.key) -> pa.value.mkString)
+        case (attrs, ua: xml.UnprefixedAttribute) => attrs + (ua.key -> ua.value.mkString)
+        case (attrs, _) => attrs
+      }
+    
       val children = NodeSeqConvertable(xml.NodeSeq fromSeq e.child)
       Elem(ns, e.label, attrs, children)
     }

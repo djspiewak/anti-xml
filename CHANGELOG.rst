@@ -7,6 +7,7 @@ CHANGELOG
 
 * Features
 
+  * Namespace support on element attributes
   * Removed ``StAXIterator``
   * ``Selector`` is no longer restricted to a single resulting container type
   * Performance improvements
