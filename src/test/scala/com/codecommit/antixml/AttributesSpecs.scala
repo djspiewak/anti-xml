@@ -69,22 +69,19 @@ class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
     }
     
     "support removal of qname attrs" in { 
-      val data = for {
+      implicit val data = for {
         attrs <- Arbitrary.arbitrary[Attributes]
         if !attrs.isEmpty
         key <- Gen.oneOf(attrs.keys.toSeq)
       } yield (attrs, key)
       
-      // TODO wait for Eric to reinstate this syntax (or something analogous
-      /* data must pass {
-        case (attrs, key) => {
-          val attrs2 = attrs - key
-          val expected = attrs filterKeys (key !=)
-          attrs2 must havePairs(expected.toSeq: _*)
-          attrs2 must not(beDefinedAt(key))
-        }
-      } */
-      Pending("awaiting nicer Specs2 syntax")
+      check { pair: (Attributes, QName) =>
+        val (attrs, key) = pair
+        val attrs2 = attrs - key
+        val expected = attrs filterKeys (key !=)
+        attrs2 must havePairs(expected.toSeq: _*)
+        attrs2 must not(beDefinedAt(key))
+      }
     }
     
     "support retrieval of attributes by qname" in check { (attrs: Attributes, key: QName) =>
