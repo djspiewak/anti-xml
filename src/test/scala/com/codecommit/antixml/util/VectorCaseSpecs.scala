@@ -64,6 +64,28 @@ class VectorCaseSpecs extends Specification with ScalaCheck {
       }
     }
     
+    "implement ++" in check { (vec1: VectorCase[Int], vec2: VectorCase[Int]) =>
+      val result1 = vec1 ++ vec2
+      val result2 = vec2 ++ vec1
+      
+      result1.length mustEqual (vec1.length + vec2.length)
+      result1.length mustEqual result2.length
+      
+      vec1.zipWithIndex forall {
+        case (x, i) => {
+          result1(i) mustEqual x
+          result2(i + vec2.length) mustEqual x
+        }
+      }
+      
+      vec2.zipWithIndex forall {
+        case (x, i) => {
+          result2(i) mustEqual x
+          result1(i + vec1.length) mustEqual x
+        }
+      }
+    }
+    
     "implement length" in check { list: List[Int] =>
       val vec = list.foldLeft(VectorCase[Int]()) { _ :+ _ }
       vec.length === list.length
