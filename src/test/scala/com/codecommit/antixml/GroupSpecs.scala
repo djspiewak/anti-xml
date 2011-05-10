@@ -122,6 +122,12 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
   
   "utility methods on Group" >> {
     implicit val arbInt = Arbitrary(Gen.choose(0, 10))
+
+    "map should produce a Group (not a Zipper)" in {
+      val group = <parent>child</parent>.anti.children
+      validate[Group[Node]](group)
+      validate[Group[Node]](group map identity)
+    }
     
     "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
       val func = (0 until n).foldLeft(identity: Group[Node] => Group[Node]) { (g, _) =>
@@ -161,6 +167,10 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     "always preserve serialized equality" in check { g: Group[Node] =>
       g.canonicalize.toString mustEqual g.toString
     }
+  }
+  
+  def validate[Expected] = new {
+    def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull
   }
 
   def elem(name: String, children: Node*) = Elem(None, name, Attributes(), Map(), Group(children: _*))
