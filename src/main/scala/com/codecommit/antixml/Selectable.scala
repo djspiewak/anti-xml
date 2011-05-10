@@ -40,7 +40,7 @@ trait Selectable[+A <: Node] {
    *
    * {{{
    * nodes flatMap {
-   *   case Elem(_, _, _, children) => children collect selector
+   *   case Elem(_, _, children) => children collect selector
    *   case _ => Group()
    * }
    * }}}

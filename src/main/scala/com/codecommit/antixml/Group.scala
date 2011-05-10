@@ -44,7 +44,7 @@ import scala.collection.mutable.{ArrayBuffer, Builder, ListBuffer}
  * a valid `Group` could be as follows:
  *
  * {{{
- * Group(EntityRef("quot"), Text("Daniel is "), Elem(None, "em", Map(), Group(Text("delusional!"))), EntityRef("quot"))
+ * Group(EntityRef("quot"), Text("Daniel is "), Elem(QName(None, "em", None), Map(), Group(Text("delusional!"))), EntityRef("quot"))
  * }}}
  *
  * This would correspond to the following XML fragment (note: not actually well-formed
@@ -199,8 +199,8 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
     
     for (node <- nodes) {
       node match {
-        case Elem(_, name, _, children) => {
-          names += name
+        case Elem(name, _, _, children) => {
+          names += name.name
           
           childFilter = if (childFilter == null)
             children.bloomFilter
