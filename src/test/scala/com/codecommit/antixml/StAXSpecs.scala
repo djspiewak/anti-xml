@@ -29,13 +29,16 @@
 package com.codecommit.antixml
 
 import org.specs2.mutable._
+import org.junit.runner.RunWith
+import org.specs2.runner.JUnitRunner
 
+@RunWith(classOf[JUnitRunner])
 class StAXSpecs extends Specification {
   object StAXParser extends StAXParser
   
   "StAXParser" should {
     "parse a StreamSource and generate an Elem" in {
-      StAXParser.fromString("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>") mustEqual Elem(Some("a"), "a", Attributes(), Group(Text("hi"), Elem(None, "b", Attributes("attr" -> "value"), Group()), Text(" there")))
+      StAXParser.fromString("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>") mustEqual Elem(QName(Some("a"), "a", Some("a")), Attributes(), Map("a" -> "a"), Group(Text("hi"), Elem(QName(None, "b", None), Attributes("attr" -> "value"), Map("a" -> "a"), Group()), Text(" there")))
     }
   }
 }

@@ -28,12 +28,15 @@
 
 package com.codecommit.antixml
 
+import org.specs2.runner.JUnitRunner
+import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.ScalaCheck
 import org.scalacheck._
 
 import scala.xml
 
+@RunWith(classOf[JUnitRunner])
 class ConversionSpecs extends Specification with ScalaCheck {
   import Prop._
   
@@ -76,26 +79,26 @@ class ConversionSpecs extends Specification with ScalaCheck {
     
     "convert elem names without namespaces" in {
       val e = <test/>.anti
-      e.ns mustEqual None
-      e.name mustEqual "test"
+      e.name.ns mustEqual None
+      e.name.name mustEqual "test"
     }
     
     "convert elem names with namespaces" in {
       val e = <w:test/>.anti
-      e.ns mustEqual Some("w")
-      e.name mustEqual "test"
+      e.name.prefix mustEqual Some("w")
+      e.name.name mustEqual "test"
     }
     
     "convert elem attributes" in {
       (<test/>).anti.attrs mustEqual Map()
-      (<test a:c="1" b="foo"/>).anti.attrs mustEqual Attributes(QName(Some("a"), "c") -> "1", "b" -> "foo")
+      (<test a:c="1" b="foo" xmlns:a="a"/>).anti.attrs mustEqual Attributes(QName(Some("a"), "c", Some("a")) -> "1", "b" -> "foo")
     }
     
     "convert elem children" in {
       val e = <test>Text1<child/>Text2</test>.anti
       e.children must have size(3)
       e.children(0) mustEqual Text("Text1")
-      e.children(1) mustEqual Elem(None, "child", Attributes(), Group())
+      e.children(1) mustEqual Elem("child", Attributes(), Map(), Group())
       e.children(2) mustEqual Text("Text2")
     }
     
@@ -103,8 +106,8 @@ class ConversionSpecs extends Specification with ScalaCheck {
       xml.NodeSeq.fromSeq(Nil).anti mustEqual Group()
       
       val result = xml.NodeSeq.fromSeq(List(<test1/>, <test2/>, xml.Text("text"))).anti
-      val expected = Group(Elem(None, "test1", Attributes(), Group()),
-        Elem(None, "test2", Attributes(), Group()),
+      val expected = Group(Elem("test1", Attributes(), Map(), Group()),
+        Elem("test2", Attributes(), Map(), Group()),
         Text("text"))
         
       result mustEqual expected

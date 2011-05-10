@@ -28,6 +28,7 @@
 
 package com.codecommit.antixml
 
+import java.io.Writer
 /**
  * Root of the `Node` ADT, representing the different types of supported XML
  * nodes which may appear in an XML fragment.  The ADT itself has the following
@@ -35,7 +36,7 @@ package com.codecommit.antixml
  *
  * {{{
  * data Node = ProcInstr String String
- *           | Elem (Maybe String) String (Map String String) (Group Node)
+ *           | Elem QName (Map String String) (Group Node)
  *           | Text String
  *           | CDATA String
  *           | EntityRef String
@@ -91,7 +92,8 @@ case class ProcInstr(target: String, data: String) extends Node {
 
 /**
  * An XML element consisting of an optional namespace, a name (or identifier), a
- * set of attributes and a sequence of child nodes. For example:
+ * set of attributes, a mapping of namespace prefixes and a sequence of child nodes.
+ * For example:
  *
  * {{{
  * <span id="foo" class="bar">Lorem ipsum</span>
@@ -100,22 +102,27 @@ case class ProcInstr(target: String, data: String) extends Node {
  * This would result in the following node:
  *
  * {{{
- * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Group(Text("Lorem ipsum")))
+ * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
  * }}}
  */
-case class Elem(ns: Option[String], name: String, attrs: Attributes, children: Group[Node]) extends Node with Selectable[Elem] {
+case class Elem(name: QName, attrs: Attributes, prefixes: Map[String, String],  children: Group[Node]) extends Node with Selectable[Elem] {
   override def toString = {
     import Node._
     
-    val prefix = ns map { _ + ':' } getOrElse ""
-    val qName = prefix + name
+    val prefix = name.prefix map { _ + ':' } getOrElse ""
+    val qName = prefix + name.name
     
     val attrStr = if (attrs.isEmpty) 
       ""
     else
-      " " + (attrs map { case (key, value) => escapeText(key.toString) + "=\"" + escapeText(value) + '"' } mkString " ")
+      " " + (attrs map { case (key, value) => key.toString + "=\"" + escapeText(value) + '"' } mkString " ")
     
-    val partial = "<" + escapeText(qName) + attrStr
+    val prefixesStr = if (prefixes.isEmpty) 
+      ""
+    else
+      " " + (prefixes map { case (key, value) => (if (key == "") "xmlns" else "xmlns:" + key) + "=\"" + escapeText(value) + '"' } mkString " ")
+    
+    val partial = "<" + qName + attrStr + prefixesStr
     if (children.isEmpty)
       partial + "/>"
     else

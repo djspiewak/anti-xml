@@ -31,7 +31,10 @@ package com.codecommit.antixml
 import org.specs2.mutable._
 import scala.io.Source
 import org.specs2.matcher.MustExpectable._
+import org.junit.runner.RunWith
+import org.specs2.runner.JUnitRunner
 
+@RunWith(classOf[JUnitRunner])
 class ZipperSpecs extends Specification {
   val bookstore = resource("bookstore.xml")
   
@@ -65,8 +68,8 @@ class ZipperSpecs extends Specification {
       val bookstore2: Group[Node] = authors.updated(0, author0).updated(2, author2).updated(3, author3).unselect.unselect
       
       // find afresh without using \
-      bookstore2.head.asInstanceOf[Elem].name mustEqual "bookstore"
-      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].name mustEqual "book"
+      bookstore2.head.asInstanceOf[Elem].name.name mustEqual "bookstore"
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].name.name mustEqual "book"
       
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children must haveSize(2)
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
@@ -117,7 +120,7 @@ class ZipperSpecs extends Specification {
         bookElem <- bookstore \ "book"
         title <- bookElem \ "title" \ text
         if !title.trim.isEmpty
-        val filteredChildren = bookElem.children filter { case Elem(_, "title", _, _) => false case _ => true }
+        val filteredChildren = bookElem.children filter { case Elem(QName(None, "title", None), _, _, _) => false case _ => true }
       } yield bookElem.copy(attrs=(bookElem.attrs + ("title" -> title)), children=filteredChildren)
       
       val bookstore2 = titledBooks.unselect

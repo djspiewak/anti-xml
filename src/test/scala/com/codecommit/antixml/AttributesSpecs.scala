@@ -56,16 +56,16 @@ class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
       val attrsSafe = attrs - name
       val attrs2 = attrsSafe + (name -> value)
       attrs2 must havePairs(attrsSafe.toSeq: _*)
-      attrs2 must havePair(QName(None, name) -> value)
+      attrs2 must havePair(QName(None, name, None) -> value)
     }
     
     "produce most specific Map with non-String value" in check { attrs: Attributes =>
       val value = new AnyRef
       val attrsSafe = attrs - "foo"
-      val attrs2 = attrsSafe + (QName(None, "foo") -> value)
+      val attrs2 = attrsSafe + (QName(None, "foo", None) -> value)
       validate[Map[QName, AnyRef]](attrs2)
       attrs2 must havePairs(attrsSafe.toSeq: _*)
-      attrs2 must havePair(QName(None, "foo") -> value)
+      attrs2 must havePair(QName(None, "foo", None) -> value)
     }
     
     "support removal of qname attrs" in { 
@@ -91,21 +91,21 @@ class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
     
     "support retrieval of attributes by string" in check { (attrs: Attributes, key: String) =>
       val result = attrs get key
-      result mustEqual (attrs find { case (QName(None, `key`), _) => true case _ => false })
+      result mustEqual (attrs find { case (QName(None, `key`, None), _) => true case _ => false })
     }
     
     "produce Attributes from collection utility methods returning compatible results" in {
       val attrs = Attributes("foo" -> "bar", "baz" -> "bin")
       val attrs2 = attrs map { case (k, v) => k -> (v + "42") }
       validate[Attributes](attrs2)
-      attrs2 must havePairs(QName(None, "foo") -> "bar42", QName(None, "baz") -> "bin42")
+      attrs2 must havePairs(QName(None, "foo", None) -> "bar42", QName(None, "baz", None) -> "bin42")
     }
     
     "produce Map from collection utility methods returning incompatible results" in {
       val attrs = Attributes("foo" -> "bar", "baz" -> "bin")
       val attrs2 = attrs map { case (k, v) => k -> 42 }
       validate[Map[QName, Int]](attrs2)
-      attrs2 must havePairs(QName(None, "foo") -> 42, QName(None, "baz") -> 42)
+      attrs2 must havePairs(QName(None, "foo", None) -> 42, QName(None, "baz", None) -> 42)
     }
   }
   
