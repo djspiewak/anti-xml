@@ -35,10 +35,11 @@ import org.scalacheck._
 class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with UtilGenerators {
   import Prop._
   import XML._
+  
   lazy val numProcessors = Runtime.getRuntime.availableProcessors()
-  implicit val params = set(workers -> numProcessors)
+  implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be so large
 
-  "shallow selector" should {
+  "shallow selection on Group" should {
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
       ns \ "parent" mustEqual Group(elem("parent"))
@@ -73,7 +74,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
   }
   
-  "deep selector" should {
+  "deep selection on Group" should {
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
       ns \\ "parent" mustEqual Group(elem("parent"))
@@ -119,6 +120,18 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
   }
   
+  "utility methods on Group" >> {
+    implicit val arbInt = Arbitrary(Gen.choose(0, 10))
+    
+    "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
+      val func = (0 until n).foldLeft(identity: Group[Node] => Group[Node]) { (g, _) =>
+        g andThen { _ collect { case e => e } }
+      }
+      
+      func(xml) mustEqual xml
+    }
+  }
+
   def elem(name: String, children: Node*) = Elem(None, name, Attributes(), Map(), Group(children: _*))
 
   def elem(qname : QName, children: Node*) = Elem(qname.prefix, qname.name, Attributes(), Map(), Group(children: _*))

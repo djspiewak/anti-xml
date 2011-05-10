@@ -29,10 +29,18 @@
 package com.codecommit.antixml
 
 import org.specs2.mutable._
-import scala.io.Source
+import org.specs2.ScalaCheck
 import org.specs2.matcher.MustExpectable._
+import org.scalacheck._
 
-class ZipperSpecs extends Specification {
+import scala.io.Source
+
+class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
+  import Prop._
+  
+  lazy val numProcessors = Runtime.getRuntime.availableProcessors()
+  implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be that large
+  
   val bookstore = resource("bookstore.xml")
   
   "Zipper#stripZipper" should {
@@ -153,6 +161,18 @@ class ZipperSpecs extends Specification {
       val xml2 = (xml \ "sub") map identity unselect
       
       xml2 mustEqual xml
+    }
+  }
+  
+  "utility methods on Zipper" >> {
+    implicit val arbInt = Arbitrary(Gen.choose(0, 10))
+    
+    "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
+      val func = (0 until n).foldLeft(identity: Zipper[Node] => Zipper[Node]) { (g, _) =>
+        g andThen { _ collect { case e => e } }
+      }
+      
+      func(xml.toZipper) mustEqual xml
     }
   }
   
