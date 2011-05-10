@@ -142,7 +142,7 @@ You can also pass a ``Symbol`` if that is more convenient::
     
     val xml = ...
     val books = xml \ "book"
-    val books2 = xml \ 'book       // equivalent to `books`
+    val books2 = xml \ 'book       // `books2` is equivalent to `books`
     
 You will also note that the ``*`` character is used as a wildcard selector, rather
 than the magical string value ``"_"`` (as in ``scala.xml``).  This is because
