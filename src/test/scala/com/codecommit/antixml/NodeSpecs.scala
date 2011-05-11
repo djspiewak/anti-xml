@@ -28,12 +28,9 @@
 
 package com.codecommit.antixml
 
-import org.specs2.runner.JUnitRunner
-import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.matcher.DataTables
 
-@RunWith(classOf[JUnitRunner])
 class NodeSpecs extends Specification with DataTables {
     
   "elements" should {

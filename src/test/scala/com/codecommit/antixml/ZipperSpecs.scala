@@ -31,10 +31,7 @@ package com.codecommit.antixml
 import org.specs2.mutable._
 import scala.io.Source
 import org.specs2.matcher.MustExpectable._
-import org.junit.runner.RunWith
-import org.specs2.runner.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
 class ZipperSpecs extends Specification {
   val bookstore = resource("bookstore.xml")
   

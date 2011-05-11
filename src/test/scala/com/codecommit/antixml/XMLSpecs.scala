@@ -29,10 +29,7 @@
 package com.codecommit.antixml
 
 import org.specs2.mutable._
-import org.junit.runner.RunWith
-import org.specs2.runner.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
 class XMLSpecs extends Specification {
   import XML._
   

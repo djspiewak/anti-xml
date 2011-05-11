@@ -28,15 +28,12 @@
 
 package com.codecommit.antixml
 
-import org.specs2.runner.JUnitRunner
-import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.ScalaCheck
 import org.scalacheck._
 
 import scala.xml
 
-@RunWith(classOf[JUnitRunner])
 class ConversionSpecs extends Specification with ScalaCheck {
   import Prop._
   

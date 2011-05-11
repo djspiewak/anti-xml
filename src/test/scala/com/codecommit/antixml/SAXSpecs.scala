@@ -28,11 +28,8 @@
 
 package com.codecommit.antixml
 
-import org.specs2.runner.JUnitRunner
-import org.junit.runner.RunWith
 import org.specs2.mutable._
 
-@RunWith(classOf[JUnitRunner])
 class SAXSpecs extends Specification {
   object SAXParser extends SAXParser
   
