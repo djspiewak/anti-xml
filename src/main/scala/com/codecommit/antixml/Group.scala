@@ -341,6 +341,13 @@ object Group {
     }
   }
   
+  implicit def canBuildFrom[A <: Node]: CanBuildFrom[Group[_], A, Group[A]] = new CanBuildFrom[Group[_], A, Group[A]] with CanProduceZipper[Group[_], A, Zipper[A]] {
+    def apply(from: Group[_]) = apply()
+    def apply() = newBuilder[A]
+    
+    def lift = canBuildFromWithZipper
+  }
+  
   def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { new Group(_) }
   
   /**

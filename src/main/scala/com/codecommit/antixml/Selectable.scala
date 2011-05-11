@@ -99,6 +99,8 @@ trait Selectable[+A <: Node] {
    * @usecase def \(selector: Selector[Node]): Zipper[Node]
    */
   def \[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
+    implicit val cbf2 = cbf.lift[That]
+    
     if (matches(selector)) {
       // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
       
@@ -163,7 +165,7 @@ trait Selectable[+A <: Node] {
       builder ++= cat
       builder.result
     } else {
-      cbf(Vector()).result
+      cbf2().result
     }
   }
   
@@ -203,15 +205,17 @@ trait Selectable[+A <: Node] {
    * @usecase def \\(selector: Selector[Node]): Zipper[Node]
    */
   def \\[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
+    implicit val cbf2 = cbf.lift[That]
+    
     if (matches(selector)) {
       val recursive = toGroup collect {
         case Elem(_, _, _, _, children) => children \\ selector
-        case _ => cbf().result
+        case _ => cbf2().result
       }
       
       ((this \ selector) /: recursive)(cbf.append)
     } else {
-      cbf().result
+      cbf2().result
     }
   }
   

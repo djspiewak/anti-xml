@@ -31,15 +31,16 @@ package antixml
 
 import util._
 
+import scala.collection.IndexedSeqLike
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 
-trait Zipper[+A <: Node] extends Group[A] with ScalaCompat { self =>
+trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with ScalaCompat { self =>
   // TODO dependently-typed HList, maybe?
 
   protected def map: Vector[Option[ZContext]]
   protected def parent: Zipper[Node]
   protected val hasValidContext = true
-
+  
   // TODO this *may* be a poor choice of words...
   def stripZipper = new Group(toVectorCase)
   
@@ -55,10 +56,25 @@ trait Zipper[+A <: Node] extends Group[A] with ScalaCompat { self =>
       def parent = self.parent.parent
     }
   }
+  
+  override protected[this] def newBuilder = Zipper.newBuilder[A]
+  
+  override def drop(n: Int) = super.drop(n).toZipper   // TODO
+  
+  override def slice(from: Int, until: Int) = super.slice(from, until).toZipper   // TODO
+  
+  override def splitAt(n: Int) = {    // TODO
+    val (left, right) = super.splitAt(n)
+    (left.toZipper, right.toZipper)
+  }
+  
+  override def take(n: Int) = super.take(n).toZipper   // TODO
 
-  override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
-    case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
-      val builder = cbf(parent.asInstanceOf[Group[A]], map)      // oddly, the type-checker isn't handling this
+  override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = cbf match {
+    case cbf: CanProduceZipper[Zipper[A], B, That] => {
+      implicit val cbfwz = cbf.lift
+      
+      val builder = cbfwz(parent.asInstanceOf[Zipper[A]], map)      // oddly, the type-checker isn't handling this
       builder ++= (toVectorCase map f)
       builder.result
     }
@@ -66,8 +82,10 @@ trait Zipper[+A <: Node] extends Group[A] with ScalaCompat { self =>
     case _ => super.map(f)(cbf)
   }
 
-  override def flatMap[B, That](f: A => CompatTraversable[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
-    case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
+  override def flatMap[B, That](f: A => CompatTraversable[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = cbf match {
+    case cbf: CanProduceZipper[Zipper[A], B, That] => {
+      implicit val cbfwz = cbf.lift
+      
       if (!hasValidContext) {
         super.flatMap(f)(cbf)     // don't try to preserve
       } else {
@@ -114,7 +132,7 @@ trait Zipper[+A <: Node] extends Group[A] with ScalaCompat { self =>
           case ((offset, map2, acc), None) => (offset, map2 :+ None, acc)
         }
   
-        val builder = cbf(parent.asInstanceOf[Group[A]], map2)
+        val builder = cbfwz(parent.asInstanceOf[Zipper[A]], map2)
         chunks foreach (builder ++=)
         builder.result
       }
@@ -129,7 +147,7 @@ trait Zipper[+A <: Node] extends Group[A] with ScalaCompat { self =>
   
   override def withFilter(f: A => Boolean) = new WithFilter(List(f))
   
-  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That =
+  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That =
     flatMap(pf.lift andThen { _.toTraversable })
   
   override def updated[B >: A <: Node](index: Int, node: B) = {
@@ -141,15 +159,32 @@ trait Zipper[+A <: Node] extends Group[A] with ScalaCompat { self =>
   
   override def toZipper = self
   
-  class WithFilter(filters: List[A => Boolean]) extends FilterMonadic[A, Group[A]] {
-    def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Group[A], B, That]) =
+  class WithFilter(filters: List[A => Boolean]) extends FilterMonadic[A, Zipper[A]] {
+    def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Zipper[A], B, That]) =
       self filter { a => filters forall { _(a) } } map f
     
-    def flatMap[B, That](f: A => CompatTraversable[B])(implicit bf: CanBuildFrom[Group[A], B, That]) =
+    def flatMap[B, That](f: A => CompatTraversable[B])(implicit bf: CanBuildFrom[Zipper[A], B, That]) =
       self filter { a => filters forall { _(a) } } flatMap f
     
     def foreach[B](f: A => B) = self foreach f
     
     def withFilter(p: A => Boolean) = new WithFilter(p :: filters)
+  }
+}
+
+object Zipper {
+  implicit def canBuildFrom[A <: Node]: CanBuildFrom[Zipper[_], A, Zipper[A]] = new CanBuildFrom[Zipper[_], A, Zipper[A]] with CanProduceZipper[Zipper[_], A, Zipper[A]] {
+    def apply(from: Zipper[_]) = apply()    // TODO
+    def apply() = newBuilder[A]
+    
+    def lift = Group.canBuildFromWithZipper
+  }
+  
+  def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { vec =>
+    new Group(vec) with Zipper[A] {
+      val map = Vector()
+      def parent = error("No zipper context available")
+      override val hasValidContext = false
+    }
   }
 }

@@ -48,16 +48,18 @@ import scala.collection.mutable.Builder
  * companion object for this trait, giving it lower priority in the implicit
  * resolution, but still accessible without requiring an explicit import.
  */
-trait CanBuildFromWithZipper[-From, -Elem, To] extends CanBuildFrom[From, Elem, To] {
-  def apply(from: From): Builder[Elem, To] = apply(Vector())
-  def apply(): Builder[Elem, To] = apply(Vector())
-  
+trait CanBuildFromWithZipper[-From, -Elem, To] { self =>
   def apply(parent: From, map: =>Vector[Option[ZContext]]): Builder[Elem, To]
   def apply(map: =>Vector[Option[ZContext]]): Builder[Elem, To]
   
   /**
    */
   def append(left: To, right: To): To
+  
+  def lift[CC >: To]: CanBuildFrom[From, Elem, CC] = new CanBuildFrom[From, Elem, CC] {
+    def apply(from: From) = apply()
+    def apply() = self(Vector())
+  }
 }
 
 /**
@@ -91,4 +93,8 @@ object CanBuildFromWithZipper {
       builder.result()
     }  
   }
+}
+
+trait CanProduceZipper[-From, -Elem, To] { this: CanBuildFrom[From, Elem, _ >: To] =>
+  def lift: CanBuildFromWithZipper[From, Elem, To]
 }
