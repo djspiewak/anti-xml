@@ -165,6 +165,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
     new Group(nodes) with Zipper[A] {
       val map = Vector()
       def parent = error("Attempted to move up at root of the tree")
+      override val hasValidContext = false
     }
   }
   
@@ -239,6 +240,8 @@ object Group {
               case group: Group[Node] => group.toZipper
               case _ => error("No zipper context available")
             }
+            
+            override val hasValidContext = from.isInstanceOf[Group[Node]]
           }
         }
       }
@@ -248,6 +251,7 @@ object Group {
           new Group(vec) with Zipper[A] {
             lazy val map = baseMap
             def parent = error("No zipper context available")
+            override val hasValidContext = false
           }
         }
       }
