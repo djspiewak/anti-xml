@@ -91,7 +91,7 @@ class ConversionSpecs extends Specification with ScalaCheck {
     
     "convert elem attributes" in {
       (<test/>).anti.attrs mustEqual Map()
-      (<test a:c="1" b="foo" xmlns:a="a"/>).anti.attrs mustEqual Attributes(QName(Some("a"), "c", Some("a")) -> "1", "b" -> "foo")
+      (<test a:c="1" b="foo" xmlns:a="a"/>).anti.attrs mustEqual Attributes(QName(Some("a"), Some("a"), "c") -> "1", "b" -> "foo")
     }
     
     "convert elem children" in {

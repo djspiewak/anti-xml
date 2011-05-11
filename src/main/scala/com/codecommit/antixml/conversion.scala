@@ -119,13 +119,13 @@ object XMLConvertable extends SecondPrecedenceConvertables {
       val ns = if (e.namespace == null) None else Some(e.namespace)
         
       val attrs = (Attributes() /: e.attributes) {
-        case (attrs, pa: xml.PrefixedAttribute) => attrs + (QName(Some(e.scope.getURI(pa.pre)), pa.key, Some(pa.pre)) -> pa.value.mkString)
+        case (attrs, pa: xml.PrefixedAttribute) => attrs + (QName(Some(e.scope.getURI(pa.pre)), Some(pa.pre), pa.key) -> pa.value.mkString)
         case (attrs, ua: xml.UnprefixedAttribute) => attrs + (ua.key -> ua.value.mkString)
         case (attrs, _) => attrs
       }
     
       val children = NodeSeqConvertable(xml.NodeSeq fromSeq e.child)
-      Elem(QName(ns, e.label, prefix), attrs, Map(), children)
+      Elem(QName(ns, prefix, e.label), attrs, Map(), children)
     }
   }
   

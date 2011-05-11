@@ -138,7 +138,7 @@ object Attributes {
       new Builder[(String, String), Attributes] {
         def +=(pair: (String, String)) = {
           val (key, value) = pair
-          delegate += (QName(None, key, None) -> value)
+          delegate += (QName(None, None, key) -> value)
           this
         }
         

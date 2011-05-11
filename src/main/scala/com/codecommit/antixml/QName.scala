@@ -28,10 +28,10 @@
 
 package com.codecommit.antixml
 
-case class QName(ns: Option[String], name: String, prefix: Option[String]) {
+case class QName(ns: Option[String], prefix: Option[String], name: String) {
   override def toString = (prefix map { _.toString + ':' } getOrElse "") + name
 }
 
-object QName extends ((Option[String], String, Option[String]) => QName) {
-  implicit def stringToQName(str: String) = QName(None, str, None)
+object QName extends ((Option[String], Option[String], String) => QName) {
+  implicit def stringToQName(str: String) = QName(None, None, str)
 }

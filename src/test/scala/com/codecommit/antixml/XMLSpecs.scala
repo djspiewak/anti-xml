@@ -63,7 +63,7 @@ class XMLSpecs extends Specification {
 
     "preserve prefixes" in {
       val ns = "urn:my-urn:quux";
-      fromString("<my:test xmlns:my='urn:my-urn:quux'/>") mustEqual Elem(QName(Some(ns), "test", Some("my")), Attributes(), Map("my" -> ns), Group[Node]());
+      fromString("<my:test xmlns:my='urn:my-urn:quux'/>") mustEqual Elem(QName(Some(ns), Some("my"), "test"), Attributes(), Map("my" -> ns), Group[Node]())
     }
 
     "parse prefixes" in {

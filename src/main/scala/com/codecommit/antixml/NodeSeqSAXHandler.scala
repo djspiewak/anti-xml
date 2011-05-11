@@ -93,7 +93,7 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
         if (back == localName) None else Some(back.substring(0, back.length - localName.length -1))
       }
     
-      map + (QName(ns, localName, prefix) -> attrs.getValue(i))
+      map + (QName(ns, prefix, localName) -> attrs.getValue(i))
     }
 
     builders ::= VectorCase.newBuilder
@@ -103,7 +103,7 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
       }
       val ns = if (uri == "") None else Some(uri)
       
-      Elem(QName(ns, localName, prefix), map, scopes.top, children)
+      Elem(QName(ns, prefix, localName), map, scopes.top, children)
     }
   }
 

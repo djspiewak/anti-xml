@@ -59,7 +59,7 @@ package object antixml {
    * For example: `ns \ "name"`
    */
   implicit def stringToSelector(name: String): Selector[Elem] =
-    Selector({ case e @ Elem(QName(_, `name`, _), _, _,  _) => e }, Some(name))
+    Selector({ case e @ Elem(QName(_, _, `name`), _, _,  _) => e }, Some(name))
 
   /**
    * Implicitly lifts a [[scala.Symbol]] into an instance of [[com.codecommit.antixml.Selector]]
@@ -85,7 +85,7 @@ package object antixml {
   // I feel justified in this global implicit since it doesn't pimp anything
   implicit def stringTupleToQNameTuple(pair: (String, String)): (QName, String) = {
     val (key, value) = pair
-    (QName(None, key, None), value)
+    (QName(None, None, key), value)
   }
 
   /**
