@@ -28,7 +28,6 @@
 
 package com.codecommit.antixml
 
-import scala.collection.mutable.Stack
 import util.VectorCase
 import java.io.{InputStream, StringReader, Reader}
 import javax.xml.stream.{XMLInputFactory, XMLStreamException}
@@ -59,7 +58,7 @@ class StAXParser extends XMLParser {
 
     val xmlReader = XMLInputFactory.newInstance().createXMLStreamReader(source)
     var elems: List[ElemBuilder] = Nil
-    var prefixMapping : Stack[Map[String, String]] = Stack(Map())
+    var prefixMapping = Map[String, String]() :: Nil
     var results = VectorCase.newBuilder[Node] :: Nil
     val text = new StringBuilder
     while(xmlReader.hasNext) {
@@ -71,11 +70,16 @@ class StAXParser extends XMLParser {
           val parents = elems.tail
           val children = results.head
           val ancestors = results.tail
+          val mapping = {
+            val back = prefixMapping.head
+            prefixMapping = prefixMapping.tail
+            back
+          }
           if (text.size > 0) {
             children += Text(text.result)
             text.clear()
           }
-          ancestors.head += Elem(QName(elem.ns, elem.prefix, elem.name), elem.attrs, prefixMapping.pop, Group fromSeq children.result)
+          ancestors.head += Elem(QName(elem.ns, elem.prefix, elem.name), elem.attrs, mapping, Group fromSeq children.result)
           elems = parents
           results = ancestors
         }
@@ -85,14 +89,14 @@ class StAXParser extends XMLParser {
             text.clear()
           }
           var i = 0
-          var prefixes = prefixMapping.top
+          var prefixes = prefixMapping.headOption getOrElse Map()
           while (i < xmlReader.getNamespaceCount) {
             val ns = Option(xmlReader.getNamespaceURI(i))
             val prefix = xmlReader.getNamespacePrefix(i)
             prefixes = prefixes + (prefix -> ns.getOrElse(""))
             i = i + 1
           }
-          prefixMapping.push(prefixes)
+          prefixMapping ::= prefixes
           var attrs = Attributes()
           while (i < xmlReader.getAttributeCount) {
             val ns = Option(xmlReader.getAttributeNamespace(i))

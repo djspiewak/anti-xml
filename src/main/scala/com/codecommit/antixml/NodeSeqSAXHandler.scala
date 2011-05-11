@@ -29,7 +29,6 @@
 package com.codecommit
 package antixml
 
-import scala.collection.mutable.Stack
 import util._
 
 import org.xml.sax.{Attributes => SAXAttributes}
@@ -50,7 +49,7 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
   private var elems = List[Group[Node] => Elem]()
   private val text = new StringBuilder
   private var isCDATA = false
-  private var scopes : Stack[Map[String, String]] = Stack(Map())
+  private var scopes = Map[String, String]() :: Nil
   
   private var builders = VectorCase.newBuilder[Node] :: Nil
   
@@ -59,12 +58,12 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     isCDATA = true
   }
 
-  override def startPrefixMapping(prefix : String, namespace : String) {
-    scopes.push (scopes.top + (prefix -> namespace))
+  override def startPrefixMapping(prefix: String, namespace: String) {
+    scopes ::= (scopes.headOption map { _ + (prefix -> namespace) } getOrElse Map())
   }
 
-  override def endPrefixMapping(prefix : String) {
-    scopes.pop
+  override def endPrefixMapping(prefix: String) {
+    scopes = scopes.tail
   }
 
   override def endCDATA() {
@@ -98,12 +97,14 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
 
     builders ::= VectorCase.newBuilder
     elems ::= { children =>
-      val prefix = {
-        if (qName == localName) None else Some(qName.substring(0, qName.length - localName.length -1))
-      }
+      val prefix = if (qName == localName)
+        None
+      else
+        Some(qName.substring(0, qName.length - localName.length - 1))
+      
       val ns = if (uri == "") None else Some(uri)
       
-      Elem(QName(ns, prefix, localName), map, scopes.top, children)
+      Elem(QName(ns, prefix, localName), map, scopes.headOption getOrElse Map(), children)
     }
   }
 
