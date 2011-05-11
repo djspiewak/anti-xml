@@ -38,6 +38,33 @@ class NodeSpecs extends Specification with DataTables {
       <br/>.anti.toString mustEqual "<br/>"
     }
     
+    "escape reserved characters in the name" in {
+      "character" || "elem.toString" |>
+      "\""        !! "<&quot;/>"    |
+      "&"         !! "<&amp;/>"     |
+      "'"         !! "<&apos;/>"    |
+      "<"         !! "<&lt;/>"      |
+      ">"         !! "<&gt;/>"      | { (c, r) => Elem(c, Attributes(), Map(), Group()).toString mustEqual r }
+    }
+    
+    "escape reserved characters in the namespace" in {
+      "character" || "elem.toString" |>
+      "\""        !! "<&quot;:foo/>" |
+      "&"         !! "<&amp;:foo/>"  |
+      "'"         !! "<&apos;:foo/>" |
+      "<"         !! "<&lt;:foo/>"   |
+      ">"         !! "<&gt;:foo/>"   | { (c, r) => Elem(QName(None, Some(c), "foo"), Attributes(), Map(), Group()).toString mustEqual r }
+    }
+    
+    "escape reserved characters in attribute keys" in {
+      "character" || "elem.toString"         |>
+      "\""        !! "<foo &quot;=\"bar\"/>" |
+      "&"         !! "<foo &amp;=\"bar\"/>"  |
+      "'"         !! "<foo &apos;=\"bar\"/>" |
+      "<"         !! "<foo &lt;=\"bar\"/>"   |
+      ">"         !! "<foo &gt;=\"bar\"/>"   | { (c, r) => Elem("foo", Attributes(c -> "bar"), Map(), Group()).toString mustEqual r }
+    }
+    
     "escape reserved characters in attribute values" in {
       "character" || "elem.toString"         |>
       "\""        !! "<foo bar=\"&quot;\"/>" |

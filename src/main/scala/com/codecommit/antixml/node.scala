@@ -109,9 +109,6 @@ case class Elem(name: QName, attrs: Attributes, prefixes: Map[String, String], c
   override def toString = {
     import Node._
     
-    val prefix = name.prefix map { _ + ':' } getOrElse ""
-    val qName = prefix + name.name
-    
     val attrStr = if (attrs.isEmpty) 
       ""
     else
@@ -120,13 +117,13 @@ case class Elem(name: QName, attrs: Attributes, prefixes: Map[String, String], c
     val prefixesStr = if (prefixes.isEmpty) 
       ""
     else
-      " " + (prefixes map { case (key, value) => (if (key == "") "xmlns" else "xmlns:" + key) + "=\"" + escapeText(value) + '"' } mkString " ")
+      " " + (prefixes map { case (key, value) => (if (key == "") "xmlns" else "xmlns:" + escapeText(key)) + "=\"" + escapeText(value) + '"' } mkString " ")
     
-    val partial = "<" + qName + attrStr + prefixesStr
+    val partial = "<" + name.toString + attrStr + prefixesStr
     if (children.isEmpty)
       partial + "/>"
     else
-      partial + '>' + children.toString + "</" + escapeText(qName) + '>'
+      partial + '>' + children.toString + "</" + name.toString + '>'
   }
   
   def toGroup = Group(this)
