@@ -105,7 +105,7 @@ case class ProcInstr(target: String, data: String) extends Node {
  * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
  * }}}
  */
-case class Elem(name: QName, attrs: Attributes, prefixes: Map[String, String],  children: Group[Node]) extends Node with Selectable[Elem] {
+case class Elem(name: QName, attrs: Attributes, prefixes: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
   override def toString = {
     import Node._
     
