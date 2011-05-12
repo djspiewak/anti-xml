@@ -76,7 +76,7 @@ class ConversionSpecs extends Specification with ScalaCheck {
     
     "convert elem names without namespaces" in {
       val e = <test/>.anti
-      e.name.ns mustEqual None
+      e.name.prefix mustEqual None
       e.name.name mustEqual "test"
     }
     
@@ -88,7 +88,7 @@ class ConversionSpecs extends Specification with ScalaCheck {
     
     "convert elem attributes" in {
       (<test/>).anti.attrs mustEqual Map()
-      (<test a:c="1" b="foo" xmlns:a="a"/>).anti.attrs mustEqual Attributes(QName(Some("a"), Some("a"), "c") -> "1", "b" -> "foo")
+      (<test a:c="1" b="foo" xmlns:a="a"/>).anti.attrs mustEqual Attributes(QName(Some("a"), "c") -> "1", "b" -> "foo")
     }
     
     "convert elem children" in {

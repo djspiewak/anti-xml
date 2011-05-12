@@ -117,7 +117,7 @@ class ZipperSpecs extends Specification {
         bookElem <- bookstore \ "book"
         title <- bookElem \ "title" \ text
         if !title.trim.isEmpty
-        val filteredChildren = bookElem.children filter { case Elem(QName(None, None, "title"), _, _, _) => false case _ => true }
+        val filteredChildren = bookElem.children filter { case Elem(QName(None, "title"), _, _, _) => false case _ => true }
       } yield bookElem.copy(attrs=(bookElem.attrs + ("title" -> title)), children=filteredChildren)
       
       val bookstore2 = titledBooks.unselect

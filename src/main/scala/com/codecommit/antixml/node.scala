@@ -36,7 +36,7 @@ import java.io.Writer
  *
  * {{{
  * data Node = ProcInstr String String
- *           | Elem QName (Map String String) (Group Node)
+ *           | Elem QName Attributes (Map String String) (Group Node)
  *           | Text String
  *           | CDATA String
  *           | EntityRef String
@@ -102,10 +102,10 @@ case class ProcInstr(target: String, data: String) extends Node {
  * This would result in the following node:
  *
  * {{{
- * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
+ * Elem(QName(None, "span"), Map("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
  * }}}
  */
-case class Elem(name: QName, attrs: Attributes, prefixes: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
+case class Elem(name: QName, attrs: Attributes, scope: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
   override def toString = {
     import Node._
     
@@ -114,10 +114,10 @@ case class Elem(name: QName, attrs: Attributes, prefixes: Map[String, String], c
     else
       " " + (attrs map { case (key, value) => key.toString + "=\"" + escapeText(value) + '"' } mkString " ")
     
-    val prefixesStr = if (prefixes.isEmpty) 
+    val prefixesStr = if (scope.isEmpty) 
       ""
     else
-      " " + (prefixes map { case (key, value) => (if (key == "") "xmlns" else "xmlns:" + escapeText(key)) + "=\"" + escapeText(value) + '"' } mkString " ")
+      " " + (scope map { case (key, value) => (if (key == "") "xmlns" else "xmlns:" + escapeText(key)) + "=\"" + escapeText(value) + '"' } mkString " ")
     
     val partial = "<" + name.toString + attrStr + prefixesStr
     if (children.isEmpty)

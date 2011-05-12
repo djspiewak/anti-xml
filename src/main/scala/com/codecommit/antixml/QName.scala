@@ -28,11 +28,11 @@
 
 package com.codecommit.antixml
 
-case class QName(ns: Option[String], prefix: Option[String], name: String) {
+case class QName(prefix: Option[String], name: String) {
   override def toString =
     Node.escapeText((prefix map { _.toString + ':' } getOrElse "") + name)
 }
 
-object QName extends ((Option[String], Option[String], String) => QName) {
-  implicit def stringToQName(str: String) = QName(None, None, str)
+object QName extends ((Option[String], String) => QName) {
+  implicit def stringToQName(str: String) = QName(None, str)
 }

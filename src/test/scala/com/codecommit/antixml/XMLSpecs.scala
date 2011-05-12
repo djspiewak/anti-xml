@@ -28,6 +28,7 @@
 
 package com.codecommit.antixml
 
+import org.specs2.execute.Pending
 import org.specs2.mutable._
 
 class XMLSpecs extends Specification {
@@ -60,7 +61,7 @@ class XMLSpecs extends Specification {
 
     "preserve prefixes" in {
       val ns = "urn:my-urn:quux";
-      fromString("<my:test xmlns:my='urn:my-urn:quux'/>") mustEqual Elem(QName(Some(ns), Some("my"), "test"), Attributes(), Map("my" -> ns), Group[Node]())
+      fromString("<my:test xmlns:my='urn:my-urn:quux'/>") mustEqual Elem(QName(Some("my"), "test"), Attributes(), Map("my" -> ns), Group[Node]())
     }
 
     "parse prefixes" in {
@@ -71,6 +72,10 @@ class XMLSpecs extends Specification {
       fromString("<my:test xmlns:my='urn:my-urn:quux'>\n<beef/>\n\t\n</my:test>").toString mustEqual "<my:test xmlns:my=\"urn:my-urn:quux\">\n<beef xmlns:my=\"urn:my-urn:quux\"/>\n\t\n</my:test>"
     }
 
+//    "serialize prefixes minimally" in {
+//      fromString("<my:test xmlns:my='urn:my-urn:quux'>\n<beef/>\n\t\n</my:test>").toString mustEqual "<my:test xmlns:my=\"urn:my-urn:quux\">\n<beef/>\n\t\n</my:test>"
+//    }
+    Pending("serialize prefixes minimally - not implemented yet")
   }
   
   "fromSource" should {

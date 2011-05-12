@@ -79,7 +79,7 @@ class StAXParser extends XMLParser {
             children += Text(text.result)
             text.clear()
           }
-          ancestors.head += Elem(QName(elem.ns, elem.prefix, elem.name), elem.attrs, mapping, Group fromSeq children.result)
+          ancestors.head += Elem(QName(elem.prefix, elem.name), elem.attrs, mapping, Group fromSeq children.result)
           elems = parents
           results = ancestors
         }
@@ -91,9 +91,10 @@ class StAXParser extends XMLParser {
           var i = 0
           var prefixes = prefixMapping.headOption getOrElse Map()
           while (i < xmlReader.getNamespaceCount) {
-            val ns = Option(xmlReader.getNamespaceURI(i))
+            val ns = xmlReader.getNamespaceURI(i)
             val prefix = xmlReader.getNamespacePrefix(i)
-            prefixes = prefixes + (prefix -> ns.getOrElse(""))
+            // TODO: Only change if mapping doesn't exists already
+            prefixes = prefixes + (prefix -> ns)
             i = i + 1
           }
           prefixMapping ::= prefixes
@@ -105,7 +106,7 @@ class StAXParser extends XMLParser {
               val back = xmlReader.getAttributePrefix(i)
               if (back == null || back == "") None else Some(back)
             }
-            attrs = attrs + (QName(ns, prefix, localName) -> xmlReader.getAttributeValue(i))
+            attrs = attrs + (QName(prefix, localName) -> xmlReader.getAttributeValue(i))
             i = i + 1
           }
           val uri = xmlReader.getNamespaceURI
