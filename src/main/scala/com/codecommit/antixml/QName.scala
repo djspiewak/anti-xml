@@ -28,8 +28,9 @@
 
 package com.codecommit.antixml
 
-case class QName(ns: Option[String], name: String) {
-  override def toString = (ns map { _.toString + ':' } getOrElse "") + name
+case class QName(prefix: Option[String], name: String) {
+  override def toString =
+    Node.escapeText((prefix map { _.toString + ':' } getOrElse "") + name)
 }
 
 object QName extends ((Option[String], String) => QName) {

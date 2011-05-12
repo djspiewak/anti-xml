@@ -38,44 +38,18 @@ class NodeSpecs extends Specification with DataTables {
       <br/>.anti.toString mustEqual "<br/>"
     }
     
-    "escape reserved characters in the name" in {
-      "character" || "elem.toString" |>
-      "\""        !! "<&quot;/>"    |
-      "&"         !! "<&amp;/>"     |
-      "'"         !! "<&apos;/>"    |
-      "<"         !! "<&lt;/>"      |
-      ">"         !! "<&gt;/>"      | { (c, r) => Elem(None, c, Attributes(), Group()).toString mustEqual r }
-    }
-    
-    "escape reserved characters in the namespace" in {
-      "character" || "elem.toString" |>
-      "\""        !! "<&quot;:foo/>" |
-      "&"         !! "<&amp;:foo/>"  |
-      "'"         !! "<&apos;:foo/>" |
-      "<"         !! "<&lt;:foo/>"   |
-      ">"         !! "<&gt;:foo/>"   | { (c, r) => Elem(Some(c), "foo", Attributes(), Group()).toString mustEqual r }
-    }
-    
-    "escape reserved characters in attribute keys" in {
-      "character" || "elem.toString"         |>
-      "\""        !! "<foo &quot;=\"bar\"/>" |
-      "&"         !! "<foo &amp;=\"bar\"/>"  |
-      "'"         !! "<foo &apos;=\"bar\"/>" |
-      "<"         !! "<foo &lt;=\"bar\"/>"   |
-      ">"         !! "<foo &gt;=\"bar\"/>"   | { (c, r) => Elem(None, "foo", Attributes(c -> "bar"), Group()).toString mustEqual r }
-    }
-    
     "escape reserved characters in attribute values" in {
       "character" || "elem.toString"         |>
       "\""        !! "<foo bar=\"&quot;\"/>" |
       "&"         !! "<foo bar=\"&amp;\"/>"  |
       "'"         !! "<foo bar=\"&apos;\"/>" |
       "<"         !! "<foo bar=\"&lt;\"/>"   |
-      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem(None, "foo", Attributes("bar" -> c), Group()).toString mustEqual r }
+      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem("foo", Attributes("bar" -> c), Map(), Group()).toString mustEqual r }
     }
 
     "select against self" in {
       val bookstore = <bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book><book><title>I, Robot</title><author>Isaac Asimov</author></book><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
+      (bookstore \ "book") mustEqual bookstore.children
       (bookstore \ "book") mustEqual bookstore.children
       (bookstore \\ "title") mustEqual (bookstore.children \\ "title")
     }

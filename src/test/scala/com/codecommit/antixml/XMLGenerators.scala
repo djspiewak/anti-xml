@@ -81,9 +81,11 @@ trait XMLGenerators {
   def elemGenerator(depth: Int = 0): Gen[Elem] = for {
     ns <- genSaneOptionString
     name <- genSaneString
+    prefix <- genSaneOptionString
     attrs <- genAttributes
+    bindings <- genBindings
     children <- if (depth > MaxGroupDepth) value(Group()) else (listOf(nodeGenerator(depth + 1)) map Group.fromSeq)
-  } yield Elem(ns, name, attrs, children)
+  } yield Elem(QName(prefix, name), attrs, bindings, children)
   
   lazy val textGenerator: Gen[Text] = genSaneString map Text
   
@@ -102,9 +104,18 @@ trait XMLGenerators {
     
     listOf(genTuple) map { Attributes(_: _*) }
   }
-  
+
+  private lazy val genBindings: Gen[Map[String, String]] = {
+    val genTuple = for {
+      qname <- genSaneString
+      value <- genSaneString
+    } yield (qname, value)
+    
+    listOf(genTuple) map { Map(_: _*) }
+  }
+
   private lazy val genQName: Gen[QName] = for {
     ns <- genSaneOptionString
     name <- genSaneString
-  } yield QName(ns, name)
+  } yield QName(None, name)
 }

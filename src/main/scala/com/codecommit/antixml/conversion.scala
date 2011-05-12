@@ -115,7 +115,8 @@ trait XMLConvertable[-A, +B] {      // note: doesn't extend Function1 to avoid c
 object XMLConvertable extends SecondPrecedenceConvertables {
   implicit object ElemConvertable extends XMLConvertable[xml.Elem, Elem] {
     def apply(e: xml.Elem) = {
-      val ns = if (e.prefix == null) None else Some(e.prefix)
+      val prefix = if (e.prefix == null) None else Some(e.prefix)
+      val ns = if (e.namespace == null) None else Some(e.namespace)
         
       val attrs = (Attributes() /: e.attributes) {
         case (attrs, pa: xml.PrefixedAttribute) => attrs + (QName(Some(pa.pre), pa.key) -> pa.value.mkString)
@@ -124,7 +125,7 @@ object XMLConvertable extends SecondPrecedenceConvertables {
       }
     
       val children = NodeSeqConvertable(xml.NodeSeq fromSeq e.child)
-      Elem(ns, e.label, attrs, children)
+      Elem(QName(prefix, e.label), attrs, Map(), children)
     }
   }
   
