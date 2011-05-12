@@ -91,8 +91,9 @@ case class ProcInstr(target: String, data: String) extends Node {
 }
 
 /**
- * An XML element consisting of an optional namespace, a name (or identifier), a
- * set of attributes, a mapping of namespace prefixes and a sequence of child nodes.
+ * An XML element consisting of an optional namespace prefix, a name (or identifier), a
+ * set of attributes, a namespace prefix scope (mapping of prefixes to namespace URIs),
+ * and a sequence of child nodes.
  * For example:
  *
  * {{{
@@ -102,10 +103,10 @@ case class ProcInstr(target: String, data: String) extends Node {
  * This would result in the following node:
  *
  * {{{
- * Elem(QName(None, "span"), Map("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
+ * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
  * }}}
  */
-case class Elem(name: QName, attrs: Attributes, scope: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
+case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
   override def toString = {
     import Node._
     
@@ -118,12 +119,13 @@ case class Elem(name: QName, attrs: Attributes, scope: Map[String, String], chil
       ""
     else
       " " + (scope map { case (key, value) => (if (key == "") "xmlns" else "xmlns:" + escapeText(key)) + "=\"" + escapeText(value) + '"' } mkString " ")
-    
-    val partial = "<" + name.toString + attrStr + prefixesStr
+
+    val qname = (prefix map { _ + ":" } getOrElse "") + name
+    val partial = "<" + qname + attrStr + prefixesStr
     if (children.isEmpty)
       partial + "/>"
     else
-      partial + '>' + children.toString + "</" + name.toString + '>'
+      partial + '>' + children.toString + "</" + qname + '>'
   }
   
   def toGroup = Group(this)

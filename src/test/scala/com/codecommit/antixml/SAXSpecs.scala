@@ -35,15 +35,15 @@ class SAXSpecs extends Specification {
   
   "SAXParser" should {
     "parse a simpleString and generate a single Elem" in {
-      SAXParser.fromString("<a/>") mustEqual Elem("a", Attributes(), Map(), Group())
+      SAXParser.fromString("<a/>") mustEqual Elem(None, "a", Attributes(), Map(), Group())
     }
     
     "parse a simpleString and generate a single Elem even with namespaces" in {
-      SAXParser.fromString("<pf:a xmlns:pf='urn:a'/>") mustEqual Elem(QName(Some("pf"), "a"), Attributes(), Map("pf" -> "urn:a"), Group())
+      SAXParser.fromString("<pf:a xmlns:pf='urn:a'/>") mustEqual Elem(Some("pf"), "a", Attributes(), Map("pf" -> "urn:a"), Group())
     }
 
     "parse a String and generate an Elem" in {
-      SAXParser.fromString("<p:a xmlns:p='ns'>hi<b attr='value' /> there</p:a>") mustEqual Elem(QName(Some("p"), "a"), Attributes(), Map("p"->"ns"), Group(Text("hi"), Elem("b", Attributes("attr" -> "value"), Map("p"->"ns"), Group()), Text(" there")))
+      SAXParser.fromString("<p:a xmlns:p='ns'>hi<b attr='value' /> there</p:a>") mustEqual Elem(Some("p"), "a", Attributes(), Map("p"->"ns"), Group(Text("hi"), Elem(None, "b", Attributes("attr" -> "value"), Map("p"->"ns"), Group()), Text(" there")))
     }
   }
 }

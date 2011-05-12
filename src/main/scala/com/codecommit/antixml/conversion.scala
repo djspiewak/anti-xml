@@ -125,7 +125,7 @@ object XMLConvertable extends SecondPrecedenceConvertables {
       }
     
       val children = NodeSeqConvertable(xml.NodeSeq fromSeq e.child)
-      Elem(QName(prefix, e.label), attrs, Map(), children)
+      Elem(prefix, e.label, attrs, Map(), children)
     }
   }
   
