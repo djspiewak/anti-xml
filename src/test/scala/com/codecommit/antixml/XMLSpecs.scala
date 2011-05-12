@@ -72,10 +72,10 @@ class XMLSpecs extends Specification {
       fromString("<my:test xmlns:my='urn:my-urn:quux'>\n<beef/>\n\t\n</my:test>").toString mustEqual "<my:test xmlns:my=\"urn:my-urn:quux\">\n<beef xmlns:my=\"urn:my-urn:quux\"/>\n\t\n</my:test>"
     }
 
-//    "serialize prefixes minimally" in {
-//      fromString("<my:test xmlns:my='urn:my-urn:quux'>\n<beef/>\n\t\n</my:test>").toString mustEqual "<my:test xmlns:my=\"urn:my-urn:quux\">\n<beef/>\n\t\n</my:test>"
-//    }
-    Pending("serialize prefixes minimally - not implemented yet")
+   "serialize prefixes minimally" in {
+     // fromString("<my:test xmlns:my='urn:my-urn:quux'>\n<beef/>\n\t\n</my:test>").toString mustEqual "<my:test xmlns:my=\"urn:my-urn:quux\">\n<beef/>\n\t\n</my:test>"
+     Pending("not implemented yet")
+   }
   }
   
   "fromSource" should {
