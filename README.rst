@@ -102,8 +102,8 @@ Supported Versions of Scala
 
 Anti-XML is cross-built_ for the following Scala versions:
 
+* **2.9.0**
 * **2.8.1**
-* **2.9.0.RC3**
 
 While it is theoretically possible to add support for 2.8.0, we have no plans to
 do so at this time.  The reason being that Specs2_ – the testing framework used

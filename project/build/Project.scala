@@ -73,25 +73,13 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify wit
       managedSourcePath.asFile.mkdir()
     }
     
-    val prefix = if (buildScalaVersion startsWith "2.9") {
-      """
-      package scala.collection {
-        package object bippy {
-          type ImplementableGenTraversableOnce[A] = GenTraversableOnce[A]
-        }
-      }
-      """
-    } else {
-      ""
-    }
-    
     val body = if (buildScalaVersion startsWith "2.9") {
-      """type CompatTraversable[A] = scala.collection.bippy.ImplementableGenTraversableOnce[A]"""
+      """type CompatTraversable[A] = scala.collection.GenTraversableOnce[A]"""
     } else {
       """type CompatTraversable[A] = Traversable[A]"""
     }
     
-    val fullSource = prefix + """
+    val fullSource = """
       package com.codecommit.antixml {
         private[antixml] trait ScalaCompat {""" + body + """}
       }
