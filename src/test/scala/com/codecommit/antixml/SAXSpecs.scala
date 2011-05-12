@@ -34,8 +34,16 @@ class SAXSpecs extends Specification {
   object SAXParser extends SAXParser
   
   "SAXParser" should {
+    "parse a simpleString and generate a single Elem" in {
+      SAXParser.fromString("<a/>") mustEqual Elem("a", Attributes(), Map(), Group())
+    }
+    
+    "parse a simpleString and generate a single Elem even with namespaces" in {
+      SAXParser.fromString("<pf:a xmlns:pf='urn:a'/>") mustEqual Elem(QName(Some("pf"), "a"), Attributes(), Map("pf" -> "urn:a"), Group())
+    }
+
     "parse a String and generate an Elem" in {
-      SAXParser.fromString("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>") mustEqual Elem(Some("a"), "a", Attributes(), Group(Text("hi"), Elem(None, "b", Attributes("attr" -> "value"), Group()), Text(" there")))
+      SAXParser.fromString("<p:a xmlns:p='ns'>hi<b attr='value' /> there</p:a>") mustEqual Elem(QName(Some("p"), "a"), Attributes(), Map("p"->"ns"), Group(Text("hi"), Elem("b", Attributes("attr" -> "value"), Map("p"->"ns"), Group()), Text(" there")))
     }
   }
 }

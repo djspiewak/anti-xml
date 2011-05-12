@@ -59,7 +59,7 @@ package object antixml {
    * For example: `ns \ "name"`
    */
   implicit def stringToSelector(name: String): Selector[Elem] =
-    Selector({ case e @ Elem(_, `name`, _, _) => e }, Some(name))
+    Selector({ case e @ Elem(QName(_, `name`), _, _,  _) => e }, Some(name))
 
   /**
    * Implicitly lifts a [[scala.Symbol]] into an instance of [[com.codecommit.antixml.Selector]]

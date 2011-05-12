@@ -86,12 +86,12 @@ class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
     
     "support retrieval of attributes by qname" in check { (attrs: Attributes, key: QName) =>
       val result = attrs get key
-      result mustEqual (attrs find { case (`key`, _) => true case _ => false })
+      result mustEqual (attrs find { case (`key`, _) => true case _ => false } map { _._2 })
     }
     
     "support retrieval of attributes by string" in check { (attrs: Attributes, key: String) =>
       val result = attrs get key
-      result mustEqual (attrs find { case (QName(None, `key`), _) => true case _ => false })
+      result mustEqual (attrs find { case (QName(None, `key`), _) => true case _ => false } map { _._2 }) 
     }
     
     "produce Attributes from collection utility methods returning compatible results" in {
@@ -112,7 +112,7 @@ class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
   "qualified names" should {
     "implicitly convert from String" in check { str: String =>
       val qn: QName = str
-      qn.ns mustEqual None
+      qn.prefix mustEqual None
       qn.name mustEqual str
     }
   }

@@ -51,13 +51,14 @@ class StAXParser extends XMLParser {
   override def fromString(xml: String): Elem =
     fromReader(new StringReader(xml))
   
-  private case class ElemBuilder(ns: Option[String], name: String, attrs: Attributes)
+  private case class ElemBuilder(ns: Option[String], name: String, prefix: Option[String], attrs: Attributes)
 
   private def fromStreamSource(source: StreamSource): Elem = {
-    import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE}
+    import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE, NAMESPACE}
 
     val xmlReader = XMLInputFactory.newInstance().createXMLStreamReader(source)
     var elems: List[ElemBuilder] = Nil
+    var prefixMapping = Map[String, String]() :: Nil
     var results = VectorCase.newBuilder[Node] :: Nil
     val text = new StringBuilder
     while(xmlReader.hasNext) {
@@ -69,11 +70,16 @@ class StAXParser extends XMLParser {
           val parents = elems.tail
           val children = results.head
           val ancestors = results.tail
+          val mapping = {
+            val back = prefixMapping.head
+            prefixMapping = prefixMapping.tail
+            back
+          }
           if (text.size > 0) {
             children += Text(text.result)
             text.clear()
           }
-          ancestors.head += Elem(elem.ns, elem.name, elem.attrs, Group fromSeq children.result)
+          ancestors.head += Elem(QName(elem.prefix, elem.name), elem.attrs, mapping, Group fromSeq children.result)
           elems = parents
           results = ancestors
         }
@@ -83,15 +89,30 @@ class StAXParser extends XMLParser {
             text.clear()
           }
           var i = 0
+          var prefixes = prefixMapping.headOption getOrElse Map()
+          while (i < xmlReader.getNamespaceCount) {
+            val ns = xmlReader.getNamespaceURI(i)
+            val prefix = xmlReader.getNamespacePrefix(i)
+            // TODO: Only change if mapping doesn't exists already
+            prefixes = prefixes + (prefix -> ns)
+            i = i + 1
+          }
+          prefixMapping ::= prefixes
           var attrs = Attributes()
           while (i < xmlReader.getAttributeCount) {
             val ns = Option(xmlReader.getAttributeNamespace(i))
             val localName = xmlReader.getAttributeLocalName(i)
-            attrs = attrs + (QName(ns, localName) -> xmlReader.getAttributeValue(i))
+            val prefix = {
+              val back = xmlReader.getAttributePrefix(i)
+              if (back == null || back == "") None else Some(back)
+            }
+            attrs = attrs + (QName(prefix, localName) -> xmlReader.getAttributeValue(i))
             i = i + 1
           }
           val uri = xmlReader.getNamespaceURI
-          elems ::= ElemBuilder(if (uri == null || uri == "") None else Some(uri), xmlReader.getLocalName, attrs)
+          val prefix = xmlReader.getPrefix
+          elems ::= ElemBuilder(if (uri == null || uri == "") None else Some(uri), xmlReader.getLocalName,
+              if (prefix == null || prefix == "") None else Some(prefix), attrs)
            results ::= VectorCase.newBuilder[Node]           
         }
         case _ =>
