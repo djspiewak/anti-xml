@@ -3,6 +3,27 @@
 TEMPLATE=conf/template.html
 TARGET=deploy
 
+require() {
+	REQUIRES="$REQUIRES $1"
+}
+
+check() {
+	for c in $REQUIRES; do
+		if [ ! -e "`which $c`" ]; then
+			echo "ERROR: $c must be installed" 1>&2
+			ERROR=true
+		fi
+	done
+	
+	if [ $ERROR ]; then
+		exit 100
+	fi
+}
+
+require ack
+require rst2html
+check
+
 cd `dirname $0`
 
 [ -e $TARGET ] || mkdir $TARGET
