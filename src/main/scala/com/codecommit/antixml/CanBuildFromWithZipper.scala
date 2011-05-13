@@ -49,10 +49,10 @@ import scala.collection.mutable.Builder
  * resolution, but still accessible without requiring an explicit import.
  */
 trait CanBuildFromWithZipper[-From, -Elem, To] extends CanBuildFrom[From, Elem, To] {
-  def apply(from: From): Builder[Elem, To] = apply(from, Vector())
+  def apply(from: From): Builder[Elem, To] = apply(Vector())
   def apply(): Builder[Elem, To] = apply(Vector())
   
-  def apply(from: From, map: =>Vector[Option[ZContext]]): Builder[Elem, To]
+  def apply(parent: From, map: =>Vector[Option[ZContext]]): Builder[Elem, To]
   def apply(map: =>Vector[Option[ZContext]]): Builder[Elem, To]
   
   /**
@@ -81,7 +81,7 @@ object CanBuildFromWithZipper {
    * on [[com.codecommit.antixml.Group]].
    */
   implicit def identityCanBuildFrom[From, Elem, To](implicit cbf: CanBuildFrom[From, Elem, To], coerce: To => Traversable[Elem]): CanBuildFromWithZipper[From, Elem, To] = new CanBuildFromWithZipper[From, Elem, To] {
-    def apply(from: From, map: =>Vector[Option[ZContext]]) = cbf(from)
+    def apply(parent: From, map: =>Vector[Option[ZContext]]) = cbf()
     def apply(map: =>Vector[Option[ZContext]]) = cbf()
     
     def append(left: To, right: To) = {

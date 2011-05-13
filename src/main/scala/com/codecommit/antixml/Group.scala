@@ -231,17 +231,17 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
 object Group {
   implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Group[_], A, Zipper[A]] = {
     new CanBuildFromWithZipper[Group[_], A, Zipper[A]] {
-      def apply(from: Group[_], baseMap: =>Vector[Option[ZContext]]): Builder[A, Zipper[A]] = {
+      def apply(outerParent: Group[_], baseMap: =>Vector[Option[ZContext]]): Builder[A, Zipper[A]] = {
         VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
             lazy val map = baseMap
             
-            lazy val parent = from match {
+            lazy val parent = outerParent match {
               case group: Group[Node] => group.toZipper
               case _ => error("No zipper context available")
             }
             
-            override val hasValidContext = from.isInstanceOf[Group[Node]]
+            override val hasValidContext = outerParent.isInstanceOf[Group[Node]]
           }
         }
       }
