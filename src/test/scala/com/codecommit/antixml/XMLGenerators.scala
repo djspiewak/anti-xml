@@ -85,7 +85,7 @@ trait XMLGenerators {
     attrs <- genAttributes
     bindings <- genBindings
     children <- if (depth > MaxGroupDepth) value(Group()) else (listOf(nodeGenerator(depth + 1)) map Group.fromSeq)
-  } yield Elem(QName(prefix, name), attrs, bindings, children)
+  } yield Elem(prefix, name, attrs, bindings, children)
   
   lazy val textGenerator: Gen[Text] = genSaneString map Text
   

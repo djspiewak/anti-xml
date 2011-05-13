@@ -104,7 +104,7 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
       
       val ns = if (uri == "") None else Some(uri)
       
-      Elem(QName(prefix, localName), map, scopes.headOption getOrElse Map(), children)
+      Elem(prefix, localName, map, scopes.headOption getOrElse Map(), children)
     }
   }
 

@@ -76,14 +76,14 @@ class ConversionSpecs extends Specification with ScalaCheck {
     
     "convert elem names without namespaces" in {
       val e = <test/>.anti
-      e.name.prefix mustEqual None
-      e.name.name mustEqual "test"
+      e.prefix mustEqual None
+      e.name mustEqual "test"
     }
     
     "convert elem names with namespaces" in {
       val e = <w:test/>.anti
-      e.name.prefix mustEqual Some("w")
-      e.name.name mustEqual "test"
+      e.prefix mustEqual Some("w")
+      e.name mustEqual "test"
     }
     
     "convert elem attributes" in {
@@ -95,7 +95,7 @@ class ConversionSpecs extends Specification with ScalaCheck {
       val e = <test>Text1<child/>Text2</test>.anti
       e.children must have size(3)
       e.children(0) mustEqual Text("Text1")
-      e.children(1) mustEqual Elem("child", Attributes(), Map(), Group())
+      e.children(1) mustEqual Elem(None, "child", Attributes(), Map(), Group())
       e.children(2) mustEqual Text("Text2")
     }
     
@@ -103,8 +103,8 @@ class ConversionSpecs extends Specification with ScalaCheck {
       xml.NodeSeq.fromSeq(Nil).anti mustEqual Group()
       
       val result = xml.NodeSeq.fromSeq(List(<test1/>, <test2/>, xml.Text("text"))).anti
-      val expected = Group(Elem("test1", Attributes(), Map(), Group()),
-        Elem("test2", Attributes(), Map(), Group()),
+      val expected = Group(Elem(None, "test1", Attributes(), Map(), Group()),
+        Elem(None, "test2", Attributes(), Map(), Group()),
         Text("text"))
         
       result mustEqual expected

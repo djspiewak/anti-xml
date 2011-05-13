@@ -44,7 +44,7 @@ class NodeSpecs extends Specification with DataTables {
       "&"         !! "<foo bar=\"&amp;\"/>"  |
       "'"         !! "<foo bar=\"&apos;\"/>" |
       "<"         !! "<foo bar=\"&lt;\"/>"   |
-      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem("foo", Attributes("bar" -> c), Map(), Group()).toString mustEqual r }
+      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem(None, "foo", Attributes("bar" -> c), Map(), Group()).toString mustEqual r }
     }
 
     "select against self" in {

@@ -79,7 +79,7 @@ class StAXParser extends XMLParser {
             children += Text(text.result)
             text.clear()
           }
-          ancestors.head += Elem(QName(elem.prefix, elem.name), elem.attrs, mapping, Group fromSeq children.result)
+          ancestors.head += Elem(elem.prefix, elem.name, elem.attrs, mapping, Group fromSeq children.result)
           elems = parents
           results = ancestors
         }
