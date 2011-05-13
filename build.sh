@@ -69,8 +69,24 @@ for action in $ACTIONS; do
 		;;
 		
 		deploy)
-			log 'Not yet implemented!'
-			ERROR=true
+			if [ ! -e $TARGET ]; then
+				ERROR=true
+				log 'Target directory does not exist!'
+			else
+				log 'Syncing target directory to server...'
+				
+				cwd="$(pwd)"
+				cd $TARGET
+				
+				rsync -azvhP * danielspiewak.com:domains/anti-xml.org/html/
+				
+				if [ $? -ne 0 ]; then
+					ERROR=true
+				fi
+				
+				cd "$cwd"
+				log 'Complete'
+			fi
 		;;
 		
 		clean)
