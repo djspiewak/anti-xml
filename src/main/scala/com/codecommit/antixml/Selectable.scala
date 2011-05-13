@@ -109,7 +109,7 @@ trait Selectable[+A <: Node] {
       
       for (node <- toGroup) {
         node match {
-          case e @ Elem(_, _, _, children) if children.matches(selector) => {
+          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
             var childMap = Map[Int, Set[Int]]()
             var currentChunk = 0
             
@@ -205,7 +205,7 @@ trait Selectable[+A <: Node] {
   def \\[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
     if (matches(selector)) {
       val recursive = toGroup collect {
-        case Elem(_, _, _, children) => children \\ selector
+        case Elem(_, _, _, _, children) => children \\ selector
         case _ => cbf().result
       }
       

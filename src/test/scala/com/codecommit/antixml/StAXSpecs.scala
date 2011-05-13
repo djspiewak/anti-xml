@@ -36,7 +36,7 @@ class StAXSpecs extends Specification {
   "StAXParser" should {
     "parse a StreamSource and generate an Elem" in {
       
-      StAXParser.fromString("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>") mustEqual Elem(QName(Some("a"), "a"), Attributes(), Map("a" -> "a"), Group(Text("hi"), Elem("b", Attributes("attr" -> "value"), Map("a" -> "a"), Group()), Text(" there")))
+      StAXParser.fromString("<a:a xmlns:a='a'>hi<b attr='value' /> there</a:a>") mustEqual Elem(Some("a"), "a", Attributes(), Map("a" -> "a"), Group(Text("hi"), Elem(None, "b", Attributes("attr" -> "value"), Map("a" -> "a"), Group()), Text(" there")))
     }
   }
 }
