@@ -157,6 +157,10 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       Group(CDATA(left), Text(right)).canonicalize mustEqual Group(CDATA(left), Text(right))
       Group(Text(left), CDATA(right)).canonicalize mustEqual Group(Text(left), CDATA(right))
     }
+    
+    "always preserve serialized equality" in check { g: Group[Node] =>
+      g.canonicalize.toString mustEqual g.toString
+    }
   }
 
   def elem(name: String, children: Node*) = Elem(None, name, Attributes(), Map(), Group(children: _*))
