@@ -155,6 +155,46 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   override def takeRight(n: Int) = new Group(nodes takeRight n)
   
+  /**
+   * Merges adjacent [[com.codecommit.antixml.Text]] as well as adjacent
+   * [[com.codecommit.antixml.CDATA]] nodes to produce a `Group` which represents
+   * an identical XML fragment but with a minimized structure.  Slightly more
+   * formally, for any XML fragment with ''n'' characters of textual data, there
+   * are ''2^n^'' possible ways of representing that fragment as a `Group`.  All
+   * of these representations are semantically distinct (i.e. structurally different
+   * in memory) but logically equivalent in that they will all generate the same
+   * XML fragment if serialized.  Of these ''2^n^'' distinct representations,
+   * there will be exactly one representation which is ''minimal'', in that the
+   * smallest possible number
+   * of [[com.codecommit.antixml.Text]] and [[com.codecommit.antixml.CDATA]] nodes
+   * are used to represent the textual data.  This form may be considered
+   * "canonical".  This method converts an arbitrary `Group` into its canonical
+   * form, a ''logically'' equivalent `Group` which represents the same XML fragment
+   * in its structurally minimized form.
+   * 
+   * This method is perhaps best explained by an example:
+   *
+   * {{{
+   * val xml = Group(Text("Daniel "), Text("Spiewak"))
+   * xml.canonicalize    // => Group(Text("Daniel Spiewak"))
+   * }}}
+   *
+   * The `Group` resulting from the `canonicalize` invocation will produce exactly
+   * the same result as would `xml` were we to invoke the `toString` method on
+   * each of them.  However, the canonicalized result has only one text node for
+   * the entire character block, while `xml` (the original `Group`) has two.
+   *
+   * This is actually a very common gotcha in `scala.xml`.  The issue comes up
+   * most frequently in the area of equality.  As you can see in the example above,
+   * `xml` ''clearly'' will not be equivalent (according to the `equals` method)
+   * to `xml.canonicalize`.  However, it is very natural to assume that these
+   * two structures are in fact equal due to their ''logical'' equivalence in
+   * that they represent the same textual XML fragment.  Oftentimes, people will
+   * get around this issue in `scala.xml` by converting all `NodeSeq`(s) into
+   * strings prior to comparison.  In Anti-XML, all that is necessary to handle
+   * potential semantic divergence in cases of logical equality is to simply
+   * invoke the `canonicalize` method on each of the two equality operands.
+   */
   def canonicalize: Group[A] = {
     val (back, tail) = nodes.foldLeft((Group[Node](), None: Option[Either[String, String]])) {
       // primary Text
