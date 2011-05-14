@@ -29,6 +29,9 @@ documenting here.
   
 * **Bug Fixes**
 
-  * *Issue #13* – Zipper With Empty Context Does Not Define flatMap
+  * `Issue #13`_ – Zipper With Empty Context Does Not Define flatMap
   * ``Zipper#unselect`` with a top-level select miss
   * SAX2 sometimes reuses Attributes objects, confusing ``NodeSeqSAXHandler``
+  
+  
+.. _Issue #13: https://github.com/djspiewak/anti-xml/issues/13
