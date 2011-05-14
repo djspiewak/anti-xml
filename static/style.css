@@ -1,1 +1,65 @@
+.header {
+	height: 100px;
+	padding-top: 25px;
+	position: relative;
+}
 
+.header .title {
+	height: 100px;
+	padding-left: 85px;
+	padding-top: 25px;
+	padding-bottom: 25px;
+	margin-left: 25px;
+	
+	background: url(logo.png) no-repeat left center;
+	
+	font-size: 325%;
+	
+	cursor: pointer;
+	display: inline;
+}
+
+.header .subtitle {
+	display: inline;
+	position: absolute;
+	left: 110px;
+	top: 60px;
+	cursor: pointer;
+}
+
+.header .version-tag {
+	position: absolute;
+	right: 25px;
+	bottom: 25px;
+}
+
+.header .version-tag .stable,
+.header .version-tag .latest {
+	display: block;
+}
+
+.sidebar {
+	width: 12em;
+	position: absolute;
+	top: 135px;
+	left: 0px;
+}
+
+.sidebar li {
+	list-style-type: none;
+	display: block;
+}
+
+.sidebar .nav-title {
+	margin-left: -0.5em;
+	margin-bottom: 0.5em;
+	font-weight: bold;
+}
+
+.main {
+	margin-left: 12em;
+}
+
+.main .content {
+	font-size: 108%;
+}
