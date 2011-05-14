@@ -155,6 +155,47 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   override def takeRight(n: Int) = new Group(nodes takeRight n)
   
+  def canonicalize: Group[A] = {
+    val (back, tail) = nodes.foldLeft((Group[Node](), None: Option[Either[String, String]])) {
+      // primary Text
+      case ((back, None), Text(str)) => (back, Some(Left(str)))
+      case ((back, Some(Left(acc))), Text(str)) => (back, Some(Left(acc + str)))
+      
+      // primary CDATA
+      case ((back, None), CDATA(str)) => (back, Some(Right(str)))
+      case ((back, Some(Right(acc))), CDATA(str)) => (back, Some(Right(acc + str)))
+      
+      // cross-over
+      case ((back, Some(Left(acc))), CDATA(str)) => (back :+ Text(acc), Some(Right(str)))
+      case ((back, Some(Right(acc))), Text(str)) => (back :+ CDATA(acc), Some(Left(str)))
+      
+      // terminal recursive
+      case ((back, Some(Left(acc))), Elem(prefix, name, attrs, scope, children)) =>
+        (back :+ Text(acc) :+ Elem(prefix, name, attrs, scope, children.canonicalize), None)
+      
+      case ((back, Some(Right(acc))), Elem(prefix, name, attrs, scope, children)) =>
+        (back :+ CDATA(acc) :+ Elem(prefix, name, attrs, scope, children.canonicalize), None)
+      
+      // primary recursive
+      case ((back, None), Elem(prefix, name, attrs, scope, children)) =>
+        (back :+ Elem(prefix, name, attrs, scope, children.canonicalize), None)
+      
+      // terminal normal
+      case ((back, Some(Left(acc))), n) => (back :+ Text(acc) :+ n, None)
+      case ((back, Some(Right(acc))), n) => (back :+ CDATA(acc) :+ n, None)
+      
+      // primary normal
+      case ((back, None), n) => (back :+ n, None)
+    }
+    
+    val result = tail map {
+      case Left(str) => back :+ Text(str)
+      case Right(str) => back :+ CDATA(str)
+    } getOrElse back
+    
+    result.asInstanceOf[Group[A]]       // ugly, but safe; type-checker doesn't understand catamorphism
+  }
+  
   /**
    * Efficient (and slightly tricky) overload of `updated` on parameters which are
    * specifically of type [[com.codecommit.antixml.Node]].
