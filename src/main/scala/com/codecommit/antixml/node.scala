@@ -35,8 +35,11 @@ import java.io.Writer
  * shape (Haskell syntax):
  *
  * {{{
+ * type Prefix = Maybe String
+ * type Scope = Map String String
+ *
  * data Node = ProcInstr String String
- *           | Elem QName Attributes (Map String String) (Group Node)
+ *           | Elem Prefix String Attributes Scope (Group Node)
  *           | Text String
  *           | CDATA String
  *           | EntityRef String
@@ -51,7 +54,8 @@ import java.io.Writer
  * <li>[[com.codecommit.antixml.ProcInstr]] – A processing instruction consisting
  * of a target and some data</li>
  * <li>[[com.codecommit.antixml.Elem]] – An XML element consisting of an optional
- * namespace, a name (or identifier), a set of attributes and a sequence of child nodes</li>
+ * prefix, a name (or identifier), a set of attributes, a set of namespace mappings 
+ * in scope and a sequence of child nodes</li>
  * <li>[[com.codecommit.antixml.Text]] – A node containing a single string, representing
  * character data in the XML tree</li>
  * <li>[[com.codecommit.antixml.CDATA]] – A node containing a single string, representing
@@ -103,7 +107,7 @@ case class ProcInstr(target: String, data: String) extends Node {
  * This would result in the following node:
  *
  * {{{
- * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
+ * Elem(None, "span", Attributes("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
  * }}}
  */
 case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {

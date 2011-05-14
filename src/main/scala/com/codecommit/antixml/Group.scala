@@ -44,7 +44,7 @@ import scala.collection.mutable.{ArrayBuffer, Builder, ListBuffer}
  * a valid `Group` could be as follows:
  *
  * {{{
- * Group(EntityRef("quot"), Text("Daniel is "), Elem(None, "em", None), Map(), Group(Text("delusional!"))), EntityRef("quot")
+ * Group(EntityRef("quot"), Text("Daniel is "), Elem(None, "em", Attributes(), Map(), Group(Text("delusional!"))), EntityRef("quot"))
  * }}}
  *
  * This would correspond to the following XML fragment (note: not actually well-formed
