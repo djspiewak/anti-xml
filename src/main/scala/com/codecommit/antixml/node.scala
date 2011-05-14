@@ -111,6 +111,12 @@ case class ProcInstr(target: String, data: String) extends Node {
  * }}}
  */
 case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
+  
+  /**
+   * See the `canonicalize` method on [[com.codecommit.antixml.Group]].
+   */
+  def canonicalize = copy(children=children.canonicalize)
+  
   override def toString = {
     import Node._
     

@@ -30,8 +30,14 @@ package com.codecommit.antixml
 
 import org.specs2.mutable._
 import org.specs2.matcher.DataTables
+import org.specs2.ScalaCheck
+import org.scalacheck._
 
-class NodeSpecs extends Specification with DataTables {
+class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGenerators {
+  import Prop._
+  
+  lazy val numProcessors = Runtime.getRuntime.availableProcessors()
+  implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be so large
     
   "elements" should {
     "serialize empty elements correctly" in {
@@ -56,6 +62,10 @@ class NodeSpecs extends Specification with DataTables {
     
     "select text within self" in {
       (<parent>Text</parent>.anti \\ text mkString) mustEqual "Text"
+    }
+    
+    "delegate canonicalization to Group" in check { e: Elem =>
+      e.canonicalize mustEqual e.copy(children=e.children.canonicalize)
     }
   }
   
