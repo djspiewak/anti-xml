@@ -61,7 +61,7 @@ them will make it (certainly not in their current form), but it's a start.  It
 will be interesting to see where things go!
 
 .. _ADT: http://en.wikipedia.org/wiki/Algebraic_data_type
-.. _large set of ideas: https://vibe.novell.com/thread/41cf4424-15c6-40dd-b79f-497bcbd8e147
+.. _large set of ideas: http://dl.dropbox.com/u/1679797/anti-xml-todo.html
 
 
 Usage
@@ -619,9 +619,10 @@ Deep-Select        342 ms          1220 ms             50 ms
 The Task List
 =============
 
-The task list for this project is maintained as a public message in `Novell Vibe`_.
-To access this message, simply sign up for a free account (if you haven't already)
-and then hit the following URL: https://vibe.novell.com/thread/41cf4424-15c6-40dd-b79f-497bcbd8e147
+The task list for this project was formerly maintained as a message in `Novell Vibe`_.
+However, some database issues caused us to repeatedly lose access to that message,
+and so I've made a manual dump-and-render into an HTML file in Dropbox.  Eventually,
+this will move somewhere else...  http://dl.dropbox.com/u/1679797/anti-xml-todo.html
 
 Note: before you start contributing to the project, you really should read the
 CONTRIBUTING.rst_ document.  This outlines some basic guidelines, as well as the
