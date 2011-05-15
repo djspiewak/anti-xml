@@ -115,6 +115,27 @@ object CatamorphicVectorSpecs extends Specification with ScalaCheck {
       
       prop must pass
     }
+
+    "forcing evaluation of a mapping must be equivalent to a strict mapping" in {
+      forAll { xs: List[Int] =>
+        Vector(xs map (_ + 1): _*) mustEqual (listToVector(xs) map (_ + 1) force)
+      } must pass
+    }
+
+    "composing maps should retain the order of application" in {
+      forAll { xs: List[Int] =>
+        val strict = Vector(xs map (_ + 1) map (_ * 2): _*)
+        val nonStrict = (listToVector(xs) map (_ + 1) map (_ * 2) force)
+        strict mustEqual nonStrict
+      } must pass
+    }
+
+    "random-access to a mapped element must force evaluation of the mapping" in {
+      forAll { s: String =>
+        val cata = listToVector(s :: Nil)
+        cata.map(_ + "!")(0)._1 mustEqual (cata(0)._1 + "!")
+      } must pass
+    }
     
     "map f . g should be equivalent to map f . map g" in {
       val f = { x: Int => x + 1 }
@@ -141,6 +162,12 @@ object CatamorphicVectorSpecs extends Specification with ScalaCheck {
       }
       
       prop must pass
+    }
+
+    "length should force evaluation and generate accurate values" in {
+      forAll { xs: List[String] =>
+        listToVector(xs).length mustEqual xs.length
+      } must pass
     }
   }
 }

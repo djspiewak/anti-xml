@@ -28,7 +28,7 @@
 
 package com.codecommit.antixml
 
-import javax.xml.stream.XMLStreamReader
+import javax.xml.stream.{XMLStreamConstants, XMLStreamReader}
 
 sealed trait NodeView {
   private[antixml] def force(): Unit
@@ -58,6 +58,7 @@ class ElemView private[antixml](xmlReader: XMLStreamReader) extends NodeView {
 
   private[antixml] def force() {
     ns
+    assert(xmlReader.next == XMLStreamConstants.END_ELEMENT)
   }
   
   lazy val qName = ns map (_ + ":" + name) getOrElse name
@@ -67,7 +68,7 @@ class ElemView private[antixml](xmlReader: XMLStreamReader) extends NodeView {
       } + (children.length match {
         case 0 =>  " />"
         case _ =>
-          ">" + (children.flatMap(_.toString)) + "</" + qName + ">"
+          ">" + (children.mkString("")) + "</" + qName + ">"
       })
   }
 }

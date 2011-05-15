@@ -28,7 +28,7 @@
 
 package com.codecommit.antixml
 
-import util.VectorCase
+import util.CatamorphicVector
 import javax.xml.stream.XMLStreamReader
 import javax.xml.stream.XMLStreamConstants._
 import scala.collection.IndexedSeqLike
@@ -37,24 +37,39 @@ class GroupNodeView private[antixml](xmlReader: XMLStreamReader) extends Indexed
   
   override protected[this] def newBuilder = GroupView.newBuilder[NodeView]
   
-  private var currentLength: Int = 0
-  private var nodes: Vector[NodeView] = Vector.empty
-  private def force() {
-    (xmlReader.next match {
-      case `START_ELEMENT` => nodes = nodes :+ new ElemView(xmlReader)
-      case `CHARACTERS` => nodes = nodes :+ new TextView(xmlReader)
-      case `END_DOCUMENT` => ()
-      case `END_ELEMENT` => ()
-    })
-    currentLength += 1
-  }
-  override def apply(index: Int): NodeView = nodes(index)
-  override def length = {
-    while (xmlReader.hasNext) {
-      force()
+  private var nodes: CatamorphicVector[XMLStreamReader, NodeView] =
+    CatamorphicVector(xmlReader) { xmlReader =>
+      if (xmlReader.hasNext) {
+        (xmlReader.next match {
+          case `START_ELEMENT` => Some(xmlReader, new ElemView(xmlReader))
+          case `CHARACTERS` => Some(xmlReader, new TextView(xmlReader))
+          case `END_ELEMENT` => None
+          case `END_DOCUMENT` => None
+        })
+      } else {
+        None
+      }
     }
-    nodes.length
+  // ensure subtrees are forced before continuing parsing
+  nodes = nodes map { node: NodeView =>
+    node.force()
+    node
   }
+
+  // TODO: synchronization
+  override def apply(index: Int): NodeView = {
+    println("groupview apply " + index)
+    val (result, nodes) = this.nodes(index)
+    this.nodes = nodes
+    result
+  }
+  // TODO: synchronization
+  override def length = {
+    val (result, nodes) = this.nodes.length
+    this.nodes = nodes
+    result
+  }
+  override def toString = "GroupNodeView(" + nodes + ")"
 }
 
 object GroupView {

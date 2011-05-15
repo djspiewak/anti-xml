@@ -92,6 +92,11 @@ private[antixml] class CatamorphicVector[S, +A] private (
         new CatamorphicVector(body2 ++ tail, Vector(), state2, f)       // we're basically done at this point
     }
   }
+
+  def length: (Int, CatamorphicVector[S, A]) = {
+    val forced = force
+    (forced.length, new CatamorphicVector(forced, Vector(), state, f))
+  }
   
   override def toString = "CatamorphicVector(%s, %s, %s, %s)".format(body, tail, state, f)
 }
