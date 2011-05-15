@@ -33,13 +33,34 @@ import java.io.ByteArrayInputStream
 import javax.xml.stream.{XMLInputFactory, XMLStreamReader}
 
 object NodeViewSpecs extends Specification {
+  detailedDiffs()
+
   def stringToXmlReader(xml: String): XMLStreamReader =
     XMLInputFactory.newInstance().createXMLStreamReader(new ByteArrayInputStream(xml.getBytes))
-  detailedDiffs()
+  def mustBeReversiblySerializable(xml: String) = {
+    NodeView(stringToXmlReader(xml)).toString mustEqual xml
+  }
+
   "elements" should {
-    "have a reversable serialization" in {
-      val xml = "<a:b xmlns:a='a'> hi</a:b>"
-      NodeView(stringToXmlReader(xml)).toString mustEqual xml
+    "handle element namespaces" in {
+      mustBeReversiblySerializable("<a:b xmlns:a='a'> hi</a:b>")
     }
+    "handle attributes" in {
+      mustBeReversiblySerializable("<a attr='value'>hi</a>")
+    }
+    "handle empty elements" in {
+      mustBeReversiblySerializable("<a />")
+    }
+    "handle nested elements" in {
+      mustBeReversiblySerializable("<a><b><c>hi</c></b></a>")
+    }
+    "handle sibling elements" in {
+      mustBeReversiblySerializable("<a><b /><c /></a>")
+    }
+  }
+  "text nodes" should {
+    "be serializable" in {
+      mustBeReversiblySerializable("<a> hi</a>")
+    } 
   }
 }

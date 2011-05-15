@@ -52,24 +52,33 @@ class ElemView private[antixml](xmlReader: XMLStreamReader) extends NodeView {
      Map((0 until xmlReader.getNamespaceCount) map { i =>
        xmlReader.getNamespacePrefix(i) -> xmlReader.getNamespaceURI(i)
      }: _*),
-     Map.empty[String, String],
+     Map((0 until xmlReader.getAttributeCount) map { i =>
+       (xmlReader.getAttributeNamespace(i) match {
+         case ns if ns == null || ns == "" => xmlReader.getAttributeLocalName(i)
+         case namespace => xmlReader.getAttributePrefix(i) + ":" + xmlReader.getAttributeLocalName(i)
+       }) -> xmlReader.getAttributeValue(i)
+     }: _*),
      new GroupNodeView(xmlReader))
   }
 
   private[antixml] def force() {
-    ns
-    assert(xmlReader.next == XMLStreamConstants.END_ELEMENT)
+    children.map(_.force())
   }
   
   lazy val qName = ns map (_ + ":" + name) getOrElse name
   override lazy val toString: String = {
-    "<" + qName + ("" /: namespaces) { (result, namespace) =>
+    val namespaces = ("" /: this.namespaces) { (result, namespace) =>
         result + " xmlns:" + namespace._1 + "='" + namespace._2 + "'"
-      } + (children.length match {
-        case 0 =>  " />"
+      }
+    val attributes = ("" /: this.attrs) { (result, attribute) =>
+      result + " " + attribute._1 + "='" + attribute._2 + "'"
+    }
+    val tail = (children.length match {
+        case 0 =>  " /"
         case _ =>
-          ">" + (children.mkString("")) + "</" + qName + ">"
+          ">" + (children.mkString("")) + "</" + qName
       })
+    "<" + qName + namespaces + attributes + tail + ">"
   }
 }
 

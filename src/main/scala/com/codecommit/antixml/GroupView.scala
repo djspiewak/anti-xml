@@ -58,7 +58,6 @@ class GroupNodeView private[antixml](xmlReader: XMLStreamReader) extends Indexed
 
   // TODO: synchronization
   override def apply(index: Int): NodeView = {
-    println("groupview apply " + index)
     val (result, nodes) = this.nodes(index)
     this.nodes = nodes
     result
