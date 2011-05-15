@@ -29,24 +29,25 @@
 package com.codecommit.antixml
 
 import org.specs._
-import java.io.ByteArrayInputStream
-import javax.xml.stream.{XMLInputFactory, XMLStreamReader}
 
 object NodeViewSpecs extends Specification {
   detailedDiffs()
 
-  def stringToXmlReader(xml: String): XMLStreamReader =
-    XMLInputFactory.newInstance().createXMLStreamReader(new ByteArrayInputStream(xml.getBytes))
-  def mustBeReversiblySerializable(xml: String) = {
-    NodeView(stringToXmlReader(xml)).toString mustEqual xml
-  }
+  def mustBeReversiblySerializable(xml: String) =
+    NodeView.fromString(xml).toString mustEqual xml
 
   "elements" should {
     "handle element namespaces" in {
-      mustBeReversiblySerializable("<a:b xmlns:a='a'> hi</a:b>")
+      val elem = NodeView.fromString("<a:b xmlns:a='a' xmlns:b='b'> hi</a:b>")
+      elem.namespaces.size mustEqual 2
+      elem.namespaces("a") mustEqual "a"
+      elem.namespaces("b") mustEqual "b"
     }
     "handle attributes" in {
-      mustBeReversiblySerializable("<a attr='value'>hi</a>")
+      val elem = NodeView.fromString("<a attr0='value0' attr1='value1'>hi</a>")
+      elem.attrs.size mustEqual 2
+      elem.attrs("attr0") mustEqual "value0"
+      elem.attrs("attr1") mustEqual "value1"
     }
     "handle empty elements" in {
       mustBeReversiblySerializable("<a />")
@@ -56,6 +57,9 @@ object NodeViewSpecs extends Specification {
     }
     "handle sibling elements" in {
       mustBeReversiblySerializable("<a><b /><c /></a>")
+    }
+    "handle mixed type children" in {
+      mustBeReversiblySerializable("<a><strong>anti</strong>-xml</a>")
     }
   }
   "text nodes" should {

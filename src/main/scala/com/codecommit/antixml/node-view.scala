@@ -28,7 +28,8 @@
 
 package com.codecommit.antixml
 
-import javax.xml.stream.{XMLStreamConstants, XMLStreamReader}
+import java.io.ByteArrayInputStream
+import javax.xml.stream.{XMLInputFactory, XMLStreamConstants, XMLStreamReader}
 
 sealed trait NodeView {
   private[antixml] def force(): Unit
@@ -38,6 +39,9 @@ object NodeView {
     xmlReader.next
     new ElemView(xmlReader)
   }
+
+  def fromString(xml: String): ElemView =
+    apply(XMLInputFactory.newInstance().createXMLStreamReader(new ByteArrayInputStream(xml.getBytes)))
 }
 
 class ElemView private[antixml](xmlReader: XMLStreamReader) extends NodeView {
