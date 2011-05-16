@@ -166,7 +166,7 @@ object CatamorphicVectorSpecs extends Specification with ScalaCheck {
 
     "length should force evaluation and generate accurate values" in {
       forAll { xs: List[String] =>
-        listToVector(xs).length mustEqual xs.length
+        listToVector(xs).length._1 mustEqual xs.length
       } must pass
     }
   }

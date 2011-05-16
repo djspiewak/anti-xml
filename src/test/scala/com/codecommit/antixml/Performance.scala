@@ -75,7 +75,8 @@ object Performance {
       ShallowSelectionSmall,
       DeepSelectionSmall,
       ShallowSelectionLarge,
-      DeepSelectionLarge)
+      DeepSelectionLarge,
+      TraversalSmall)
     
     val filtered = trials filter selectedTests
     if (!filtered.isEmpty) {
@@ -343,6 +344,50 @@ object Performance {
         val result = domTree getElementsByTagName "fubar"
         (0 until result.getLength) foreach (result item)
       }
+    }
+  }
+
+  object TraversalSmall extends Trial('traverseSmall, "depth-first traversal of a 30MB tree") {
+    val spendingPath = "/spending.xml"
+    
+    lazy val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    lazy val antiTreeView = NodeView.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    lazy val scalaTree: scala.xml.Elem = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
+    lazy val domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
+
+    implemented by "anti-xml" in {
+      def traverse(count: Int, e: Node): Int = e match {
+        case e: Elem => e.children.foldLeft(1)(traverse)
+        case _ => count + 1
+      }
+      traverse(1, antiTree)
+    }
+    // implemented by "anti-xml views" in {
+    //   def traverse(count: Int, e: NodeView): Int = e match {
+    //     case e: ElemView => e.children.foldLeft(1)(traverse)
+    //     case _ => count + 1
+    //   }
+    //   traverse(1, antiTreeView)
+    // }
+    implemented by "scala.xml" in {
+      def traverse(count: Int, e: scala.xml.Node): Int = e match {
+        case e: scala.xml.Elem => e.child.foldLeft(1)(traverse)
+        case _ => count + 1
+      }
+      traverse(1, scalaTree)
+    }
+    implemented by "javax.xml" in {
+      def traverse(count: Int, e: org.w3c.dom.Node): Int =
+        e match {
+          case e: org.w3c.dom.Element => {
+            val children = e.getChildNodes
+            (0 until children.getLength).foldLeft(1) { (count, i) =>
+              traverse(count, children.item(i))
+            }
+          }
+          case _ => count + 1
+        }
+      traverse(1, domTree.getDocumentElement)
     }
   }
 
