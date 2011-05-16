@@ -92,9 +92,13 @@ class StAXParser extends XMLParser {
           var prefixes = prefixMapping.headOption getOrElse Map()
           while (i < xmlReader.getNamespaceCount) {
             val ns = xmlReader.getNamespaceURI(i)
-            val prefix = xmlReader.getNamespacePrefix(i)
-            // TODO: Only change if mapping doesn't exists already
-            prefixes = prefixes + (prefix -> ns)
+            val rawPrefix = xmlReader.getNamespacePrefix(i)
+            val prefix = if (rawPrefix != null) rawPrefix else "" 
+
+            // To conserve memory, only save prefix if changed
+            if (prefixes.get(prefix) != Some(ns)) {
+              prefixes = prefixes + (prefix -> ns)
+            }
             i = i + 1
           }
           prefixMapping ::= prefixes
