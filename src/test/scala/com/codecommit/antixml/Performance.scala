@@ -347,7 +347,7 @@ object Performance {
     }
   }
 
-  object TraversalSmall extends Trial('traverseSmall, "depth-first traversal of a 30MB tree") {
+  object TraversalSmall extends Trial('traverseSmall, "depth-first traversal of a 7MB tree") {
     val spendingPath = "/spending.xml"
     
     lazy val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
