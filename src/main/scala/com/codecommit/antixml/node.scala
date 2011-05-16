@@ -111,6 +111,17 @@ case class ProcInstr(target: String, data: String) extends Node {
  * }}}
  */
 case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
+  import Elem.NameRegex
+  
+  for (p <- prefix) {
+    if (NameRegex.unapplySeq(p).isEmpty) {
+      throw new IllegalArgumentException("Illegal element prefix, '" + p + "'")
+    }
+  }
+  
+  if (NameRegex.unapplySeq(name).isEmpty) {
+    throw new IllegalArgumentException("Illegal element name, '" + name + "'")
+  }
   
   /**
    * See the `canonicalize` method on [[com.codecommit.antixml.Group]].
@@ -125,6 +136,13 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
   }
   
   def toGroup = Group(this)
+}
+
+object Elem extends ((Option[String], String, Attributes, Map[String, String], Group[Node]) => Elem) {
+  val NameRegex = {
+    val nameStartChar = """:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"""
+    "[" + nameStartChar + "][" + nameStartChar + """\-\.0-9\u00B7\u0300-\u036F\u203F-\u2040]*"""r
+  }
 }
 
 /**

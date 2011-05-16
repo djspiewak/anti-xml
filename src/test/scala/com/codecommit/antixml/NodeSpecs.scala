@@ -38,7 +38,10 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
   
   lazy val numProcessors = Runtime.getRuntime.availableProcessors()
   implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be so large
-    
+  
+  val nameStartChar = """:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"""
+  val name = "[" + nameStartChar + "][" + nameStartChar + """\-\.0-9\u00B7\u0300-\u036F\u203F-\u2040]*"""r
+  
   "elements" should {
     "serialize empty elements correctly" in {
       <br/>.anti.toString mustEqual "<br/>"
@@ -51,6 +54,78 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
       "'"         !! "<foo bar=\"&apos;\"/>" |
       "<"         !! "<foo bar=\"&lt;\"/>"   |
       ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem(None, "foo", Attributes("bar" -> c), Map(), Group()).toString mustEqual r }
+    }
+    
+    "allow legal name identifiers" in {
+      "identifier" |>
+      "name"       |
+      "foo"        |
+      "bar"        |
+      "baz"        |
+      "br"         | { name =>
+        Elem(None, name, Attributes(), Map(), Group()) must not(throwAn[IllegalArgumentException])
+      }
+    }
+    
+    "detect illegal name identifiers" in check { str: String =>
+      name unapplySeq str match {
+        case Some(_) => Elem(None, str, Attributes(), Map(), Group()) must not(throwAn[IllegalArgumentException])
+        case None => Elem(None, str, Attributes(), Map(), Group()) must throwAn[IllegalArgumentException]
+      }
+    }
+    
+    "allow legal prefix identifiers" in {
+      "identifier" |>
+      "name"       |
+      "foo"        |
+      "bar"        |
+      "baz"        |
+      "br"         | { name =>
+        Elem(Some(name), "foo", Attributes(), Map(), Group()) must not(throwAn[IllegalArgumentException])
+      }
+    }
+    
+    "detect illegal prefix identifiers" in check { str: String =>
+      name unapplySeq str match {
+        case Some(_) => Elem(Some(str), "foo", Attributes(), Map(), Group()) must not(throwAn[IllegalArgumentException])
+        case None => Elem(Some(str), "foo", Attributes(), Map(), Group()) must throwAn[IllegalArgumentException]
+      }
+    }
+    
+    "allow legal attribute prefixes" in {
+      "identifier" |>
+      "name"       |
+      "foo"        |
+      "bar"        |
+      "baz"        |
+      "br"         | { name =>
+        Elem(None, "foo", Attributes(QName(Some(name), "bar") -> "bar"), Map(), Group()) must not(throwAn[IllegalArgumentException])
+      }
+    }
+    
+    "detect illegal attribute prefixes" in check { str: String =>
+      name unapplySeq str match {
+        case Some(_) => Elem(None, "foo", Attributes(QName(Some(str), "bar") -> "bar"), Map(), Group()) must not(throwAn[IllegalArgumentException])
+        case None => Elem(None, "foo", Attributes(QName(Some(str), "bar") -> "bar"), Map(), Group()) must throwAn[IllegalArgumentException]
+      }
+    }
+    
+    "allow legal attribute names" in {
+      "identifier" |>
+      "name"       |
+      "foo"        |
+      "bar"        |
+      "baz"        |
+      "br"         | { name =>
+        Elem(None, "foo", Attributes(name -> "bar"), Map(), Group()) must not(throwAn[IllegalArgumentException])
+      }
+    }
+    
+    "detect illegal attribute names" in check { str: String =>
+      name unapplySeq str match {
+        case Some(_) => Elem(None, "foo", Attributes(str -> "bar"), Map(), Group()) must not(throwAn[IllegalArgumentException])
+        case None => Elem(None, "foo", Attributes(str -> "bar"), Map(), Group()) must throwAn[IllegalArgumentException]
+      }
     }
 
     "select against self" in {

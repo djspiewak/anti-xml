@@ -29,9 +29,11 @@ documenting here.
   
 * **Bug Fixes**
 
+  * `Issue #16`_ – Implement Identifier Checking (for reserved characters)
   * `Issue #13`_ – Zipper With Empty Context Does Not Define flatMap
   * ``Zipper#unselect`` with a top-level select miss
   * SAX2 sometimes reuses Attributes objects, confusing ``NodeSeqSAXHandler``
   
   
+.. _Issue #16: https://github.com/djspiewak/anti-xml/issues/16
 .. _Issue #13: https://github.com/djspiewak/anti-xml/issues/13

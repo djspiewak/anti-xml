@@ -91,7 +91,7 @@ trait XMLGenerators {
   
   lazy val entityRefGenerator: Gen[EntityRef] = genSaneString map EntityRef
   
-  private lazy val genSaneString: Gen[String] = oneOf(identifiers)
+  lazy val genSaneString: Gen[String] = oneOf(identifiers)
   
   private lazy val genSaneOptionString: Gen[Option[String]] =
     frequency(5 -> (genSaneString map { Some(_) }), 1 -> None)

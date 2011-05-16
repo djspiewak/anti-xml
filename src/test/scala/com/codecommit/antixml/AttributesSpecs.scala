@@ -38,6 +38,8 @@ import org.specs2.matcher.ScalaCheckMatchers._
 class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
   import Prop._
   
+  implicit val arbString = Arbitrary(genSaneString)
+  
   "attribute sets" should {
     "define empty on arbitrary instances" in check { attrs: Attributes =>
       val result = attrs.empty
