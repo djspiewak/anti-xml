@@ -42,6 +42,10 @@ class SAXSpecs extends Specification {
       SAXParser.fromString("<pf:a xmlns:pf='urn:a'/>") mustEqual Elem(Some("pf"), "a", Attributes(), Map("pf" -> "urn:a"), Group())
     }
 
+    "parse a simpleString with an non-prefixed namespace" in {
+      SAXParser.fromString("<a xmlns='urn:a'/>") mustEqual Elem(None, "a", Attributes(), Map("" -> "urn:a"), Group())
+    }
+
     "parse a String and generate an Elem" in {
       SAXParser.fromString("<p:a xmlns:p='ns'>hi<b attr='value' /> there</p:a>") mustEqual Elem(Some("p"), "a", Attributes(), Map("p"->"ns"), Group(Text("hi"), Elem(None, "b", Attributes("attr" -> "value"), Map("p"->"ns"), Group()), Text(" there")))
     }

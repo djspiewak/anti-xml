@@ -118,24 +118,10 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
   def canonicalize = copy(children=children.canonicalize)
   
   override def toString = {
-    import Node._
-    
-    val attrStr = if (attrs.isEmpty) 
-      ""
-    else
-      " " + (attrs map { case (key, value) => key.toString + "=\"" + escapeText(value) + '"' } mkString " ")
-    
-    val prefixesStr = if (scope.isEmpty) 
-      ""
-    else
-      " " + (scope map { case (key, value) => (if (key == "") "xmlns" else "xmlns:" + escapeText(key)) + "=\"" + escapeText(value) + '"' } mkString " ")
-
-    val qname = (prefix map { _ + ":" } getOrElse "") + name
-    val partial = "<" + qname + attrStr + prefixesStr
-    if (children.isEmpty)
-      partial + "/>"
-    else
-      partial + '>' + children.toString + "</" + qname + '>'
+    val sw = new java.io.StringWriter() 
+    val xs = XMLSerializer()
+    xs.serialize(this, sw)
+    sw.toString
   }
   
   def toGroup = Group(this)

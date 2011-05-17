@@ -59,7 +59,13 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
   }
 
   override def startPrefixMapping(prefix: String, namespace: String) {
-    scopes ::= (scopes.headOption map { _ + (prefix -> namespace) } getOrElse Map())
+    // This is an optimization to not generate a new map if the mapping exists
+    // already.
+    val parentScope = scopes.headOption getOrElse Map()
+    scopes ::= (if (parentScope.get(prefix) == Some(namespace))
+    	parentScope
+      else 
+        parentScope + (prefix -> namespace) )
   }
 
   override def endPrefixMapping(prefix: String) {
