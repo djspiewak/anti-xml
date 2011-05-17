@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,9 +28,10 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
 
-object SelectorSpecs extends Specification {
+class SelectorSpecs extends Specification {
+  
   "the * selector" should {
     "select nothing when parent is empty" in {
       XML.fromString("<parent/>") \ * mustEqual Group()
@@ -45,13 +46,13 @@ object SelectorSpecs extends Specification {
   
   "the element selector(s)" should {
     "select nothing when parent is empty" in {
-      (<parent/>).anti \ "parent" mustEqual Group()
-      (<parent/>).anti \ 'parent mustEqual Group()
+      <parent/>.anti \ "parent" mustEqual Group()
+      <parent/>.anti \ 'parent mustEqual Group()
     }
     
     "select only the named element(s)" in {
-      (<parent><foo/><bar/>Baz<foo/></parent>).anti \ "foo" mustEqual Group(<foo/>.anti, <foo/>.anti)
-      (<parent><foo/><bar/>Baz<foo/></parent>).anti \ 'foo mustEqual Group(<foo/>.anti, <foo/>.anti)
+      <parent><foo/><bar/>Baz<foo/></parent>.anti \ "foo" mustEqual Group(<foo/>.anti, <foo/>.anti)
+      <parent><foo/><bar/>Baz<foo/></parent>.anti \ 'foo mustEqual Group(<foo/>.anti, <foo/>.anti)
     }
   }
 }

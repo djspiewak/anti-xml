@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,12 +28,13 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
+import org.specs2.ScalaCheck
 import org.scalacheck._
 
 import scala.xml
 
-object ConversionSpecs extends Specification with ScalaCheck {
+class ConversionSpecs extends Specification with ScalaCheck {
   import Prop._
   
   "scala.xml explicit conversions" should {
@@ -57,38 +58,44 @@ object ConversionSpecs extends Specification with ScalaCheck {
       validate[Group[Node]](ns2)
     }
     
-    "convert text nodes" verifies { str: String =>
+    "convert text nodes" in check { str: String =>
       val node = xml.Text(str)
       node.anti mustEqual Text(str)
     }
     
-    "convert entity references" verifies { str: String =>
+    "convert entity references" in check { str: String =>
       val ref = xml.EntityRef(str)
       ref.anti mustEqual EntityRef(str)
+      (ref: xml.Node).anti mustEqual EntityRef(str)
+    }
+    
+    "not convert groups" in {
+      val g = xml.Group(List(<foo/>, <bar/>))
+      g.anti must throwA[RuntimeException]
     }
     
     "convert elem names without namespaces" in {
       val e = <test/>.anti
-      e.ns mustEqual None
+      e.prefix mustEqual None
       e.name mustEqual "test"
     }
     
     "convert elem names with namespaces" in {
       val e = <w:test/>.anti
-      e.ns mustEqual Some("w")
+      e.prefix mustEqual Some("w")
       e.name mustEqual "test"
     }
     
     "convert elem attributes" in {
       (<test/>).anti.attrs mustEqual Map()
-      (<test a="1" b="foo"/>).anti.attrs mustEqual Map("a" -> "1", "b" -> "foo")
+      (<test a:c="1" b="foo" xmlns:a="a"/>).anti.attrs mustEqual Attributes(QName(Some("a"), "c") -> "1", "b" -> "foo")
     }
     
     "convert elem children" in {
       val e = <test>Text1<child/>Text2</test>.anti
-      e.children must haveSize(3)
+      e.children must have size(3)
       e.children(0) mustEqual Text("Text1")
-      e.children(1) mustEqual Elem(None, "child", Map(), Group())
+      e.children(1) mustEqual Elem(None, "child", Attributes(), Map(), Group())
       e.children(2) mustEqual Text("Text2")
     }
     
@@ -96,8 +103,8 @@ object ConversionSpecs extends Specification with ScalaCheck {
       xml.NodeSeq.fromSeq(Nil).anti mustEqual Group()
       
       val result = xml.NodeSeq.fromSeq(List(<test1/>, <test2/>, xml.Text("text"))).anti
-      val expected = Group(Elem(None, "test1", Map(), Group()),
-        Elem(None, "test2", Map(), Group()),
+      val expected = Group(Elem(None, "test1", Attributes(), Map(), Group()),
+        Elem(None, "test2", Attributes(), Map(), Group()),
         Text("text"))
         
       result mustEqual expected
@@ -105,6 +112,6 @@ object ConversionSpecs extends Specification with ScalaCheck {
   }
   
   def validate[Expected] = new {
-    def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence mustNotBe null
+    def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull
   }
 }

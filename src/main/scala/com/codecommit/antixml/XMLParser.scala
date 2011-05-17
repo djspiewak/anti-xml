@@ -28,19 +28,55 @@
 
 package com.codecommit.antixml
 
-import org.scalacheck._
+import org.xml.sax._
 
-trait UtilGenerators {
-  import Arbitrary.arbitrary
-  import Gen._
+import java.io.{InputStream, Reader, StringReader}
+import javax.xml.parsers.SAXParserFactory
+
+import scala.io.Source
+
+/**
+ * A trait for objects which construct antixml from XML sources.
+ */
+// TODO named arguments for configuration
+trait XMLParser {
+  def fromString(str: String): Elem
   
-  implicit def arbPartialFunctionp[A, B](implicit arbF: Arbitrary[A => Option[B]]): Arbitrary[PartialFunction[A, B]] =
-    Arbitrary(partialFunctionGenerator)
+  def fromInputStream(is: InputStream): Elem
   
-  def partialFunctionGenerator[A, B](implicit arbF: Arbitrary[A => Option[B]]) = for {
-    f <- arbF.arbitrary
-  } yield new PartialFunction[A, B] {
-    def apply(a: A) = f(a).get
-    def isDefinedAt(a: A) = f(a).isDefined
+  def fromReader(reader: Reader): Elem
+
+  def fromSource(source: Source): Elem =
+    fromReader(new SourceReader(source))
+
+  private class SourceReader(source: Source) extends Reader {
+    import scala.util.control.Breaks._
+    
+    def read(ch: Array[Char], offset: Int, length: Int) = {
+      if (!source.hasNext) {
+        -1
+      } else {
+        var i = offset
+        breakable {
+          while (i < offset + length) {
+            if (!source.hasNext) {
+              break
+            }
+            
+            ch(i) = source.next()
+            i += 1
+          }
+        }
+        i - offset
+      }
+    }
+    
+    override def reset() {
+      source.reset()
+    }
+    
+    override def close() {
+      source.close()
+    }
   }
 }

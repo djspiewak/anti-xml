@@ -28,19 +28,38 @@
 
 package com.codecommit.antixml
 
-import org.scalacheck._
+import org.xml.sax._
 
-trait UtilGenerators {
-  import Arbitrary.arbitrary
-  import Gen._
+import java.io.{InputStream, Reader, StringReader}
+import javax.xml.parsers.SAXParserFactory
+
+import scala.io.Source
+
+/**
+ * An XML parser build on top of `org.w3c.sax`.  This implements the same
+ * API as [[com.codecommit.antixml.StAXParser]], but the runtime performance is
+ * on the order of 13% slower.  The SAX2 event handler used under the surface is
+ * part of the public API in the form of [[com.codecommit.antixml.NodeSeqSAXHandler]].
+ */
+class SAXParser extends XMLParser {
+  def fromString(str: String): Elem =
+    fromInputSource(new InputSource(new StringReader(str)))
   
-  implicit def arbPartialFunctionp[A, B](implicit arbF: Arbitrary[A => Option[B]]): Arbitrary[PartialFunction[A, B]] =
-    Arbitrary(partialFunctionGenerator)
+  def fromInputStream(is: InputStream): Elem =
+    fromInputSource(new InputSource(is))
   
-  def partialFunctionGenerator[A, B](implicit arbF: Arbitrary[A => Option[B]]) = for {
-    f <- arbF.arbitrary
-  } yield new PartialFunction[A, B] {
-    def apply(a: A) = f(a).get
-    def isDefinedAt(a: A) = f(a).isDefined
+  def fromReader(reader: Reader): Elem =
+    fromInputSource(new InputSource(reader))
+
+  def fromInputSource(source: InputSource): Elem = {
+    val factory = SAXParserFactory.newInstance
+    factory.setValidating(true)
+    factory.setNamespaceAware(true)
+    
+    val parser = factory.newSAXParser
+    val handler = new NodeSeqSAXHandler
+    parser.parse(source, handler)
+    
+    handler.result().head   // safe because anything else won't validate
   }
 }

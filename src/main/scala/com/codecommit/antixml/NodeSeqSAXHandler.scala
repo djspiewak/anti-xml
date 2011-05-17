@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -31,13 +31,25 @@ package antixml
 
 import util._
 
-import org.xml.sax.Attributes
+import org.xml.sax.{Attributes => SAXAttributes}
 import org.xml.sax.ext.DefaultHandler2
 
+/**
+ * Defines a SAX2 handler which produces an instance
+ * of [[com.codecommit.antixml.Group]]`[`[[com.codecommit.antixml.Elem]]`]` as
+ * a result.  This is the handler which is used internally by [[com.codecommit.antixml.SAXParser]].
+ * It is provided as part of the public API to allow Anti-XML to be used with
+ * alternative SAX2 event sources (such as HTML parsers like TagSoup).  The
+ * resulting [[com.codecommit.antixml.Group]] is obtained (at the conclusion of
+ * the parse) from the `result()` method.
+ *
+ * @see [[com.codecommit.antixml.SAXParser]]
+ */
 class NodeSeqSAXHandler extends DefaultHandler2 {
   private var elems = List[Group[Node] => Elem]()
   private val text = new StringBuilder
   private var isCDATA = false
+  private var scopes = Map[String, String]() :: Nil
   
   private var builders = VectorCase.newBuilder[Node] :: Nil
   
@@ -45,7 +57,21 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     clearText()
     isCDATA = true
   }
-  
+
+  override def startPrefixMapping(prefix: String, namespace: String) {
+    // This is an optimization to not generate a new map if the mapping exists
+    // already.
+    val parentScope = scopes.headOption getOrElse Map()
+    scopes ::= (if (parentScope.get(prefix) == Some(namespace))
+    	parentScope
+      else 
+        parentScope + (prefix -> namespace) )
+  }
+
+  override def endPrefixMapping(prefix: String) {
+    scopes = scopes.tail
+  }
+
   override def endCDATA() {
     clearText()
     isCDATA = false
@@ -55,17 +81,36 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     text.appendAll(ch, start, length)
   }
   
-  override def startElement(uri: String, localName: String, qName: String, attrs: Attributes) {
+  override def startElement(uri: String, localName: String, qName: String, attrs: SAXAttributes) {
     clearText()
     
-    builders ::= VectorCase.newBuilder
-    elems ::= { children =>
-      val ns = if (uri == "") None else Some(uri)
-      val map = (0 until attrs.getLength).foldLeft(Map[String, String]()) { (map, i) =>
-        map + (attrs.getQName(i) -> attrs.getValue(i))    // TODO namespacing
+    // need to do this early since SAXAttributes objects may be reused
+    val map = (0 until attrs.getLength).foldLeft(Attributes()) { (map, i) =>
+      val ns = {
+        val back = attrs.getURI(i)
+        if (back == "") None else Some(back)
       }
       
-      Elem(ns, localName, map, children)
+      val localName = attrs.getLocalName(i)
+
+      val prefix = {
+        val back = attrs.getQName(i)
+        if (back == localName) None else Some(back.substring(0, back.length - localName.length -1))
+      }
+    
+      map + (QName(prefix, localName) -> attrs.getValue(i))
+    }
+
+    builders ::= VectorCase.newBuilder
+    elems ::= { children =>
+      val prefix = if (qName == localName)
+        None
+      else
+        Some(qName.substring(0, qName.length - localName.length - 1))
+      
+      val ns = if (uri == "") None else Some(uri)
+      
+      Elem(prefix, localName, map, scopes.headOption getOrElse Map(), children)
     }
   }
 
@@ -84,6 +129,13 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     builders.head += EntityRef(entity)
   }
   
+  /**
+   * Returns the [[com.codecommit.antixml.Group]] instance resulting from the
+   * SAX2 event stream.  This method is ''not'' thread-safe and should only be
+   * called once (in fact, calling it multiple times ''will'' throw an exception).
+   * Additionally, this method should only be called after the SAX2 stream has
+   * fully completed.  The result of this method is undefined if invoked prematurely.
+   */
   def result() = pop().asInstanceOf[Group[Elem]]       // nasty, but it shouldn't be a problem
   
   private def pop() = {

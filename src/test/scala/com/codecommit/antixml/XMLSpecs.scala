@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,9 +28,10 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.execute.Pending
+import org.specs2.mutable._
 
-object XMLSpecs extends Specification {
+class XMLSpecs extends Specification {
   import XML._
   
   "xml parsing" should {
@@ -57,6 +58,15 @@ object XMLSpecs extends Specification {
     "preserve whitespace" in {
       fromString("<test>\n  \n\t\n</test>") mustEqual elem("test", Text("\n  \n\t\n"))
     }
+
+    "preserve prefixes" in {
+      val ns = "urn:my-urn:quux";
+      fromString("<my:test xmlns:my='urn:my-urn:quux'/>") mustEqual Elem(Some("my"), "test", Attributes(), Map("my" -> ns), Group[Node]())
+    }
+
+    "parse prefixes" in {
+      fromString("<my:test xmlns:my='urn:my-urn:quux'></my:test>").name mustEqual "test"
+    }
   }
   
   "fromSource" should {
@@ -68,5 +78,5 @@ object XMLSpecs extends Specification {
     }
   }
   
-  def elem(name: String, children: Node*) = Elem(None, name, Map(), Group(children: _*))
+  def elem(name: QName, children: Node*) = Elem(name.prefix, name.name, Attributes(), Map(), Group(children: _*))
 }

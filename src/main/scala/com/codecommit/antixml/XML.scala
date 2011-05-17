@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,83 +28,26 @@
 
 package com.codecommit.antixml
 
-import org.xml.sax._
-
-import java.io.{InputStream, Reader, StringReader}
-import javax.xml.parsers.SAXParserFactory
-
-import scala.io.Source
-
 /**
- * A trait for objects which construct antixml from XML sources.
+ * The default XML parser instance for the Anti-XML framework.  This is really
+ * just a convenience instance of [[com.codecommit.antixml.XMLParser]].  The
+ * default parser (currently) uses the Java StAX framework under the surface,
+ * though the parser interface is also 100% compatible with the SAX2 framework
+ * (see: [[com.codecommit.antixml.SAXParser]]).  The StAX implementation is the
+ * default primarily for performance reasons.
+ *
+ * It is possible to reuse some of Anti-XML's internal parser infrastructure to
+ * parse into Anti-XML trees from alternative parse frameworks, such as HTML
+ * parsers (think: [[http://home.ccil.org/~cowan/XML/tagsoup/ TagSoup]]).
+ * This infrastructure is exposed via
+ * the [[com.codecommit.antixml.NodeSeqSAXHandler]] class.  Unlike scala.xml,
+ * Anti-XML does not allow extension of its [[com.codecommit.antixml.Node]] construction
+ * process.  Thus, it is not possible to define (or directly parse into)
+ * custom [[com.codecommit.antixml.Node]] instances.  This capability wouldn't
+ * make much sense though, since [[com.codecommit.antixml.Node]] is sealed. It
+ * is not possible to even ''define'' custom instances, much less produce them
+ * as part of the parse process.
+ * 
+ * @see [[com.codecommit.antixml.StAXParser]], [[com.codecommit.antixml.SAXParser]]
  */
-// TODO named arguments for configuration
-trait XML {
-  def fromString(str: String): Elem
-  
-  def fromInputStream(is: InputStream): Elem
-  
-  def fromReader(reader: Reader): Elem
-
-  def fromSource(source: Source): Elem =
-    fromReader(new SourceReader(source))
-
-  private class SourceReader(source: Source) extends Reader {
-    import scala.util.control.Breaks._
-    
-    def read(ch: Array[Char], offset: Int, length: Int) = {
-      if (!source.hasNext) {
-        -1
-      } else {
-        var i = offset
-        breakable {
-          while (i < offset + length) {
-            if (!source.hasNext) {
-              break
-            }
-            
-            ch(i) = source.next()
-            i += 1
-          }
-        }
-        i - offset
-      }
-    }
-    
-    override def reset() {
-      source.reset()
-    }
-    
-    override def close() {
-      source.close()
-    }
-  }
-}
-/**
- * An XML provider implemented on top of the platform-default SAX parser.
- * @see org.xml.sax
- */
-class SAXParser extends XML {
-  override def fromString(str: String): Elem =
-    fromInputSource(new InputSource(new StringReader(str)))
-  
-  override def fromInputStream(is: InputStream): Elem =
-    fromInputSource(new InputSource(is))
-  
-  override def fromReader(reader: Reader): Elem =
-    fromInputSource(new InputSource(reader))
-
-  def fromInputSource(source: InputSource): Elem = {
-    val factory = SAXParserFactory.newInstance
-    factory.setValidating(true)
-    factory.setNamespaceAware(true)
-    
-    val parser = factory.newSAXParser
-    val handler = new NodeSeqSAXHandler
-    parser.parse(source, handler)
-    
-    handler.result().head   // safe because anything else won't validate
-  }
-}
-object XML extends SAXParser
-
+object XML extends StAXParser

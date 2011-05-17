@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,23 +28,17 @@
 
 package com.codecommit.antixml.util
 
-import org.specs._
-import org.scalacheck._
+import org.specs2.mutable._
+import org.specs2.ScalaCheck
+import org.specs2.matcher.{Parameters, Matcher}
+import scala.math._
 
-object BloomFilterSpecs extends Specification with ScalaCheck {
-  import Prop._
-  import scala.math._
-  
-  val numProcessors = Runtime.getRuntime.availableProcessors
-  
+class BloomFilterSpecs extends Specification with ScalaCheck {
+
   "contains" should {
-    "never give a false negative" in {
-      val prop = forAll { xs: List[String] =>
-        val filter = BloomFilter(xs)()
-        xs mustNotExist { x => !filter.contains(x) }
-      }
-      
-      prop must pass(set(maxSize -> (numProcessors * 1000), workers -> numProcessors))
+    "never give a false negative" in check { xs: List[String] =>
+      val filter = BloomFilter(xs)()
+      (filter must contain(_:Any)).forall(xs)
     }
   }
 
@@ -56,29 +50,26 @@ object BloomFilterSpecs extends Specification with ScalaCheck {
       (filter1 ++ filter2) must throwAn[IllegalArgumentException]
     }
     
-    "return a BloomFilter which contains all of each" in {
-      val prop = forAll { (xs1: List[String], xs2: List[String]) =>
-        val width = (max(xs1.length, xs2.length) + 1) * 2
-        val filter1 = BloomFilter(xs1)(n=width)
-        val filter2 = BloomFilter(xs2)(n=width)
-        val filter = filter1 ++ filter2
-        
-        xs1 mustNotExist { x => !filter.contains(x) }
-        xs2 mustNotExist { x => !filter.contains(x) }
-      }
-      
-      prop must pass(set(maxSize -> (numProcessors * 1000), workers -> numProcessors))
+    "return a BloomFilter which contains all of each" in check { (xs1: List[String], xs2: List[String]) =>
+      val width = (max(xs1.length, xs2.length) + 1) * 2
+      val filter1 = BloomFilter(xs1)(n=width)
+      val filter2 = BloomFilter(xs2)(n=width)
+      val filter = filter1 ++ filter2
+
+      (filter must contain(_:Any)).forall(xs1)
+      (filter must contain(_:Any)).forall(xs2)
     }
     
-    "be commutative" in {
-      val prop = forAll { (xs1: List[String], xs2: List[String]) =>
-        val width = (max(xs1.length, xs2.length) + 1) * 2
-        val filter1 = BloomFilter(xs1)(n=width)
-        val filter2 = BloomFilter(xs2)(n=width)
-        (filter1 ++ filter2) mustEqual (filter2 ++ filter1)
-      }
-      
-      prop must pass(set(maxSize -> (numProcessors * 1000), workers -> numProcessors))
+    "be commutative" in check { (xs1: List[String], xs2: List[String]) =>
+      val width = (max(xs1.length, xs2.length) + 1) * 2
+      val filter1 = BloomFilter(xs1)(n=width)
+      val filter2 = BloomFilter(xs2)(n=width)
+      (filter1 ++ filter2) mustEqual (filter2 ++ filter1)
     }
   }
+
+  val numProcessors = Runtime.getRuntime.availableProcessors
+  implicit val params: Parameters = set(maxSize -> (numProcessors * 200), workers -> numProcessors)
+  def contain(a: Any): Matcher[BloomFilter] = ((_:BloomFilter).contains(a), (_:BloomFilter).toString+" doesn't contain "+a)
+
 }

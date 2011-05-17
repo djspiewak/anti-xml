@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,14 +28,18 @@
 
 package com.codecommit.antixml
 
+import java.io.Writer
 /**
  * Root of the `Node` ADT, representing the different types of supported XML
  * nodes which may appear in an XML fragment.  The ADT itself has the following
  * shape (Haskell syntax):
  *
  * {{{
+ * type Prefix = Maybe String
+ * type Scope = Map String String
+ *
  * data Node = ProcInstr String String
- *           | Elem (Maybe String) String (Map String String) (Group Node)
+ *           | Elem Prefix String Attributes Scope (Group Node)
  *           | Text String
  *           | CDATA String
  *           | EntityRef String
@@ -50,7 +54,8 @@ package com.codecommit.antixml
  * <li>[[com.codecommit.antixml.ProcInstr]] – A processing instruction consisting
  * of a target and some data</li>
  * <li>[[com.codecommit.antixml.Elem]] – An XML element consisting of an optional
- * namespace, a name (or identifier), a set of attributes and a sequence of child nodes</li>
+ * prefix, a name (or identifier), a set of attributes, a set of namespace mappings 
+ * in scope and a sequence of child nodes</li>
  * <li>[[com.codecommit.antixml.Text]] – A node containing a single string, representing
  * character data in the XML tree</li>
  * <li>[[com.codecommit.antixml.CDATA]] – A node containing a single string, representing
@@ -90,8 +95,10 @@ case class ProcInstr(target: String, data: String) extends Node {
 }
 
 /**
- * An XML element consisting of an optional namespace, a name (or identifier), a
- * set of attributes and a sequence of child nodes. For example:
+ * An XML element consisting of an optional namespace prefix, a name (or identifier), a
+ * set of attributes, a namespace prefix scope (mapping of prefixes to namespace URIs),
+ * and a sequence of child nodes.
+ * For example:
  *
  * {{{
  * <span id="foo" class="bar">Lorem ipsum</span>
@@ -100,26 +107,21 @@ case class ProcInstr(target: String, data: String) extends Node {
  * This would result in the following node:
  *
  * {{{
- * Elem(None, "span", Map("id" -> "foo", "class" -> "bar"), Group(Text("Lorem ipsum")))
+ * Elem(None, "span", Attributes("id" -> "foo", "class" -> "bar"), Map(), Group(Text("Lorem ipsum")))
  * }}}
  */
-case class Elem(ns: Option[String], name: String, attrs: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
+case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: Map[String, String], children: Group[Node]) extends Node with Selectable[Elem] {
+  
+  /**
+   * See the `canonicalize` method on [[com.codecommit.antixml.Group]].
+   */
+  def canonicalize = copy(children=children.canonicalize)
+  
   override def toString = {
-    import Node._
-    
-    val prefix = ns map { _ + ':' } getOrElse ""
-    val qName = prefix + name
-    
-    val attrStr = if (attrs.isEmpty) 
-      ""
-    else
-      " " + (attrs map { case (key, value) => escapeText(key) + "=\"" + escapeText(value) + '"' } mkString " ")
-    
-    val partial = "<" + escapeText(qName) + attrStr
-    if (children.isEmpty)
-      partial + "/>"
-    else
-      partial + '>' + children.toString + "</" + escapeText(qName) + '>'
+    val sw = new java.io.StringWriter() 
+    val xs = XMLSerializer()
+    xs.serialize(this, sw)
+    sw.toString
   }
   
   def toGroup = Group(this)

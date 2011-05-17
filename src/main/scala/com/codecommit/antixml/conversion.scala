@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -115,10 +115,17 @@ trait XMLConvertable[-A, +B] {      // note: doesn't extend Function1 to avoid c
 object XMLConvertable extends SecondPrecedenceConvertables {
   implicit object ElemConvertable extends XMLConvertable[xml.Elem, Elem] {
     def apply(e: xml.Elem) = {
-      val ns = if (e.prefix == null) None else Some(e.prefix)
-      val attrs = e.attributes.asAttrMap
+      val prefix = if (e.prefix == null) None else Some(e.prefix)
+      val ns = if (e.namespace == null) None else Some(e.namespace)
+        
+      val attrs = (Attributes() /: e.attributes) {
+        case (attrs, pa: xml.PrefixedAttribute) => attrs + (QName(Some(pa.pre), pa.key) -> pa.value.mkString)
+        case (attrs, ua: xml.UnprefixedAttribute) => attrs + (ua.key -> ua.value.mkString)
+        case (attrs, _) => attrs
+      }
+    
       val children = NodeSeqConvertable(xml.NodeSeq fromSeq e.child)
-      Elem(ns, e.label, attrs, children)
+      Elem(prefix, e.label, attrs, Map(), children)
     }
   }
   

@@ -28,19 +28,26 @@
 
 package com.codecommit.antixml
 
-import org.scalacheck._
+import org.specs2.mutable._
 
-trait UtilGenerators {
-  import Arbitrary.arbitrary
-  import Gen._
+class SAXSpecs extends Specification {
+  object SAXParser extends SAXParser
   
-  implicit def arbPartialFunctionp[A, B](implicit arbF: Arbitrary[A => Option[B]]): Arbitrary[PartialFunction[A, B]] =
-    Arbitrary(partialFunctionGenerator)
-  
-  def partialFunctionGenerator[A, B](implicit arbF: Arbitrary[A => Option[B]]) = for {
-    f <- arbF.arbitrary
-  } yield new PartialFunction[A, B] {
-    def apply(a: A) = f(a).get
-    def isDefinedAt(a: A) = f(a).isDefined
+  "SAXParser" should {
+    "parse a simpleString and generate a single Elem" in {
+      SAXParser.fromString("<a/>") mustEqual Elem(None, "a", Attributes(), Map(), Group())
+    }
+    
+    "parse a simpleString and generate a single Elem even with namespaces" in {
+      SAXParser.fromString("<pf:a xmlns:pf='urn:a'/>") mustEqual Elem(Some("pf"), "a", Attributes(), Map("pf" -> "urn:a"), Group())
+    }
+
+    "parse a simpleString with an non-prefixed namespace" in {
+      SAXParser.fromString("<a xmlns='urn:a'/>") mustEqual Elem(None, "a", Attributes(), Map("" -> "urn:a"), Group())
+    }
+
+    "parse a String and generate an Elem" in {
+      SAXParser.fromString("<p:a xmlns:p='ns'>hi<b attr='value' /> there</p:a>") mustEqual Elem(Some("p"), "a", Attributes(), Map("p"->"ns"), Group(Text("hi"), Elem(None, "b", Attributes("attr" -> "value"), Map("p"->"ns"), Group()), Text(" there")))
+    }
   }
 }

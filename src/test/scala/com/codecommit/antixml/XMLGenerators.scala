@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -37,7 +37,7 @@ trait XMLGenerators {
   
   val MaxGroupDepth = 3
   
-  val identifiers = (Source fromURL (getClass getResource ("/identifiers.txt")) getLines).toList
+  lazy val identifiers = (Source fromURL (getClass getResource ("/identifiers.txt")) getLines).toList
   
   implicit val arbSelector: Arbitrary[Selector[Node]] =
     Arbitrary(oneOf(nodeSelectorGenerator, elemSelectorGenerator))
@@ -51,6 +51,9 @@ trait XMLGenerators {
   implicit val arbElem: Arbitrary[Elem] = Arbitrary(elemGenerator(0))
   implicit val arbText: Arbitrary[Text] = Arbitrary(textGenerator)
   implicit val arbEntityRef: Arbitrary[EntityRef] = Arbitrary(entityRefGenerator)
+  
+  implicit val arbAttributes: Arbitrary[Attributes] = Arbitrary(genAttributes)
+  implicit val arbQName: Arbitrary[QName] = Arbitrary(genQName)
   
   lazy val elemSelectorGenerator = oneOf(identifiers) map stringToSelector
   
@@ -78,9 +81,11 @@ trait XMLGenerators {
   def elemGenerator(depth: Int = 0): Gen[Elem] = for {
     ns <- genSaneOptionString
     name <- genSaneString
-    attrs <- genSaneMapStringString
+    prefix <- genSaneOptionString
+    attrs <- genAttributes
+    bindings <- genBindings
     children <- if (depth > MaxGroupDepth) value(Group()) else (listOf(nodeGenerator(depth + 1)) map Group.fromSeq)
-  } yield Elem(ns, name, attrs, children)
+  } yield Elem(prefix, name, attrs, bindings, children)
   
   lazy val textGenerator: Gen[Text] = genSaneString map Text
   
@@ -91,12 +96,26 @@ trait XMLGenerators {
   private lazy val genSaneOptionString: Gen[Option[String]] =
     frequency(5 -> (genSaneString map { Some(_) }), 1 -> None)
   
-  private lazy val genSaneMapStringString: Gen[Map[String, String]] = {
+  private lazy val genAttributes: Gen[Attributes] = {
     val genTuple = for {
-      _1 <- genSaneString
-      _2 <- genSaneString
-    } yield (_1, _2)
+      qname <- genQName
+      value <- genSaneString
+    } yield (qname, value)
+    
+    listOf(genTuple) map { Attributes(_: _*) }
+  }
+
+  private lazy val genBindings: Gen[Map[String, String]] = {
+    val genTuple = for {
+      qname <- genSaneString
+      value <- genSaneString
+    } yield (qname, value)
     
     listOf(genTuple) map { Map(_: _*) }
   }
+
+  private lazy val genQName: Gen[QName] = for {
+    ns <- genSaneOptionString
+    name <- genSaneString
+  } yield QName(None, name)
 }

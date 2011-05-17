@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -33,19 +33,20 @@ import util._
 
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 
-trait Zipper[+A <: Node] extends Group[A] { self =>
+trait Zipper[+A <: Node] extends Group[A] with ScalaCompat { self =>
   // TODO dependently-typed HList, maybe?
 
-  protected def map: Vector[ZContext]
+  protected def map: Vector[Option[ZContext]]
   protected def parent: Zipper[Node]
+  protected val hasValidContext = true
 
   // TODO this *may* be a poor choice of words...
   def stripZipper = new Group(toVectorCase)
   
   def unselect: Zipper[Node] = {
     val nodes2 = (map zip parent.toVectorCase).foldLeft(VectorCase[Node]()) {
-      case (acc, ((from, to, _, _), _: Elem)) if from == to => acc
-      case (acc, ((from, to, rebuild, childMap), _: Elem)) => acc :+ rebuild(self.slice(from, to), childMap)
+      case (acc, (Some((from, to, _, _)), _: Elem)) if from == to => acc
+      case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) => acc :+ rebuild(self.slice(from, to), childMap)
       case (acc, (_, e)) => acc :+ e
     }
 
@@ -65,48 +66,58 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
     case _ => super.map(f)(cbf)
   }
 
-  override def flatMap[B, That](f: A => Traversable[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
+  override def flatMap[B, That](f: A => CompatTraversable[B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = cbf match {
     case cbf: CanBuildFromWithZipper[Group[A], B, That] => {
-      val result = toVectorCase.toVector map f
-
-      val intermedMap = for ((from, to, rebuild, childMap) <- map) yield {
-        // get the mapping from *our* indexes to source indexes
-        val inverseMap = {
-          val maps = for ((source, targets) <- childMap)
-            yield (Map[Int, Int]() /: targets) { (acc, t) => acc + (t -> source) }
-
-          (Map[Int, Int]() /: maps) { _ ++ _ }
-        }
-
-        val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), Map[Int, Set[Int]]())) {
-          case ((start, acc, childMap2), (chunk, i)) => {
-            val size = chunk.size
-            val source = inverseMap(i)
-
-            val contrib = Set(start until (start + size): _*)
-            val set2 = childMap2.getOrElse(source, contrib) ++ contrib
-
-            (start + size, acc ++ chunk, childMap2.updated(source, set2))
+      if (!hasValidContext) {
+        super.flatMap(f)(cbf)     // don't try to preserve
+      } else {
+        val result = toVectorCase.toVector map f
+  
+        val intermedMap = map map {
+          case Some((from, to, rebuild, childMap)) => {
+            // get the mapping from *our* indexes to source indexes
+            val inverseMap = {
+              val maps = for ((source, targets) <- childMap)
+                yield (Map[Int, Int]() /: targets) { (acc, t) => acc + (t -> source) }
+    
+              (Map[Int, Int]() /: maps) { _ ++ _ }
+            }
+    
+            val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), Map[Int, Set[Int]]())) {
+              case ((start, acc, childMap2), (chunk, i)) => {
+                val size = chunk.size
+                val source = inverseMap(i)
+    
+                val contrib = Set(start until (start + size): _*)
+                val set2 = childMap2.getOrElse(source, contrib) ++ contrib
+    
+                (start + size, acc ++ chunk, childMap2.updated(source, set2))
+              }
+            }
+    
+            val length = aggregate.length
+            val delta = length - (to - from)
+            Some((from, to + delta, rebuild, childMap2, aggregate, delta))
           }
+          
+          case None => None
         }
-
-        val length = aggregate.length
-        val delta = length - (to - from)
-        (from, to + delta, rebuild, childMap2, aggregate, delta)
-      }
-
-      val (_, map2, chunks) = intermedMap.foldLeft((0, Vector[ZContext](), Vector[Vector[B]]())) {
-        case ((offset, map2, acc), (from, to, rebuild, childMap, aggregate, delta)) => {
-          val from2 = from + offset
-          val to2 = to + offset
-          val offset2 = offset + delta
-          (offset2, map2 :+ (from2, to2, rebuild, childMap), acc :+ aggregate)
+  
+        val (_, map2, chunks) = intermedMap.foldLeft((0, Vector[Option[ZContext]](), Vector[Vector[B]]())) {
+          case ((offset, map2, acc), Some((from, to, rebuild, childMap, aggregate, delta))) => {
+            val from2 = from + offset
+            val to2 = to + offset
+            val offset2 = offset + delta
+            (offset2, map2 :+ Some((from2, to2, rebuild, childMap)), acc :+ aggregate)
+          }
+          
+          case ((offset, map2, acc), None) => (offset, map2 :+ None, acc)
         }
+  
+        val builder = cbf(parent.asInstanceOf[Group[A]], map2)
+        chunks foreach (builder ++=)
+        builder.result
       }
-
-      val builder = cbf(parent.asInstanceOf[Group[A]], map2)
-      chunks foreach (builder ++=)
-      builder.result
     }
 
     case _ => super.flatMap(f)(cbf)
@@ -118,10 +129,8 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
   
   override def withFilter(f: A => Boolean) = new WithFilter(List(f))
   
-  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That = flatMap {
-    case e if pf isDefinedAt e => Some(pf(e))
-    case _ => None
-  }
+  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Group[A], B, That]): That =
+    flatMap(pf.lift andThen { _.toTraversable })
   
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVectorCase) with Zipper[B] {
@@ -130,13 +139,13 @@ trait Zipper[+A <: Node] extends Group[A] { self =>
     }
   }
   
-  override protected def makeAsZipper = self
+  override def toZipper = self
   
   class WithFilter(filters: List[A => Boolean]) extends FilterMonadic[A, Group[A]] {
     def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Group[A], B, That]) =
       self filter { a => filters forall { _(a) } } map f
     
-    def flatMap[B, That](f: A => Traversable[B])(implicit bf: CanBuildFrom[Group[A], B, That]) =
+    def flatMap[B, That](f: A => CompatTraversable[B])(implicit bf: CanBuildFrom[Group[A], B, That]) =
       self filter { a => filters forall { _(a) } } flatMap f
     
     def foreach[B](f: A => B) = self foreach f

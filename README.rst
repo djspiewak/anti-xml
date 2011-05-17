@@ -29,7 +29,7 @@ The problems with ``scala.xml`` boil down to three major categories:
   
   * Pervasive concurrency bugs and race conditions
   * Very surprising (and buggy) ``equals`` implementations
-  * Use of mutability means that bugs can *occaisionally* create recursive XML
+  * Use of mutability means that bugs can *occasionally* create recursive XML
     trees (not seen since Scala 2.7.5, but I thought I'd mention it)
   
 * **Extremely poor performance** (especially in terms of memory use)
@@ -61,11 +61,14 @@ them will make it (certainly not in their current form), but it's a start.  It
 will be interesting to see where things go!
 
 .. _ADT: http://en.wikipedia.org/wiki/Algebraic_data_type
-.. _large set of ideas: https://vibe.novell.com/thread/41cf4424-15c6-40dd-b79f-497bcbd8e147
+.. _large set of ideas: http://dl.dropbox.com/u/1679797/anti-xml-todo.html
 
 
 Usage
 =====
+
+* `Scaladoc for the master branch`_
+* `Scaladoc for the latest stable release`_
 
 The Maven artifact descriptor for the latest *stable* version of
 Anti-XML is as follows: ``com.codecommit:anti-xml_2.8.1:0.1``.  We also regularly
@@ -83,7 +86,7 @@ build systems.
   
 **Buildr**::
   
-    compile.with 'com.codecommit:anti-xml:jar:0.1'
+    compile.with "com.codecommit:anti-xml_#{Scala.version}:jar:0.1"
   
 **Maven2**::
   
@@ -92,19 +95,30 @@ build systems.
       <artifactId>anti-xml_2.8.1</artifactId>
       <version>0.1</version>
     </dependency>
+    
   
-It's worth noting that Anti-XML is *currently* only cross-built for Scala 2.8.1.
-This is mostly due to the test dependencies, which are themselves only cross-built
-for Scala 2.8.1.  Eventually, we intend to push artifacts for the entire 2.8.x
-stream, as well as the nascent 2.9 stream.  In the interim, you should be able to
-use the 2.8.1 JAR in a 2.8.0 project.  However, if you want to use Anti-XML with
-2.9, you will need to build it yourself (due to changes in some of the traits in
-the Scala standard library).
+Supported Versions of Scala
+---------------------------
+
+Anti-XML is cross-built_ for the following Scala versions:
+
+* **2.9.0**
+* **2.8.1**
+
+While it is theoretically possible to add support for 2.8.0, we have no plans to
+do so at this time.  The reason being that Specs2_ – the testing framework used
+by Anti-XML – has not been cross-built for 2.8.0.  Additionally, ScalaCheck_ has
+not updated its 2.8.0 cross-build in several months.  All that combined with the
+fact that 2.8.1 is a nearly-completely backwards compatible update with 2.8.0 has
+led to the conclusion that cross-building for 2.8.0 just isn't worth the effort.
+
+.. _cross-built: http://code.google.com/p/simple-build-tool/wiki/CrossBuild
+.. _Specs2: http://etorreborre.github.com/specs2/
+.. _ScalaCheck: http://code.google.com/p/scalacheck/
 
 Random Snippets
 ---------------
 
-The work-in-progress scaladoc can be found here_, archived on `the project CI server`_.
 The API should look fairly familiar to anyone who has used the ``scala.xml``
 package.  For example::
     
@@ -128,7 +142,7 @@ You can also pass a ``Symbol`` if that is more convenient::
     
     val xml = ...
     val books = xml \ "book"
-    val books2 = xml \ 'book       // equivalent to `books`
+    val books2 = xml \ 'book       // `books2` is equivalent to `books`
     
 You will also note that the ``*`` character is used as a wildcard selector, rather
 than the magical string value ``"_"`` (as in ``scala.xml``).  This is because
@@ -169,8 +183,9 @@ tree around it, ariving at the original structure modulo the change made to the
 third ``<book>`` element deep inside the tree.  For more details, see some of
 the following sections.
 
+.. _Scaladoc for the master branch: http://www.danielspiewak.com/anti-xml/doc
+.. _Scaladoc for the latest stable release: http://www.danielspiewak.com/anti-xml/v0.1/doc
 .. _Scala-Tools: http://scala-tools.org
-.. _here: http://hudson.danielspiewak.org/job/anti-xml/javadoc/?
 .. _the project CI server: http://hudson.danielspiewak.org/job/anti-xml/
 .. _bookstore.xml: https://github.com/djspiewak/anti-xml/blob/master/src/test/resources/bookstore.xml
 .. _node.scala: https://github.com/djspiewak/anti-xml/blob/master/src/main/scala/com/codecommit/antixml/node.scala
@@ -211,7 +226,7 @@ is (in principle) defined as the following::
       }
     }
     
-This is to say, shallow-select finds all of the ``Elem``(s) in the current ``Group``
+This is to say, shallow-select finds all of the ``Elem`` in the current ``Group``
 and filters their children against the selector (which extends ``PartialFunction``).
 The filtered children are then concatenated together into a single ``Group``.
 
@@ -239,7 +254,7 @@ A selector is an object of type ``Selector[A]``, which is really just a
 ``PartialFunction[Node, A]`` with some extra trimming (for optimization).  This
 function is used to search and transform (in a single pass) the result set on a
 select.  In principle, selectors can return *any* results.  For example, one could
-write a ``text`` selector which produces a collection of ``String``(s) representing
+write a ``text`` selector which produces a collection of ``String`` representing
 the contents of all of the ``Text`` nodes in the tree. This selector would be
 defined in the following way::
     
@@ -289,7 +304,7 @@ collection resulting from the select will be of type ``Group[Elem]``::
     val results: Group[Elem] = xml \ "book"
     
 However, if you select using the wildcard selector (``*``), the result will
-naturally be of type ``Group[Node]`` since every node (including non-``Elem``(s))
+naturally be of type ``Group[Node]`` since every node (including non-``Elem`` )
 will be returned::
     
     val xml: Group[Node] = ...
@@ -301,7 +316,7 @@ the ``text`` selector::
     val xml: Group[Node] = ...
     val results: IndexedSeq[String] = xml \ text
     
-This is logical since selection using ``text`` will return a sequence of ``String``(s),
+This is logical since selection using ``text`` will return a sequence of ``String``,
 which obviously cannot be contained within a ``Group``.  The exact return type
 is based on the instance of ``CanBuildFromWithZipper`` which is in implicit
 scope at the call-site.  Any selector which produces ``Node`` (or a subtype) will
@@ -542,12 +557,7 @@ bloom filters to optimize selection over arbitrarily large trees.  This is why
 both shallow and deep selection are almost unacountably fast under Anti-XML (when
 compared to ``scala.xml`` and even ``javax.xml``).  Unfortunately, it is also why
 Anti-XML trees require noticably more memory than ``scala.xml``, and why Anti-XML
-parse times are longer.  When bloom filters are disabled, Anti-XML parse times are
-solidly ahead of ``scala.xml``, while the memory usage is comfortably lower.
-However, disabling bloom filters means that selection performance suffers (it brings
-things about even with ``scala.xml``).  Considering that selection is likely to
-be more common than parsing, we have decided to optimize the former case at the
-expense of the latter.
+parse times tend toward the long side.
 
 All of the tests below were performed on a 2010 MacBook Pro with a Dual core,
 2.66 Ghz Core i7 (Turbo up to 3 Ghz) and hyperthreading enabled, 8 GB of 1067 Mhz
@@ -557,15 +567,15 @@ tests can be found in the repository.
 Memory
 ------
 
-.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+MB&chxr=1,0,350,50&chds=0,350,0,350,0,350&chd=t:48.36,326.5|45.33,197.5|37.89,168.1&chxl=0:|spending.xml+(7+MB)|discogs.xml+(30+MB)
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+MB&chxr=1,0,300,50&chds=0,300,0,300,0,300&chd=t:50.39,250.9|45.33,197.5|37.89,168.1&chxl=0:|spending.xml+(7+MB)|discogs.xml+(30+MB)
    :height: 300px
    :width:  600px
 
 ===========     ========        =============       =============
 Source Size     Anti-XML        ``scala.xml``       ``javax.xml``
 ===========     ========        =============       =============
-7.1 MB          48.36 MB        45.33 MB            37.89 MB
-32 MB           326.5 MB        179.5 MB            168.1 MB
+7.1 MB          50.39 MB        45.33 MB            37.89 MB
+32 MB           250.9 MB        179.5 MB            168.1 MB
 ===========     ========        =============       =============
 
 
@@ -575,31 +585,31 @@ Runtime
 spending.xml
 ~~~~~~~~~~~~
 
-.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,300,50&chds=0,300,0,300,0,300,0,300&chd=t:263,6,9|144,26,154|115,_,20&chxl=0:|Parse|Shallow-Select|Deep-Select
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,300,50&chds=0,300,0,300,0,300,0,300&chd=t:195,6,5|232,15,265|97,_,16&chxl=0:|Parse|Shallow-Select|Deep-Select
    :height: 300px
    :width:  600px
 
 ==============     ========        =============       =============
 Action             Anti-XML        ``scala.xml``       ``javax.xml``
 ==============     ========        =============       =============
-Parse              274 ms          137 ms              109 ms
-Shallow-Select     5 ms            33 ms               869 ms
-Deep-Select        10 ms           256 ms              26 ms
+Parse              195 ms          232 ms              97 ms
+Shallow-Select     6 ms            15 ms               ``-``
+Deep-Select        5 ms            265 ms              16 ms
 ==============     ========        =============       =============
 
 discogs.xml
 ~~~~~~~~~~~
 
-.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,2100,300&chds=0,2100,0,2100,0,2100,0,2100&chd=t:2024,415,707|947,207,961|491,_,92&chxl=0:|Parse|Shallow-Select|Deep-Select
+.. image:: https://chart.googleapis.com/chart?cht=bvg&chco=00B88A,4D89F9,C6D9FD&chbh=25,4,35&chs=600x300&chdl=Anti-XML|scala.xml|javax.xml&chxt=x,y&chxs=1N*f*+ms&chxr=1,0,1500,300&chds=0,1500,0,1500,0,1500,0,1500&chd=t:1119,620,342|1161,84,1220|692,_,50&chxl=0:|Parse|Shallow-Select|Deep-Select
    :height: 300px
    :width:  600px
 
 ==============     ========        =============       =============
 Action             Anti-XML        ``scala.xml``       ``javax.xml``
 ==============     ========        =============       =============
-Parse              2024 ms         947 ms              491 ms
-Shallow-Select     415 ms          207 ms              ``-``
-Deep-Select        707 ms          961 ms              92 ms
+Parse              1119 ms         1161 ms             692 ms
+Shallow-Select     620 ms          84 ms               ``-``
+Deep-Select        342 ms          1220 ms             50 ms
 ==============     ========        =============       =============
 
 
@@ -609,9 +619,10 @@ Deep-Select        707 ms          961 ms              92 ms
 The Task List
 =============
 
-The task list for this project is maintained as a public message in `Novell Vibe`_.
-To access this message, simply sign up for a free account (if you haven't already)
-and then hit the following URL: https://vibe.novell.com/thread/41cf4424-15c6-40dd-b79f-497bcbd8e147
+The task list for this project was formerly maintained as a message in `Novell Vibe`_.
+However, some database issues caused us to repeatedly lose access to that message,
+and so I've made a manual dump-and-render into an HTML file in Dropbox.  Eventually,
+this will move somewhere else...  http://dl.dropbox.com/u/1679797/anti-xml-todo.html
 
 Note: before you start contributing to the project, you really should read the
 CONTRIBUTING.rst_ document.  This outlines some basic guidelines, as well as the
@@ -619,3 +630,4 @@ legal mumbo-jumbo required to ensure we all have our copyrights straight.
 
 
 .. _Novell Vibe: https://vibe.novell.com
+.. _CONTRIBUTING.rst: anti-xml/tree/master/CONTRIBUTING.rst

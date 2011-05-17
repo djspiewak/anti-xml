@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,18 +28,18 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
+import org.specs2.ScalaCheck
 import org.scalacheck._
 
-object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with UtilGenerators {
+class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with UtilGenerators {
   import Prop._
   import XML._
   
-  noDetailedDiffs()
-  
-  val numProcessors = Runtime.getRuntime.availableProcessors
-  
-  "shallow selector" should {
+  lazy val numProcessors = Runtime.getRuntime.availableProcessors()
+  implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be so large
+
+  "shallow selection on Group" should {
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
       ns \ "parent" mustEqual Group(elem("parent"))
@@ -57,19 +57,15 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
       ns \ "a" mustEqual result
     }
     
-    "be fully specified by flatMap / collect" in {
-      val prop = forAll { (ns: Group[Node], selector: Selector[Node]) =>
-        val result = ns \ selector
-        val expected = ns flatMap {
-          case Elem(_, _, _, children) => children collect selector
-          case _ => Group()
-        }
-        
-        result.toList mustEqual expected.toList
+    // currently takes a lot of time and heap, but doesn't produce any valuable results
+    /* "be fully specified by flatMap / collect" in check { (ns: Group[Node], selector: Selector[Node]) =>
+      val result = ns \ selector
+      val expected = ns flatMap {
+        case Elem(_, _, _, children) => children collect selector
+        case _ => Group()
       }
-      
-      prop must pass(set(minTestsOk -> (numProcessors * 200), maxSize -> 30, workers -> numProcessors))
-    }
+      result.toList mustEqual expected.toList
+    } */
     
     "work with an alternative selector" in {
       val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
@@ -78,7 +74,7 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
     }
   }
   
-  "deep selector" should {
+  "deep selection on Group" should {
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
       ns \\ "parent" mustEqual Group(elem("parent"))
@@ -96,30 +92,26 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
       ns \\ "target" mustEqual result.children
     }
     
-    "be fully specified by recursive flatMap / collect" in {
-      val prop = forAll { (ns: Group[Node], selector: Selector[Node]) =>
-        def loop(ns: Group[Node]): Group[Node] = {
-          val recursive = ns flatMap {
-            case Elem(_, _, _, children) => loop(children)
-            case _ => Group()
-          }
-          
-          val shallow = ns flatMap {
-            case Elem(_, _, _, children) => children collect selector
-            case _ => Group()
-          }
-          
-          shallow ++ recursive
+    // currently takes a lot of time and heap, but doesn't produce any valuable results
+    /* "be fully specified by recursive flatMap / collect" in check { (ns: Group[Node], selector: Selector[Node]) =>
+      def loop(ns: Group[Node]): Group[Node] = {
+        val recursive = ns flatMap {
+          case Elem(_, _, _, children) => loop(children)
+          case _ => Group()
         }
         
-        val result = ns \\ selector
-        val expected = loop(ns)
+        val shallow = ns flatMap {
+          case Elem(_, _, _, children) => children collect selector
+          case _ => Group()
+        }
         
-        result.toList mustEqual expected.toList
+        shallow ++ recursive
       }
+      val result = ns \\ selector
+      val expected = loop(ns)
       
-      prop must pass(set(minTestsOk -> (numProcessors * 200), maxSize -> 30, workers -> numProcessors))
-    }
+      result.toList mustEqual expected.toList
+    } */
     
     "work with an alternative selector" in {
       val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
@@ -128,5 +120,50 @@ object GroupSpecs extends Specification with ScalaCheck with XMLGenerators with 
     }
   }
   
-  def elem(name: String, children: Node*) = Elem(None, name, Map(), Group(children: _*))
+  "utility methods on Group" >> {
+    implicit val arbInt = Arbitrary(Gen.choose(0, 10))
+    
+    "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
+      val func = (0 until n).foldLeft(identity: Group[Node] => Group[Node]) { (g, _) =>
+        g andThen { _ collect { case e => e } }
+      }
+      
+      func(xml) mustEqual xml
+    }
+  }
+  
+  "canonicalization" should {
+    "merge two adjacent text nodes" in check { (left: String, right: String) =>
+      Group(Text(left), Text(right)).canonicalize mustEqual Group(Text(left + right))
+      Group(CDATA(left), CDATA(right)).canonicalize mustEqual Group(CDATA(left + right))
+    }
+    
+    "merge two adjacent text nodes at end of Group" in check { (left: String, right: String) =>
+      Group(elem("foo"), elem("bar", Text("test")), Text(left), Text(right)).canonicalize mustEqual Group(elem("foo"), elem("bar", Text("test")), Text(left + right))
+      Group(elem("foo"), elem("bar", Text("test")), CDATA(left), CDATA(right)).canonicalize mustEqual Group(elem("foo"), elem("bar", Text("test")), CDATA(left + right))
+    }
+    
+    "merge two adjacent text nodes at beginning of Group" in check { (left: String, right: String) =>
+      Group(Text(left), Text(right), elem("foo"), elem("bar", Text("test"))).canonicalize mustEqual Group(Text(left + right), elem("foo"), elem("bar", Text("test")))
+      Group(CDATA(left), CDATA(right), elem("foo"), elem("bar", Text("test"))).canonicalize mustEqual Group(CDATA(left + right), elem("foo"), elem("bar", Text("test")))
+    }
+    
+    "merge two adjacent text nodes at depth" in check { (left: String, right: String) =>
+      Group(elem("foo", elem("bar", Text(left), Text(right)))).canonicalize mustEqual Group(elem("foo", elem("bar", Text(left + right))))
+      Group(elem("foo", elem("bar", CDATA(left), CDATA(right)))).canonicalize mustEqual Group(elem("foo", elem("bar", CDATA(left + right))))
+    }
+    
+    "not merge adjacent text and cdata nodes" in check { (left: String, right: String) =>
+      Group(CDATA(left), Text(right)).canonicalize mustEqual Group(CDATA(left), Text(right))
+      Group(Text(left), CDATA(right)).canonicalize mustEqual Group(Text(left), CDATA(right))
+    }
+    
+    "always preserve serialized equality" in check { g: Group[Node] =>
+      g.canonicalize.toString mustEqual g.toString
+    }
+  }
+
+  def elem(name: String, children: Node*) = Elem(None, name, Attributes(), Map(), Group(children: _*))
+
+  def elem(qname : QName, children: Node*) = Elem(qname.prefix, qname.name, Attributes(), Map(), Group(children: _*))
 }

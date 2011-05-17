@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,56 +28,44 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
+import org.specs2.matcher.DataTables
+import org.specs2.ScalaCheck
+import org.scalacheck._
 
-object NodeSpecs extends Specification {
-  detailedDiffs()
+class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGenerators {
+  import Prop._
   
+  lazy val numProcessors = Runtime.getRuntime.availableProcessors()
+  implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be so large
+    
   "elements" should {
     "serialize empty elements correctly" in {
-      (<br/>).anti.toString mustEqual "<br/>"
-    }
-    
-    "escape reserved characters in the name" in {
-      Elem(None, "\"", Map(), Group()).toString mustEqual "<&quot;/>"
-      Elem(None, "&", Map(), Group()).toString mustEqual "<&amp;/>"
-      Elem(None, "'", Map(), Group()).toString mustEqual "<&apos;/>"
-      Elem(None, "<", Map(), Group()).toString mustEqual "<&lt;/>"
-      Elem(None, ">", Map(), Group()).toString mustEqual "<&gt;/>"
-    }
-    
-    "escape reserved characters in the namespace" in {
-      Elem(Some("\""), "foo", Map(), Group()).toString mustEqual "<&quot;:foo/>"
-      Elem(Some("&"), "foo", Map(), Group()).toString mustEqual "<&amp;:foo/>"
-      Elem(Some("'"), "foo", Map(), Group()).toString mustEqual "<&apos;:foo/>"
-      Elem(Some("<"), "foo", Map(), Group()).toString mustEqual "<&lt;:foo/>"
-      Elem(Some(">"), "foo", Map(), Group()).toString mustEqual "<&gt;:foo/>"
-    }
-    
-    "escape reserved characters in attribute keys" in {
-      Elem(None, "foo", Map("\"" -> "bar"), Group()).toString mustEqual "<foo &quot;=\"bar\"/>"
-      Elem(None, "foo", Map("&" -> "bar"), Group()).toString mustEqual "<foo &amp;=\"bar\"/>"
-      Elem(None, "foo", Map("'" -> "bar"), Group()).toString mustEqual "<foo &apos;=\"bar\"/>"
-      Elem(None, "foo", Map("<" -> "bar"), Group()).toString mustEqual "<foo &lt;=\"bar\"/>"
-      Elem(None, "foo", Map(">" -> "bar"), Group()).toString mustEqual "<foo &gt;=\"bar\"/>"
+      <br/>.anti.toString mustEqual "<br/>"
     }
     
     "escape reserved characters in attribute values" in {
-      Elem(None, "foo", Map("bar" -> "\""), Group()).toString mustEqual "<foo bar=\"&quot;\"/>"
-      Elem(None, "foo", Map("bar" -> "&"), Group()).toString mustEqual "<foo bar=\"&amp;\"/>"
-      Elem(None, "foo", Map("bar" -> "'"), Group()).toString mustEqual "<foo bar=\"&apos;\"/>"
-      Elem(None, "foo", Map("bar" -> "<"), Group()).toString mustEqual "<foo bar=\"&lt;\"/>"
-      Elem(None, "foo", Map("bar" -> ">"), Group()).toString mustEqual "<foo bar=\"&gt;\"/>"
+      "character" || "elem.toString"         |>
+      "\""        !! "<foo bar=\"&quot;\"/>" |
+      "&"         !! "<foo bar=\"&amp;\"/>"  |
+      "'"         !! "<foo bar=\"&apos;\"/>" |
+      "<"         !! "<foo bar=\"&lt;\"/>"   |
+      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem(None, "foo", Attributes("bar" -> c), Map(), Group()).toString mustEqual r }
     }
-    
+
     "select against self" in {
       val bookstore = <bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book><book><title>I, Robot</title><author>Isaac Asimov</author></book><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
+      (bookstore \ "book") mustEqual bookstore.children
       (bookstore \ "book") mustEqual bookstore.children
       (bookstore \\ "title") mustEqual (bookstore.children \\ "title")
     }
     
     "select text within self" in {
-      ((<parent>Text</parent>).anti \\ text mkString) mustEqual "Text"
+      (<parent>Text</parent>.anti \\ text mkString) mustEqual "Text"
+    }
+    
+    "delegate canonicalization to Group" in check { e: Elem =>
+      e.canonicalize mustEqual e.copy(children=e.children.canonicalize)
     }
   }
   

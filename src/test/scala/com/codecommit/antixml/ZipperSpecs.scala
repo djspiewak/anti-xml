@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -28,31 +28,47 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
+import org.specs2.ScalaCheck
+import org.specs2.matcher.MustExpectable._
+import org.scalacheck._
+
 import scala.io.Source
 
-object ZipperSpecs extends Specification {
+class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
+  import Prop._
+  
+  lazy val numProcessors = Runtime.getRuntime.availableProcessors()
+  implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be that large
+  
   val bookstore = resource("bookstore.xml")
+  
+  "Zipper#stripZipper" should {
+    "effectively strip zipper context" in {
+      val books = bookstore \ "book"
+      books.stripZipper.isInstanceOf[Zipper[Node]] mustEqual false
+    }
+  }
   
   "zipper updates within '\\' results" should {
     "rebuild updated at one level" in {
       val books = bookstore \ "book"
-      val book0 = books(0).copy(attrs=Map("updated" -> "yes"))
-      val book2 = books(2).copy(attrs=Map("updated" -> "yes"))
+      val book0 = books(0).copy(attrs=Attributes("updated" -> "yes"))
+      val book2 = books(2).copy(attrs=Attributes("updated" -> "yes"))
       
       val bookstore2: Group[Node] = books.updated(0, book0).updated(2, book2).unselect    // ensure we have NodeSeq
       
       // find afresh without using \
-      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
-      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map()
-      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes()
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
     }
     
     "rebuild updated at two levels" in {
       val authors = bookstore \ "book" \ "author"
-      val author0 = authors(0).copy(attrs=Map("updated" -> "yes"))
-      val author2 = authors(2).copy(attrs=Map("updated" -> "yes"))
-      val author3 = authors(3).copy(attrs=Map("updated" -> "yes"))
+      val author0 = authors(0).copy(attrs=Attributes("updated" -> "yes"))
+      val author2 = authors(2).copy(attrs=Attributes("updated" -> "yes"))
+      val author3 = authors(3).copy(attrs=Attributes("updated" -> "yes"))
       
       val bookstore2: Group[Node] = authors.updated(0, author0).updated(2, author2).updated(3, author3).unselect.unselect
       
@@ -61,34 +77,34 @@ object ZipperSpecs extends Specification {
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].name mustEqual "book"
       
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children must haveSize(2)
-      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
       
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children must haveSize(2)
-      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map()
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes()
       
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children must haveSize(3)
-      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
-      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
     }
     
     "rebuild after a map at the first level" in {
       val books = bookstore \ "book"
-      val books2 = books map { _.copy(attrs=Map("updated" -> "yes")) }
+      val books2 = books map { _.copy(attrs=Attributes("updated" -> "yes")) }
       
       val bookstore2: Group[Node] = books2.unselect
       bookstore2.head.asInstanceOf[Elem].children must haveSize(3)
       
-      // find afresh without using \
-      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
-      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
-      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      // find afresh without using \                                                    
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
     }
     
     "rebuild after a flatMap at the first level" in {
       val books = bookstore \ "book"
       val books2 = books flatMap { 
-        case e @ Elem(_, _, _, children) if children.length > 2 =>
-          List(e.copy(attrs=Map("updated" -> "yes")), e.copy(attrs=Map("updated" -> "yes")))
+        case e @ Elem(_, _, _, _, children) if children.length > 2 =>
+          List(e.copy(attrs=Attributes("updated" -> "yes")), e.copy(attrs=Attributes("updated" -> "yes")))
         
         case _ => Nil
       }
@@ -97,13 +113,10 @@ object ZipperSpecs extends Specification {
       bookstore2.head.asInstanceOf[Elem].children must haveSize(2)
       
       // find afresh without using \
-      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
-      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Map("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
       
-      (bookstore2 \ "book" \ "title" \ *) forall {
-        case Text(str) => str mustEqual "Programming Scala"
-        case _ => false
-      }
+      (bookstore2 \ "book" \ "title" \ *) must beLike((_:Node) match { case Text("Programming Scala") => ok }).forall
     }
     
     // my attempt at a "real world" test case"
@@ -112,12 +125,54 @@ object ZipperSpecs extends Specification {
         bookElem <- bookstore \ "book"
         title <- bookElem \ "title" \ text
         if !title.trim.isEmpty
-        val filteredChildren = bookElem.children filter { case Elem(_, "title", _, _) => false case _ => true }
+        val filteredChildren = bookElem.children filter { case Elem(None, "title", _, _, _) => false case _ => true }
       } yield bookElem.copy(attrs=(bookElem.attrs + ("title" -> title)), children=filteredChildren)
       
       val bookstore2 = titledBooks.unselect
       val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
       bookstore2 mustEqual Group(expected)
+    }
+    
+    "rebuild following identity map with selection miss at the top level" >> {
+      "with suffix miss" in {
+        val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti, <miss/>.anti)
+        val xml2 = (xml \ "sub") map identity unselect
+        
+        xml2 mustEqual xml
+      }
+      
+      "with prefix miss" in {
+        val xml = Group(<miss/>.anti, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti)
+        val xml2 = (xml \ "sub") map identity unselect
+        
+        xml2 mustEqual xml
+      }
+      
+      "with prefix and suffix miss" in {
+        val xml = Group(<miss/>.anti, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti, <miss/>.anti)
+        val xml2 = (xml \ "sub") map identity unselect
+        
+        xml2 mustEqual xml
+      }
+    }
+    
+    "rebuild following identity map with selection miss at the second level" in {
+      val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><miss/><sub bar="test2"/></parent>.anti)
+      val xml2 = (xml \ "sub") map identity unselect
+      
+      xml2 mustEqual xml
+    }
+  }
+  
+  "utility methods on Zipper" >> {
+    implicit val arbInt = Arbitrary(Gen.choose(0, 10))
+    
+    "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
+      val func = (0 until n).foldLeft(identity: Zipper[Node] => Zipper[Node]) { (g, _) =>
+        g andThen { _ collect { case e => e } }
+      }
+      
+      func(xml.toZipper) mustEqual xml
     }
   }
   

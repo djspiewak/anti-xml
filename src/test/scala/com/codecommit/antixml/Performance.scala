@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -30,7 +30,7 @@ package com.codecommit.antixml
 
 import scala.io.Source
 import com.github.dmlap.sizeof.SizeOf.deepsize
-import javax.xml.parsers.DocumentBuilderFactory 
+import javax.xml.parsers.DocumentBuilderFactory
 
 object Performance {
   def main(args: Array[String]) {
@@ -74,6 +74,8 @@ object Performance {
       LoadingXmlLarge,
       ShallowSelectionSmall,
       DeepSelectionSmall,
+      ShallowSelectionSmallCold,
+      DeepSelectionSmallCold,
       ShallowSelectionLarge,
       DeepSelectionLarge,
       TraversalSmall)
@@ -190,7 +192,6 @@ object Performance {
     
     lazy val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
     lazy val scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
-    // lazy val domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
     
     val antiXml = implemented by "anti-xml" in {
       antiTree \ "result" \ "doc" \ "MajorFundingAgency2"
@@ -200,41 +201,6 @@ object Performance {
       scalaTree \ "result" \ "doc" \ "MajorFundingAgency2"
       scalaTree \ "foo" \ "bar" \ "MajorFundingAgency2"
     }
-    /*val javaXml = implemented by "javax.xml" preload domTree in { domTree =>
-      val childNodes = domTree.getChildNodes item 0 getChildNodes
-      
-      for {
-        i <- 0 until childNodes.getLength
-        val node = childNodes item i
-        if node.getNodeName == "result"
-        
-        val subChildren = node.getChildNodes
-        j <- 0 until subChildren.getLength
-        val subNode = subChildren item j
-        if subNode.getNodeName == "doc"
-        
-        val subChildren2 = node.getChildNodes
-        j <- 0 until subChildren2.getLength
-        val subNode2 = subChildren2 item j
-        if subNode2.getNodeName == "MajorFundingAgency2"
-      } yield subNode
-      
-      for {
-        i <- 0 until childNodes.getLength
-        val node = childNodes item i
-        if node.getNodeName == "foo"
-        
-        val subChildren = node.getChildNodes
-        j <- 0 until subChildren.getLength
-        val subNode = subChildren item j
-        if subNode.getNodeName == "bar"
-        
-        val subChildren2 = node.getChildNodes
-        j <- 0 until subChildren2.getLength
-        val subNode2 = subChildren2 item j
-        if subNode2.getNodeName == "MajorFundingAgency2"
-      } yield subNode
-    }*/
   }
 
   object DeepSelectionSmall extends Trial('deepSelectSmall, "Deep selection in a 7 MB tree") {
@@ -265,13 +231,58 @@ object Performance {
     }
   }
 
+  object ShallowSelectionSmallCold extends Trial('shallowSelectSmallCol, "Shallow selection in a cold 7 MB tree") {
+    override val runLevel = 1
+    val spendingPath = "/spending.xml"
+    
+    def antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    def scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
+    
+    val antiXml = implemented by "anti-xml" preload antiTree in { antiTree =>
+      antiTree \ "result" \ "doc" \ "MajorFundingAgency2"
+      antiTree \ "foo" \ "bar" \ "MajorFundingAgency2"
+    }
+    val scalaXml = implemented by "scala.xml" preload scalaTree in { scalaTree =>
+      scalaTree \ "result" \ "doc" \ "MajorFundingAgency2"
+      scalaTree \ "foo" \ "bar" \ "MajorFundingAgency2"
+    }
+  }
+
+  object DeepSelectionSmallCold extends Trial('deepSelectSmallCold, "Deep selection in a cold 7 MB tree") {
+    override val runLevel = 1
+    val spendingPath = "/spending.xml"
+    
+    def antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
+    def scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
+    def domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
+    
+    val antiXml = implemented by "anti-xml" preload antiTree in { antiTree =>
+      antiTree \\ "MajorFundingAgency2"
+      antiTree \\ "fubar"
+    }
+    val scalaXml = implemented by "scala.xml" preload scalaTree in { scalaTree =>
+      scalaTree \\ "MajorFundingAgency2"
+      scalaTree \\ "fubar"
+    }
+    val javaXml = implemented by "javax.xml" preload domTree in { domTree =>
+      {
+        val result = domTree getElementsByTagName "MajorFundingAgency2"
+        (0 until result.getLength) foreach (result item)
+      }
+      
+      {
+        val result = domTree getElementsByTagName "fubar"
+        (0 until result.getLength) foreach (result item)
+      }
+    }
+  }
+
   object ShallowSelectionLarge extends Trial('shallowSelectLarge, "Shallow selection in a 30 MB tree") {
     override val runLevel = 2
     val spendingPath = "/discogs_20110201_labels.xml"
     
     lazy val antiTree = XML.fromInputStream(getClass.getResourceAsStream(spendingPath))
     lazy val scalaTree = scala.xml.XML.load(getClass.getResourceAsStream(spendingPath))
-    // lazy val domTree = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(getClass.getResourceAsStream(spendingPath))
     
     val antiXml = implemented by "anti-xml" in {
       antiTree \ "label" \ "sublabels" \ "label"
@@ -281,41 +292,6 @@ object Performance {
       scalaTree \ "label" \ "sublabels" \ "label"
       scalaTree \ "foo" \ "bar" \ "label"
     }
-    /* val javaXml = implemented by "javax.xml" in {
-      val childNodes = domTree.getChildNodes item 0 getChildNodes
-      
-      for {
-        i <- 0 until childNodes.getLength
-        val node = childNodes item i
-        if node.getNodeName == "result"
-        
-        val subChildren = node.getChildNodes
-        j <- 0 until subChildren.getLength
-        val subNode = subChildren item j
-        if subNode.getNodeName == "doc"
-        
-        val subChildren2 = node.getChildNodes
-        j <- 0 until subChildren2.getLength
-        val subNode2 = subChildren2 item j
-        if subNode2.getNodeName == "MajorFundingAgency2"
-      } yield subNode
-      
-      for {
-        i <- 0 until childNodes.getLength
-        val node = childNodes item i
-        if node.getNodeName == "foo"
-        
-        val subChildren = node.getChildNodes
-        j <- 0 until subChildren.getLength
-        val subNode = subChildren item j
-        if subNode.getNodeName == "bar"
-        
-        val subChildren2 = node.getChildNodes
-        j <- 0 until subChildren2.getLength
-        val subNode2 = subChildren2 item j
-        if subNode2.getNodeName == "MajorFundingAgency2"
-      } yield subNode
-    } */
   }
 
   object DeepSelectionLarge extends Trial('deepSelectLarge, "Deep selection in a 30 MB tree") {

@@ -10,7 +10,7 @@
  * - Redistributions in binary form must reproduce the above copyright notice, this
  *   list of conditions and the following disclaimer in the documentation and/or
  *   other materials provided with the distribution.
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors may
+ * - Neither the name of "Anti-XML" nor the names of its contributors may
  *   be used to endorse or promote products derived from this software without
  *   specific prior written permission.
  * 
@@ -40,7 +40,7 @@ trait Selectable[+A <: Node] {
    *
    * {{{
    * nodes flatMap {
-   *   case Elem(_, _, _, children) => children collect selector
+   *   case Elem(_, _, children) => children collect selector
    *   case _ => Group()
    * }
    * }}}
@@ -109,7 +109,7 @@ trait Selectable[+A <: Node] {
       
       for (node <- toGroup) {
         node match {
-          case e @ Elem(_, _, _, children) if children.matches(selector) => {
+          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
             var childMap = Map[Int, Set[Int]]()
             var currentChunk = 0
             
@@ -140,22 +140,26 @@ trait Selectable[+A <: Node] {
             rebuildBuilder += (rebuild _)
           }
           
-          case _ =>
+          case _ => {
+            chunkBuilder += 0
+            childMapBuilder += Map()
+            rebuildBuilder += { (_, _) => error("invoked rebuild for non-match") }
+          }
         }
       }
       
       val cat = catBuilder.result
       
       lazy val (_, map) = {
-        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[ZContext]())) {
+        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[Option[ZContext]]())) {
           case ((i, acc), ((length, f), childMap)) if length != 0 =>
-            (i + length, acc :+ (i, i + length, f, childMap))
+            (i + length, acc :+ Some((i, i + length, f, childMap)))
           
-          case ((i, acc), _) => (i, acc)
+          case ((i, acc), _) => (i, acc :+ None)
         }
       }
       
-      val builder = cbf(makeAsZipper, map)
+      val builder = cbf(toZipper, map)
       builder ++= cat
       builder.result
     } else {
@@ -201,7 +205,7 @@ trait Selectable[+A <: Node] {
   def \\[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
     if (matches(selector)) {
       val recursive = toGroup collect {
-        case Elem(_, _, _, children) => children \\ selector
+        case Elem(_, _, _, _, children) => children \\ selector
         case _ => cbf().result
       }
       
@@ -211,9 +215,9 @@ trait Selectable[+A <: Node] {
     }
   }
   
-  protected def matches(selector: Selector[_]): Boolean = true
+ def matches(selector: Selector[_]): Boolean = true
   
   def toGroup: Group[A]
   
-  protected def makeAsZipper: Zipper[A] = toGroup.makeAsZipper
+  def toZipper: Zipper[A] = toGroup.toZipper
 }
