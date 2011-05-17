@@ -28,11 +28,13 @@
 
 package com.codecommit.antixml.util
 
-import org.specs._
-import org.scalacheck.Gen._
-import org.scalacheck.Prop._
+import org.specs2.mutable._
+import org.specs2.ScalaCheck
+import org.scalacheck._
 
 object CatamorphicVectorSpecs extends Specification with ScalaCheck {
+  import Gen._
+  import Prop._
   
   lazy val numProcessors = Runtime.getRuntime.availableProcessors
   implicit val params = set(workers -> numProcessors)
@@ -50,10 +52,12 @@ object CatamorphicVectorSpecs extends Specification with ScalaCheck {
   }
 
   "CatamorphicVector" >> {
+    implicit val arbInt = Arbitrary(choose(0, 10000))
+    
     "apply should preserve the ordering of its elements" in {
       val naturals = CatamorphicVector(0) { (n: Int) => Some(n + 1 -> n) }
       
-      choose(0, 10000) must pass { x: Int =>
+      check { x: Int =>
         val (result, naturals2) = naturals(x)
         result mustEqual x
         
@@ -67,7 +71,7 @@ object CatamorphicVectorSpecs extends Specification with ScalaCheck {
     "updated should modify the specified index (and only that index)" in {
       val naturals = CatamorphicVector(0) { (n: Int) => Some(n + 1 -> n) }
       
-      choose(0, 10000) must pass { x: Int =>
+      check { x: Int =>
         var naturals2 = naturals.updated(x, -42)      // not a natural...
         
         // not actually comprehensive, but hopefully faster
@@ -82,92 +86,60 @@ object CatamorphicVectorSpecs extends Specification with ScalaCheck {
       }
     }
     
-    "prepending to empty should have the same elements as the singleton CatamorphicVector" in {
-      choose(0, 100000) must pass { x: Int =>
-        (x +: emptyVector(0)).force mustEqual singletonVector(x).force
-      }
+    "prepending to empty should have the same elements as the singleton CatamorphicVector" in check { x: Int =>
+      (x +: emptyVector(0)).force mustEqual singletonVector(x).force
     }
     
-    "prepending should be equivalent to appending on empty" in {
-      choose(0, 100000) must pass { x: Int =>
-        (x +: emptyVector(0)).force mustEqual (emptyVector(0) :+ x).force
-      }
+    "prepending should be equivalent to appending on empty" in check { x: Int =>
+      (x +: emptyVector(0)).force mustEqual (emptyVector(0) :+ x).force
     }
     
-    "appending to empty should be equivalent to the singleton CatamorphicVector" in {
-      choose(0, 100000) must pass { x: Int =>
-        (emptyVector(0) :+ x).force mustEqual singletonVector(x).force
-      }
+    "appending to empty should be equivalent to the singleton CatamorphicVector" in check { x: Int =>
+      (emptyVector(0) :+ x).force mustEqual singletonVector(x).force
     }
     
-    "lazy ++ should be isomorphic to Vector ++" in {
-      val prop = forAll { (left: List[Int], right: List[Int]) =>
-        (listToVector(left) ++ listToVector(right)).force mustEqual Vector(left ++ right: _*)
-      }
-      
-      prop must pass
+    "lazy ++ should be isomorphic to Vector ++" in check { (left: List[Int], right: List[Int]) =>
+      (listToVector(left) ++ listToVector(right)).force mustEqual Vector(left ++ right: _*)
     }
     
-    "mapping id must equal the original" in {
-      val prop = forAll { xs: List[Int] =>
-        (listToVector(xs) map identity force) mustEqual listToVector(xs).force
-      }
-      
-      prop must pass
+    "mapping id must equal the original" in check { xs: List[Int] =>
+      (listToVector(xs) map identity force) mustEqual listToVector(xs).force
     }
 
-    "forcing evaluation of a mapping must be equivalent to a strict mapping" in {
-      forAll { xs: List[Int] =>
-        Vector(xs map (_ + 1): _*) mustEqual (listToVector(xs) map (_ + 1) force)
-      } must pass
+    "forcing evaluation of a mapping must be equivalent to a strict mapping" in check { xs: List[Int] =>
+      Vector(xs map (_ + 1): _*) mustEqual (listToVector(xs) map (_ + 1) force)
     }
 
-    "composing maps should retain the order of application" in {
-      forAll { xs: List[Int] =>
-        val strict = Vector(xs map (_ + 1) map (_ * 2): _*)
-        val nonStrict = (listToVector(xs) map (_ + 1) map (_ * 2) force)
-        strict mustEqual nonStrict
-      } must pass
+    "composing maps should retain the order of application" in check { xs: List[Int] =>
+      val strict = Vector(xs map (_ + 1) map (_ * 2): _*)
+      val nonStrict = (listToVector(xs) map (_ + 1) map (_ * 2) force)
+      strict mustEqual nonStrict
     }
 
-    "random-access to a mapped element must force evaluation of the mapping" in {
-      forAll { s: String =>
-        val cata = listToVector(s :: Nil)
-        cata.map(_ + "!")(0)._1 mustEqual (cata(0)._1 + "!")
-      } must pass
+    "random-access to a mapped element must force evaluation of the mapping" in check { s: String =>
+      val cata = listToVector(s :: Nil)
+      cata.map(_ + "!")(0)._1 mustEqual (cata(0)._1 + "!")
     }
     
     "map f . g should be equivalent to map f . map g" in {
       val f = { x: Int => x + 1 }
       val g = { x: Int => x * 2 }
         
-      val prop = forAll { (xs: List[Int]) =>
+      check { (xs: List[Int]) =>
         (listToVector(xs) map g map f force) mustEqual (listToVector(xs) map (f compose g) force)
       }
-      
-      prop must pass
     }
     
-    "force on a singleton vector should return that value" in {
-      val prop = forAll { x: Int =>
-        singletonVector(x).force mustEqual Vector(x)
-      }
-      
-      prop must pass
+    "force on a singleton vector should return that value" in check { x: Int =>
+      singletonVector(x).force mustEqual Vector(x)
     }
     
-    "force on a List-based vector should return the original List" in {
-      val prop = forAll { xs: List[Int] =>
-        listToVector(xs).force mustEqual Vector(xs: _*)
-      }
-      
-      prop must pass
+    "force on a List-based vector should return the original List" in check { xs: List[Int] =>
+      listToVector(xs).force mustEqual Vector(xs: _*)
     }
 
-    "length should force evaluation and generate accurate values" in {
-      forAll { xs: List[String] =>
-        listToVector(xs).length._1 mustEqual xs.length
-      } must pass
+    "length should force evaluation and generate accurate values" in check { xs: List[String] =>
+      listToVector(xs).length._1 mustEqual xs.length
     }
   }
 }

@@ -28,10 +28,9 @@
 
 package com.codecommit.antixml
 
-import org.specs._
+import org.specs2.mutable._
 
 object NodeViewSpecs extends Specification {
-  detailedDiffs()
 
   def mustBeReversiblySerializable(xml: String) =
     NodeView.fromString(xml).toString mustEqual xml
