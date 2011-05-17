@@ -1,0 +1,200 @@
+.. :mode=rest:
+
+=======
+Zippers
+=======
+
+Most of us have heard the term "zipper" at one point or another.  Unfortunately,
+it's a very overloaded term and can mean anything from a popular clothing fastener
+to a collections utility method to a data structure.  In this context, "zipper"
+refers to the functional data structure allowing efficient and convenient in-place
+updates to immutable trees.
+
+Fortunately, you don't need to understand what that means in order to make use of
+this powerful concept.  In fact, you don't even need to know that it's there!
+
+::
+    
+    val xml: Group[Elem] = ...
+    val results = xml \ "book"
+    
+In this example, ``results`` will of course be of type ``Group[Elem]``...sort of.
+It will actually be of a more specific type: ``Zipper[Elem]``.  ``Zipper`` extends
+``Group``, so if you want to just ignore the zipper data structure and use selector
+results as a ``Group``, then by all means go right ahead!  However, by leveraging
+the power of the zipper, it is possible to perform some really amazing tasks which
+are difficult almost to the point of impossibility with ``scala.xml``.
+
+As an example, imagine we had selected all of the ``<book/>`` elements (as handled
+by the above snippet) and we wanted to grab just the first of those elements and
+give it a new attribute (say, ``first="yes"``).  Of course, XML trees are immutable,
+but it's easy enough to derive a new version of ``results`` which has the
+modification::
+    
+    val results = xml \ "book"
+    val book2 = results.head.copy(attrs=Map("first" -> "yes"))
+    val results2 = results.updated(0, book2)
+    
+The ``results2`` variable will be of type ``Group[Elem]`` and will contain exactly
+the same contents as ``results``, except that the first ``<book/>`` will now have
+our ``first="yes"`` attribute.  So far, so good...
+
+Now comes the tricky part.  Let's say that instead of getting the updated results,
+what we *really* wanted was the updated ``xml`` value.  In other words, we started
+with an XML tree, we drilled down into that tree using a selector, we derived a
+new version of that result set with some modifications (in our case, a new attribute),
+and now we want to go *back* to the tree we originally had, except with the modifications
+we made way down in the bowels.  This is what a zipper is for::
+    
+    val results2 = results.updated(0, book2)
+    val xml2 = results2.unselect
+    
+That's all there is to it!  Imagine the contents of ``xml`` had been the following::
+    
+    <bookstore>
+        <book>
+            <title>For Whom the Bell Tolls</title>
+            <author>Hemmingway</author>
+        </book>
+        <book>
+            <title>I, Robot</title>
+            <author>Isaac Asimov</author>
+        </book>
+        <book>
+            <title>Programming Scala</title>
+            <author>Dean Wampler</author>
+            <author>Alex Payne</author>
+        </book>
+    </bookstore>
+    
+We selected all of the ``<book/>`` elements and then "changed" (well, derived a
+new version of) the first one to have the ``first="yes"`` attribute.  We then
+used the ``unselect`` zipper method to go *back* to our original tree (modulo
+modifications), which means that ``xml2`` will contain the following::
+    
+    <bookstore>
+        <book first="yes">
+            <title>For Whom the Bell Tolls</title>
+            <author>Hemmingway</author>
+        </book>
+        <book>
+            <title>I, Robot</title>
+            <author>Isaac Asimov</author>
+        </book>
+        <book>
+            <title>Programming Scala</title>
+            <author>Dean Wampler</author>
+            <author>Alex Payne</author>
+        </book>
+    </bookstore>
+    
+If you were doing this with ``scala.xml``, you would be stuck rebuilding the
+``<bookstore>...</bookstore>`` parent by hand.  Now in this case, that's not so
+bad, but imagine we were doing something more complicated.  For example, what if
+we were to traverse all the way down to the ``<title/>`` elements and play the
+same trick::
+    
+    val xml: Group[Elem] = ...
+    val results = xml \ "book" \ "title"
+    val results2 = results.updated(0, results.head.copy(attrs=Map("first" -> "yes")))
+    val xml2 = results2.unselect.unselect
+    
+The only difference here is the fact that we had to call ``unselect`` twice rather
+than once.  This is because we actually selected (using the ``\`` operator) twice
+rather than once.  Thus, ``unselect`` is like an undo function for selection.
+And the final result?
+
+::
+    
+    <bookstore>
+        <book>
+            <title first="yes">For Whom the Bell Tolls</title>
+            <author>Hemmingway</author>
+        </book>
+        <book>
+            <title>I, Robot</title>
+            <author>Isaac Asimov</author>
+        </book>
+        <book>
+            <title>Programming Scala</title>
+            <author>Dean Wampler</author>
+            <author>Alex Payne</author>
+        </book>
+    </bookstore>
+    
+Imagine trying to handle *that* with ``scala.xml``!  We could make this even more
+complicated by adding other elements under ``<bookstore>...</bookstore>``, or by
+using ``unselect`` followed by a subsequent selection, modification, ``unselect``,
+etc.  The zipper keeps track of all of the context required to get back to where
+we started modulo all of the "changes" we have made.  In the end, it's all of the
+convenience of working with a mutable XML tree without any of the concurrency
+issues or murky reasoning.
+
+Of course, maintaining all of that context doesn't come free, and zipper does use
+quite a bit of memory.  It's not *huge*, but it's also not something you can ignore
+if you're working with very large trees.  The most serious impact is that the
+results of a selection maintain a pointer to the original parent ``Group``.  Thus,
+you cannot take a large XML tree, select into it, discard the parent pointer and
+expect the majority of the tree to be GC'd.  The zipper parent pointer(s) will
+prevent that.  That is, unless you throw away the context::
+    
+    val xml: Group[Elem] = ...
+    val results = xml \ "book"
+    val trim = results.stripZipper
+    
+The ``trim`` variable will contain exactly the same elements as ``results``.
+The only difference is that it will be of type ``Group[Elem]`` rather than
+``Zipper[Elem]``, and as the types would suggest, it does not contain the zipper
+context needed to reconstitute the parent (and surrounding) tree.  This has the
+advantage of allowing the garbage collector to clean up the parent tree if in fact
+you have released all other references.  Of course, you cannot use the ``unselect``
+method on the ``trim`` object (and the compiler will ensure this), but depending
+on your performance needs, that may be an acceptable sacrifice.  The choice is
+yours.
+
+
+Supported "Modifications"
+=========================
+
+It's worth noting that while all collection methods supported by ``Vector`` are
+also supported by ``Group`` (and by extension, ``Zipper``), *not* all of those
+methods are able to preserve the zipper context.  Obviously, things like ``fold``,
+``reduce``, ``mkString`` and so on are not going to be able to carry any special
+information (nor would it make sense to do so).  Also, if you do something like
+``map`` over a ``Zipper`` and have a function which returns ``Int`` (or anything
+else which cannot be stored in a ``Group``), then clearly the zipper context will
+be lost in that case as well.
+
+However, any ``map`` which returns something of type ``Node`` (or any of its
+subtypes) will preserve the zipper context and you will be able to ``unselect``
+on the resulting collection.  Similarly (and as we saw in the examples), the
+``updated`` method is also able to preserve context.  Unfortunately, methods like
+``:+`` and ``+:`` (append and prepend, respectively), and so on are *not* able
+to preserve context.  A full list of context-preserving methods follows below:
+
+* ``collect``
+* ``filter``
+* ``flatMap``
+* ``map``
+* ``updated``
+* ``withFilter``
+
+We're working to add more methods to this list.  A large number of collection-returning
+utility methods can be implemented in terms of ``flatMap``.  Implementing these
+methods is largely a matter of just writing a few lines of code with the appropriate
+delegation.
+
+
+Other Selectors
+===============
+
+Right now, only the ``\`` method returns a zippable result.  The ``\\`` method
+(deep-select) will certainly return something of *type* ``Zipper[A <: Node]``
+(assuming that an appropriate selector is specified), but the result will not
+contain any zipper context.  Here again, we are working to rectify this issue.
+Unfortunately, getting the zipper to work with deep selection is very, *very*
+non-trivial and requires a great deal of experimentation and design.  If you're
+interested in playing with the work-in-progress, you can grab the deep-zipper_
+branch of the main GitHub repository.
+
+.. _deep-zipper: https://github.com/djspiewak/anti-xml/tree/deep-zipper
