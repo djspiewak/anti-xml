@@ -34,57 +34,69 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStreamWriter
  
-class XMLSerializer(val encoding : String, val outputDeclaration : Boolean) {
-  def serializeDocument(elem : Elem, w : Writer) {
+class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
+  def serializeDocument(elem: Elem, w: Writer) {
     if (outputDeclaration) {
       w.append("<?xml version=\"1.0\" encoding=\"")
-      w.append(encoding )
+      w.append(encoding)
       w.append("\" standalone=\"yes\"?>")
     }
-    serialize(elem, w);
+    serialize(elem, w)
   }
 
-  def serializeDocument(elem : Elem, outputFile : java.io.File) {
+  def serializeDocument(elem: Elem, outputFile: File) {
     serializeDocument(elem, new OutputStreamWriter(new FileOutputStream(outputFile), encoding))
   }
   
-  def serialize(elem : Elem, w : Writer) {
-    var scopes : List[Map[String, String]] = Nil;
+  def serialize(elem: Elem, w: Writer) {
+    var scopes: List[Map[String, String]] = Nil
 
-    def doSerialize(node : Node, w : Writer) {
-
+    def doSerialize(node: Node, w: Writer) {
       node match {
         case Elem(prefix, name, attrs, scope, children) => {
           val parentScope = scopes.headOption getOrElse Map()
           scopes = scope :: scopes
-          val attrStr = if (attrs.isEmpty) 
-		      ""
-		    else
-		      " " + (attrs map { case (key, value) => key.toString + "=\"" + Node.escapeText(value) + '"' } mkString " ")
-		    
-		  val scopeChange = scope filter { case (key, value) => parentScope.get(key) != Some(value) }
-		  val prefixesStr = if (scopeChange.isEmpty) 
-		      ""
-		    else 
-		      " " + (scopeChange map {
-		        case (key, value) => (if (key == "") "xmlns" else "xmlns:" + key) + "=\"" + Node.escapeText(value) + '"' } mkString " ")
-		
-		  val qname = (prefix map { _ + ":" } getOrElse "") + name
-		  val partial = "<" + qname + attrStr + prefixesStr
-		  if (children.isEmpty) {
-		    w append partial
-		    w append "/>"
-		  } else {
-			w append partial
-			w append '>'
-		  	children.foreach(doSerialize(_, w))
-		  	w append "</"
-			w append qname
-			w append '>'
-		  }
+          val attrStr = if (attrs.isEmpty) {
+            ""
+          } else {
+            val delta = attrs map {
+              case (key, value) => key.toString + "=\"" + Node.escapeText(value) + '"'
+            } mkString " "
+            
+            " " + delta
+          }
+            
+          val scopeChange = scope filter { case (key, value) => parentScope.get(key) != Some(value) }
+          val prefixesStr = if (scopeChange.isEmpty) { 
+            ""
+          } else {
+            val delta = scopeChange map {
+              case (key, value) =>
+                (if (key == "") "xmlns" else "xmlns:" + key) + "=\"" + Node.escapeText(value) + '"'
+            } mkString " "
+            
+            " " + delta
+          }
+        
+          val qname = (prefix map { _ + ":" } getOrElse "") + name
+          val partial = "<" + qname + attrStr + prefixesStr
+          
+          if (children.isEmpty) {
+            w.append(partial)
+            w.append("/>")
+          } else {
+            w.append(partial)
+            w.append('>')
+            children foreach { doSerialize(_, w) }
+            w append("</")
+            w append(qname)
+            w append('>')
+          }
+          
           scopes = scopes.tail
         }
-        case node => w.append(node.toString())
+        
+        case node => w.append(node.toString)
       }
     }
     doSerialize(elem, w)
@@ -92,7 +104,7 @@ class XMLSerializer(val encoding : String, val outputDeclaration : Boolean) {
 }
 
 object XMLSerializer {
-	def apply(encoding : String = "UTF-8", outputDeclaration : Boolean = false) : XMLSerializer = {
-	  new XMLSerializer(encoding, outputDeclaration);
-	}
+  def apply(encoding: String = "UTF-8", outputDeclaration: Boolean = false): XMLSerializer = {
+    new XMLSerializer(encoding, outputDeclaration);
+  }
 }
