@@ -30,7 +30,7 @@ package com.codecommit.antixml
 
 import org.specs2.mutable._
 
-object NodeViewSpecs extends Specification {
+class NodeViewSpecs extends Specification {
 
   def mustBeReversiblySerializable(xml: String) =
     NodeView.fromString(xml).toString mustEqual xml

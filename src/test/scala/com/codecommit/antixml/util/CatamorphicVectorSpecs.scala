@@ -32,7 +32,7 @@ import org.specs2.mutable._
 import org.specs2.ScalaCheck
 import org.scalacheck._
 
-object CatamorphicVectorSpecs extends Specification with ScalaCheck {
+class CatamorphicVectorSpecs extends Specification with ScalaCheck {
   import Gen._
   import Prop._
   
