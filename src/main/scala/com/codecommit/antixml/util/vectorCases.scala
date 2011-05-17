@@ -130,6 +130,8 @@ private[antixml] case object Vector0 extends VectorCase[Nothing] {
   
   def ++[B](that: VectorCase[B]) = that
   
+  override def iterator = Iterator.empty
+  
   def toVector = Vector()
 }
 
@@ -318,6 +320,9 @@ private[antixml] case class VectorN[+A](vector: Vector[A]) extends VectorCase[A]
   override def take(n: Int) = VectorN(vector take n)    // TODO
   
   override def takeRight(n: Int) = VectorN(vector takeRight n)    // TODO
+  
+  // note: this actually defeats a HotSpot optimization in trivial micro-benchmarks
+  override def iterator = vector.iterator
   
   def toVector = vector
 }
