@@ -28,12 +28,13 @@
 
 package com.codecommit.antixml
 
+import org.specs2.matcher._
 import org.specs2.mutable._
 
 class NodeViewSpecs extends Specification {
-
-  def mustBeReversiblySerializable(xml: String) =
-    NodeView.fromString(xml).toString mustEqual xml
+  
+  val beReversiblySerializable: Matcher[String] =
+    ({ xml: String => NodeView.fromString(xml).toString == xml }, "does not preserve itself through serialization")
 
   "elements" should {
     "handle element namespaces" in {
@@ -49,21 +50,21 @@ class NodeViewSpecs extends Specification {
       elem.attrs("attr1") mustEqual "value1"
     }
     "handle empty elements" in {
-      mustBeReversiblySerializable("<a />")
+      "<a />" must beReversiblySerializable
     }
     "handle nested elements" in {
-      mustBeReversiblySerializable("<a><b><c>hi</c></b></a>")
+      "<a><b><c>hi</c></b></a>" must beReversiblySerializable
     }
     "handle sibling elements" in {
-      mustBeReversiblySerializable("<a><b /><c /></a>")
+      "<a><b /><c /></a>" must beReversiblySerializable
     }
     "handle mixed type children" in {
-      mustBeReversiblySerializable("<a><strong>anti</strong>-xml</a>")
+      "<a><strong>anti</strong>-xml</a>" must beReversiblySerializable
     }
   }
   "text nodes" should {
     "be serializable" in {
-      mustBeReversiblySerializable("<a> hi</a>")
+      "<a> hi</a>" must beReversiblySerializable
     } 
   }
 }
