@@ -12,6 +12,7 @@ documenting here.
 
 * **Features**
 
+  * ``XMLSerializer`` for proper (non-``String``) serialization support
   * ``Group`` canonicalization (see scaladoc for ``Group#canonicalize``) 
   * Proper namespace/prefix support
   
