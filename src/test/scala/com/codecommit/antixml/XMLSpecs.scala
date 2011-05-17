@@ -67,14 +67,6 @@ class XMLSpecs extends Specification {
     "parse prefixes" in {
       fromString("<my:test xmlns:my='urn:my-urn:quux'></my:test>").name mustEqual "test"
     }
-
-    "serialize prefixes minimally" in {
-      fromString("<my:test xmlns:my='urn:my-urn:quux'>\n<beef/>\n\t\n</my:test>").toString mustEqual "<my:test xmlns:my=\"urn:my-urn:quux\">\n<beef/>\n\t\n</my:test>"
-    }
-    
-    "serialize unprefixed elements correctly" in {
-      fromString("<test xmlns='urn:my-urn:quux'>\n<beef/>\n\t\n</test>").toString mustEqual "<test xmlns=\"urn:my-urn:quux\">\n<beef/>\n\t\n</test>"
-    }
   }
   
   "fromSource" should {
