@@ -1,63 +1,36 @@
 .. :mode=rest:
 
-Anti-XML is a replacement for the ``scala.xml`` package in the Scala standard
-library.  The goal is to learn from the mistakes made in the implementation of
-the original library and finally provide an implementation which corrects them.
-The problems with ``scala.xml`` boil down to three major categories:
+Anti-XML is a proposed replacement for the ``scala.xml`` package in
+the Scala standard library.
 
-* **Clumsy API**
+The standard package is outdated and beyond fixing.  We need to start
+over, on solid foundations and unburdened by backward compatibility.
 
-  * The ``\`` and ``\\`` operators do not behave consistently, a flaw which stems
-    from the misguided desire to emulate XPath (something which cannot be done
-    in a combinatorial setting)
-  * ``Node <: NodeSeq <: Seq[Node]``
+Anti-XML aims for quality in three major areas:
+
+* **Usability**
+
+  * Leverage powerful ideas like combinators and proper ADT_ s
+  * Leverage the 2.8 collections library
+  * Provide consistent selector behavior
+  * Avoid these missteps: ``Node <: NodeSeq <: Seq[Node]``,
+    ``MetaData``, ``Atom[String]``
+
+* **Reliability**
+
+  * Use immutable data structures (in the API and under the hood too)
+  * Avoid bugs and race conditions
+  * Provide a proper ``equals``
   
-    * Oh yeah, and ``Node`` isn't actually an ADT_!
-  
-  * The implicit conversion from ``Seq[Node]`` to ``NodeSeq`` means you're never
-    really sure which type you're working with in non-trivial code
-  * ``NodeSeq`` fails to leverage the 2.8 collections library, meaning that many
-    of its methods return ``Seq[Node]`` rather than ``NodeSeq``, a problem
-    compounded by the previous point
-  * One word: ``MetaData``
-  * One more word: ``Atom[String]``
+* **Performance**
 
-* **Unreliable semantics** (partially stemming from the secret use of mutable data
-  structures under the surface)
-  
-  * Pervasive concurrency bugs and race conditions
-  * Very surprising (and buggy) ``equals`` implementations
-  * Use of mutability means that bugs can *occasionally* create recursive XML
-    trees (not seen since Scala 2.7.5, but I thought I'd mention it)
-  
-* **Extremely poor performance** (especially in terms of memory use)
+  * Lower memory usage (`Novell Vibe`_ once had a 16 MB chunk of XML
+    use 250 MB of heap!)
+  * Provide efficient selectors
 
-  * `Novell Vibe`_ once had a chunk of XML which was 16 MB on disk and required
-    *250 MB* of heap space!
-  * Selectors are generally very slow
-  * The formatted-string selector semantics for attribute querying mean that
-    *every* string gets boxed into a ``Text``, which creates enormous heap crush
-
-There are many more outstanding issues which fall into each category, but this is
-the gist of it.  In short, there are far too many fundamental problems with
-``scala.xml`` to simply fix.  We need to start from scratch, unburdened by the
-need for backward compatibility or prior assumptions (like the fake XPath support).
-
-That is precisely what this project intends to do.  As an example, the core data
-structures are implemented on top of ``Vector`` rather than ``ArrayBuffer``.
-This not only ensures thread-safety, it also provides substantially better
-performance and a lower memory footprint.  We've also been re-thinking some
-fundamental aspects of the API.  For example, ``Node`` no longer extends ``NodeSeq``.
-In fact, there is *no* ``NodeSeq``.  Instead, anti-xml provides a ``Group[+A <: Node]``
-type which is far more general and far more convenient in practice. (for example,
-if you really miss ``NodeSeq``, you can just define ``type NodeSeq = Group[Node]``)
-Selectors have also been revamped and now satisfy a rigidly consistent contract.
-They are also only defined on ``Group`` (*not* ``Node``).  More on this below.
-
-We have a `large set of ideas`_ that we're exploring for this project.  Not all of
-them will make it (certainly not in their current form), but it's a start.  It
-will be interesting to see where things go!
+We are exploring `many ideas`_ for this project. It will be
+interesting to see where things go!
 
 .. _ADT: http://en.wikipedia.org/wiki/Algebraic_data_type
-.. _large set of ideas: http://dl.dropbox.com/u/1679797/anti-xml-todo.html
+.. _many ideas: http://dl.dropbox.com/u/1679797/anti-xml-todo.html
 .. _Novell Vibe: http://vibe.novell.com
