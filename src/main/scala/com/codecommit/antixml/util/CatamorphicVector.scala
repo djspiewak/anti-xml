@@ -37,6 +37,8 @@ private[antixml] class CatamorphicVector[S, +A] private (
   private[this] def body_=(body: Vector[A]) = _body = body
   private def body = _body
   
+  private var forced = false
+  
   private[this] def tail_=(tail: Vector[A]) = _tail = tail
   private def tail = _tail
   
@@ -83,7 +85,7 @@ private[antixml] class CatamorphicVector[S, +A] private (
   }
   
   private def extend(i: Int) {
-    if (i >= body.length) {   // don't extend if i < |body|
+    if (!forced && i >= body.length) {   // don't extend if i < |body|
       val shifted = i - body.length + 1
       
       def gen(state: S): Stream[(S, A)] =
@@ -97,6 +99,7 @@ private[antixml] class CatamorphicVector[S, +A] private (
         body = body2
         state = state2
       } else {
+        forced = true
         body = body2 ++ tail       // we're basically done at this point
         tail = Vector()
         state = state2

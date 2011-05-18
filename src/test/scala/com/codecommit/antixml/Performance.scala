@@ -338,13 +338,13 @@ object Performance {
       }
       traverse(1, antiTree)
     }
-    // implemented by "anti-xml views" in {
-    //   def traverse(count: Int, e: NodeView): Int = e match {
-    //     case e: ElemView => e.children.foldLeft(1)(traverse)
-    //     case _ => count + 1
-    //   }
-    //   traverse(1, antiTreeView)
-    // }
+    implemented by "anti-xml views" in {
+      def traverse(count: Int, e: NodeView): Int = e match {
+        case e: ElemView => e.children.foldLeft(1)(traverse)
+        case _ => count + 1
+      }
+      traverse(1, antiTreeView)
+    }
     implemented by "scala.xml" in {
       def traverse(count: Int, e: scala.xml.Node): Int = e match {
         case e: scala.xml.Elem => e.child.foldLeft(1)(traverse)
