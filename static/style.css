@@ -56,12 +56,29 @@
 	font-weight: bold;
 }
 
+
+/* main content */
+
 .main {
 	margin-left: 12em;
 }
 
 .main .content {
-	font-size: 108%;
+	font-size: 116%;
+}
+
+
+/* page title */
+
+.main .content .title {
+	border-bottom: solid;
+	border-width: 0.1em;
+	border-color: #ccc;
+	
+	font-size: 290%;
+	
+	margin-top: 0em;
+	margin-right: 1em;
 }
 
 
