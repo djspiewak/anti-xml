@@ -63,3 +63,39 @@
 .main .content {
 	font-size: 108%;
 }
+
+
+/* monospace */
+
+.main .content .literal,
+.main .content .literal-block {
+	font-family: 'Inconsolata', monospace;
+	font-size: 124%;
+}
+
+.main .content .literal-block {
+	border-style: solid;
+	border-width: 1px;
+	border-color: #f6f6d1;
+	
+	border-radius: 0.5em;
+	-moz-border-radius: 0.5em;
+	-webkit-border-radius: 0.5em;
+	-ie-border-radius: 0.5em;
+	-o-border-radius: 0.5em;
+	
+	background-color: #eeeecb;
+	padding-left: 1em;
+	padding-right: 1em;
+	padding-top: 0.5em;
+	padding-bottom: 0.5em;
+	margin-left: 1.5em;
+	margin-right: 3em;
+	
+	overflow: auto;
+}
+
+ul.simple li .literal,
+.main .content .literal-block{
+	line-height: 1.2em;
+}
