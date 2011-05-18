@@ -76,11 +76,11 @@ a:hover {
 
 .sidebar,
 .main {
-	font-size: 130%;
+	font-size: 120%;
 }
 
 .sidebar {
-	width: 11em;
+	width: 12em;
 	position: absolute;
 	top: 135px;
 	left: 0px;
@@ -109,11 +109,12 @@ a:hover {
 /* main content */
 
 .main {
-	margin-left: 11em;
+	margin-left: 12em;
 }
 
 .main .content {
-	font-size: 90%;
+	font-size: 105%;
+	line-height: 1.4em;
 }
 
 
