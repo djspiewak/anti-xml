@@ -51,6 +51,10 @@ body {
 	cursor: pointer;
 }
 
+.header .version-tag:hover {
+	text-decoration: none;
+}
+
 .header .version-tag {
 	position: absolute;
 	right: 25px;
