@@ -94,7 +94,3 @@ object CanBuildFromWithZipper {
     }  
   }
 }
-
-trait CanProduceZipper[-From, -Elem, To] { this: CanBuildFrom[From, Elem, _ >: To] =>
-  def lift: CanBuildFromWithZipper[From, Elem, To]
-}
