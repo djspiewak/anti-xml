@@ -121,11 +121,11 @@ a:hover {
 .main {
 	border-top-style: solid;
 	border-top-width: 2px;
-	border-top-color: #ccc;
+	border-top-color: #fff;
 	
 	border-left-style: solid;
 	border-left-width: 2px;
-	border-left-color: #ccc;
+	border-left-color: #fff;
 	
 	border-top-left-radius: 1em;
 	-moz-border-radius-topleft: 1em;
@@ -138,6 +138,10 @@ a:hover {
 	
 	margin-left: 12em;
 	margin-top: 0em;
+	
+	box-shadow: -5px -5px 5px #666;
+	-moz-box-shadow: -5px -5px 5px #666;
+	-webkit-box-shadow: -5px -5px 5px #666;
 }
 
 
