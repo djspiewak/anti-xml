@@ -29,27 +29,33 @@
 package com.codecommit.antixml.util
 
 private[antixml] class CatamorphicVector[S, +A] private (
-    private val body: Vector[A],
-    private val tail: Vector[A],
-    private val state: S,
+    private[this] var _body: Vector[A],
+    private[this] var _tail: Vector[A],
+    private var state: S,
     private val f: S => Option[(S, A)]) {
+      
+  private[this] def body_=(body: Vector[A]) = _body = body
+  private def body = _body
   
-  def apply(i: Int): (A, CatamorphicVector[S, A]) = {
-    val this2 = extend(i)
-    if (i < this2.body.length)
-      (this2.body(i), this2)
+  private[this] def tail_=(tail: Vector[A]) = _tail = tail
+  private def tail = _tail
+  
+  def apply(i: Int): A = {
+    extend(i)
+    if (i < body.length)
+      body(i)
     else
       throw new IndexOutOfBoundsException(i.toString)
   }
   
   def updated[B >: A](i: Int, b: B): CatamorphicVector[S, B] = {
-    val this2 = extend(i)
-    val body2 = if (i < this2.body.length)
-      this2.body.updated(i, b)
+    extend(i)
+    val body2 = if (i < body.length)
+      body.updated(i, b)
     else
       throw new IndexOutOfBoundsException(i.toString)
     
-    new CatamorphicVector(body2, this2.tail, this2.state, this2.f)
+    new CatamorphicVector(body2, tail, state, f)
   }
   
   def +:[B >: A](b: B): CatamorphicVector[S, B] =
@@ -71,12 +77,13 @@ private[antixml] class CatamorphicVector[S, +A] private (
     new CatamorphicVector(body2, tail2, state, f2)
   }
   
-  def force: Vector[A] = extend(Int.MaxValue - 1).body
+  def force: Vector[A] = {
+    extend(Int.MaxValue - 1)
+    body
+  }
   
-  private def extend(i: Int) = {
-    if (i < body.length) {
-      this
-    } else {
+  private def extend(i: Int) {
+    if (i >= body.length) {   // don't extend if i < |body|
       val shifted = i - body.length + 1
       
       def gen(state: S): Stream[(S, A)] =
@@ -86,16 +93,20 @@ private[antixml] class CatamorphicVector[S, +A] private (
       val body2 = body ++ (stream map { case (_, a) => a })
       lazy val state2 = stream.lastOption map { case (s, _) => s } getOrElse state
       
-      if (i < body2.length)
-        new CatamorphicVector(body2, tail, state2, f)
-      else
-        new CatamorphicVector(body2 ++ tail, Vector(), state2, f)       // we're basically done at this point
+      if (i < body2.length) {
+        body = body2
+        state = state2
+      } else {
+        body = body2 ++ tail       // we're basically done at this point
+        tail = Vector()
+        state = state2
+      }
     }
   }
 
-  def length: (Int, CatamorphicVector[S, A]) = {
+  def length: Int = {
     val forced = force
-    (forced.length, new CatamorphicVector(forced, Vector(), state, f))
+    forced.length
   }
   
   override def toString = "CatamorphicVector(%s, %s, %s, %s)".format(body, tail, state, f)

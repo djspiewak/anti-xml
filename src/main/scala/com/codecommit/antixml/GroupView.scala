@@ -37,8 +37,8 @@ class GroupNodeView private[antixml](xmlReader: XMLStreamReader) extends Indexed
   
   override protected[this] def newBuilder = GroupView.newBuilder[NodeView]
   
-  private var nodes: CatamorphicVector[XMLStreamReader, NodeView] =
-    CatamorphicVector(xmlReader) { xmlReader =>
+  private val nodes: CatamorphicVector[XMLStreamReader, NodeView] = {
+    val back = CatamorphicVector(xmlReader) { xmlReader =>
       if (xmlReader.hasNext) {
         (xmlReader.next match {
           case `START_ELEMENT` => Some(xmlReader, new ElemView(xmlReader))
@@ -50,24 +50,18 @@ class GroupNodeView private[antixml](xmlReader: XMLStreamReader) extends Indexed
         None
       }
     }
-  // ensure subtrees are forced before continuing parsing
-  nodes = nodes map { node: NodeView =>
-    node.force()
-    node
+    
+    // ensure subtrees are forced before continuing parsing
+    back map { node: NodeView =>
+      node.force()
+      node
+    }
   }
 
-  // TODO: synchronization
-  override def apply(index: Int): NodeView = {
-    val (result, nodes) = this.nodes(index)
-    this.nodes = nodes
-    result
-  }
-  // TODO: synchronization
-  override def length = {
-    val (result, nodes) = this.nodes.length
-    this.nodes = nodes
-    result
-  }
+  override def apply(index: Int): NodeView = nodes(index)
+  
+  override def length = nodes.length
+  
   override def toString = "GroupNodeView(" + nodes + ")"
 }
 

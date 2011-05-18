@@ -58,13 +58,13 @@ class CatamorphicVectorSpecs extends Specification with ScalaCheck {
       val naturals = CatamorphicVector(0) { (n: Int) => Some(n + 1 -> n) }
       
       check { x: Int =>
-        val (result, naturals2) = naturals(x)
+        val result = naturals(x)
         result mustEqual x
         
-        val (result2, naturals3) = naturals2(x / 2)
+        val result2 = naturals(x / 2)
         result2 mustEqual (x / 2)
         
-        naturals3(x)._1 mustEqual x
+        naturals(x) mustEqual x
       }
     }
     
@@ -76,8 +76,7 @@ class CatamorphicVectorSpecs extends Specification with ScalaCheck {
         
         // not actually comprehensive, but hopefully faster
         math.max(x - 100, 0) until (x + 100) forall { i =>
-          val (result, naturals3) = naturals2(i)
-          naturals2 = naturals3
+          val result = naturals2(i)
           if (i == x)
             result mustEqual -42
           else
@@ -118,7 +117,7 @@ class CatamorphicVectorSpecs extends Specification with ScalaCheck {
 
     "random-access to a mapped element must force evaluation of the mapping" in check { s: String =>
       val cata = listToVector(s :: Nil)
-      cata.map(_ + "!")(0)._1 mustEqual (cata(0)._1 + "!")
+      cata.map(_ + "!")(0) mustEqual (cata(0) + "!")
     }
     
     "map f . g should be equivalent to map f . map g" in {
@@ -139,7 +138,7 @@ class CatamorphicVectorSpecs extends Specification with ScalaCheck {
     }
 
     "length should force evaluation and generate accurate values" in check { xs: List[String] =>
-      listToVector(xs).length._1 mustEqual xs.length
+      listToVector(xs).length mustEqual xs.length
     }
   }
 }
