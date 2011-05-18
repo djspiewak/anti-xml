@@ -145,7 +145,12 @@ a:hover {
 
 .main .content {
 	font-size: 105%;
-	line-height: 1.4em;
+	line-height: 1.5em;
+}
+
+.main .content p {
+	margin-top: 1.5em;
+	margin-bottom: 1.5em;
 }
 
 
