@@ -39,6 +39,8 @@ private[antixml] class CatamorphicVector[S, +A] private (
   
   private var forced = false
   
+  private val ExtensionLock = new AnyRef
+  
   private[this] def tail_=(tail: Vector[A]) = _tail = tail
   private def tail = _tail
   
@@ -85,24 +87,26 @@ private[antixml] class CatamorphicVector[S, +A] private (
   }
   
   private def extend(i: Int) {
-    if (!forced && i >= body.length) {   // don't extend if i < |body|
-      val shifted = i - body.length + 1
-      
-      def gen(state: S): Stream[(S, A)] =
-        f(state) map { case tuple @ (state2, _) => tuple #:: gen(state2) } getOrElse Stream.Empty
-      
-      val stream = gen(state) take shifted
-      val body2 = body ++ (stream map { case (_, a) => a })
-      lazy val state2 = stream.lastOption map { case (s, _) => s } getOrElse state
-      
-      if (i < body2.length) {
-        body = body2
-        state = state2
-      } else {
-        forced = true
-        body = body2 ++ tail       // we're basically done at this point
-        tail = Vector()
-        state = state2
+    ExtensionLock synchronized {
+      if (!forced && i >= body.length) {   // don't extend if i < |body|
+        val shifted = i - body.length + 1
+        
+        def gen(state: S): Stream[(S, A)] =
+          f(state) map { case tuple @ (state2, _) => tuple #:: gen(state2) } getOrElse Stream.Empty
+        
+        val stream = gen(state) take shifted
+        val body2 = body ++ (stream map { case (_, a) => a })
+        lazy val state2 = stream.lastOption map { case (s, _) => s } getOrElse state
+        
+        if (i < body2.length) {
+          body = body2
+          state = state2
+        } else {
+          forced = true
+          body = body2 ++ tail       // we're basically done at this point
+          tail = Vector()
+          state = state2
+        }
       }
     }
   }
