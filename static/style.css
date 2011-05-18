@@ -8,6 +8,9 @@ a:hover {
 	text-decoration: underline;
 }
 
+body {
+	margin-top: 0px;
+}
 
 .container {
 	margin-left: auto;
@@ -50,7 +53,7 @@ a:hover {
 .header .version-tag {
 	position: absolute;
 	right: 25px;
-	bottom: 0px;
+	top: 0px;
 	
 	border-style: solid;
 	border-width: 1px;
@@ -58,19 +61,19 @@ a:hover {
 	border-bottom: none;
 	
 	padding: 0.75em;
-	padding-bottom: 0.325em;
-	padding-top: 0.5em;
+	padding-top: 0.325em;
+	padding-bottom: 0.5em;
 	
-	border-top-left-radius: 0.75em;
-	-moz-border-radius-topleft: 0.75em;
-	-webkit-border-top-left-radius: 0.75em;
-	-ie-border-top-left-radius: 0.75em;
-	-o-border-top-left-radius: 0.75em;
-	border-top-right-radius: 0.75em;
-	-moz-border-radius-topright: 0.75em;
-	-webkit-border-top-right-radius: 0.75em;
-	-ie-border-top-right-radius: 0.75em;
-	-o-border-top-right-radius: 0.75em;
+	border-bottom-left-radius: 0.75em;
+	-moz-border-radius-bottomleft: 0.75em;
+	-webkit-border-bottom-left-radius: 0.75em;
+	-ie-border-bottom-left-radius: 0.75em;
+	-o-border-bottom-left-radius: 0.75em;
+	border-bottom-right-radius: 0.75em;
+	-moz-border-radius-bottomright: 0.75em;
+	-webkit-border-bottom-right-radius: 0.75em;
+	-ie-border-bottom-right-radius: 0.75em;
+	-o-border-bottom-right-radius: 0.75em;
 	
 	font-weight: bold;
 	
@@ -88,7 +91,8 @@ a:hover {
 /* sidebar */
 
 .sidebar,
-.main {
+.main,
+.below-main {
 	font-size: 120%;
 }
 
@@ -119,6 +123,8 @@ a:hover {
 }
 
 .main {
+	position: relative;
+	
 	border-top-style: solid;
 	border-top-width: 2px;
 	border-top-color: #fff;
@@ -139,9 +145,32 @@ a:hover {
 	margin-left: 12em;
 	margin-top: 0em;
 	
-	box-shadow: -5px -5px 5px #666;
-	-moz-box-shadow: -5px -5px 5px #666;
-	-webkit-box-shadow: -5px -5px 5px #666;
+	box-shadow: -0.4em -0.4em 2em #888;
+	-moz-box-shadow: -0.4em -0.4em 2em #888;
+	-webkit-box-shadow: -0.4em -0.4em 2em #888;
+	-ie-box-shadow: -0.4em -0.4em 2em #888;
+	-o-box-shadow: -0.4em -0.4em 2em #888;
+}
+
+.right-of-main,
+.below-main {
+	background: #fff;
+}
+
+.right-of-main {
+	position: absolute;
+	right: -50px;
+	top: -2px;
+	width: 50px;
+	height: 100%;
+}
+
+.below-main {
+	position: relative;
+	bottom: -50px;
+	left: 5px;
+	height: 50px;
+	margin-left: -2em;
 }
 
 
