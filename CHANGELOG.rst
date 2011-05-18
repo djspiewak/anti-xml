@@ -5,6 +5,18 @@ CHANGELOG
 0.3
 ===
 
+* **Bug Fixes**
+
+  * `Issue 12`_ – Utility Operations on Group Return an Invalid Zipper
+
+    * Utility methods on ``Group`` now return ``Group`` when possible, rather
+	  than ``Zipper``.  This also changes the ``CanBuildFromWithZipper`` API
+	  by splitting it entirely from ``CanBuildFrom``.
+
+
+.. _Issue #12: https://github.com/djspiewak/anti-xml/issues/12
+
+
 0.2
 ===
 
@@ -38,6 +50,6 @@ documenting here.
   * ``Zipper#unselect`` with a top-level select miss
   * SAX2 sometimes reuses Attributes objects, confusing ``NodeSeqSAXHandler``
   
-  
+
 .. _Issue #16: https://github.com/djspiewak/anti-xml/issues/16
 .. _Issue #13: https://github.com/djspiewak/anti-xml/issues/13
