@@ -30,6 +30,20 @@ package com.codecommit.antixml
 
 import scala.collection.generic.CanBuildFrom
 
+/**
+ * Trait which signifies a special type of [[scala.collection.generic.CanBuildFrom]],
+ * capable of lifting itself into an instance of [[com.codecommit.antixml.CanBuildFromWithZipper]].
+ * Note that even though all CanBuildFrom instances for Traversable targets are
+ * implicitly liftable into [[com.codecommit.antixml.CanBuildFromWithZipper]],
+ * this lifting is generic and often different from the results of the `lift`
+ * method defined by this trait.
+ *
+ * In practice, this trait is used as a marker trait by the utility methods
+ * on [[com.codecommit.antixml.Zipper]] (particularly `map` and `flatMap`).
+ * Without this trait, it would be impossible to distinguish zippable collection
+ * types from non-zippable collection types while preserving the override of
+ * these methods.
+ */
 trait CanProduceZipper[-From, -Elem, To] { this: CanBuildFrom[From, Elem, _ >: To] =>
   def lift: CanBuildFromWithZipper[From, Elem, To]
 }

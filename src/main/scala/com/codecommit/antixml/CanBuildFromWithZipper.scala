@@ -33,12 +33,13 @@ import scala.collection.immutable.Vector
 import scala.collection.mutable.Builder
 
 /**
- * An extension of [[scala.collection.generic.CanBuildFrom]] with functionality
- * required to generate zippers (during selection).  In addition to providing the
- * standard CanBuildFrom functionality (producing an instance
- * of [[scala.collection.mutable.Builder]]) with respect to a provided zipper
- * context, this typeclass also provides a monoidal append method on the `To` type.
- * This is required for deep-select on [[com.codecommit.antixml.Group]].
+ * An implicit factory creator for use in selection in the style
+ * of [[scala.collection.generic.CanBuildFrom]] with functionality required to
+ * generate zippers.  In addition to providing the standard CanBuildFrom
+ * functionality (producing an instanceof [[scala.collection.mutable.Builder]])
+ * with respect to a provided zipper context, this typeclass also provides a
+ * monoidal append method on the `To` type.   This is required for deep-select on
+ * [[com.codecommit.antixml.Group]].
  *
  * A default implicit "lifting" is provided from [[scala.collection.generic.CanBuildFrom]] to
  * an instances of [[com.codecommit.antixml.CanBuildFromWithZipper]] for all target
