@@ -28,7 +28,7 @@
 
 package com.codecommit.antixml.util
 
-private[antixml] class CatamorphicVector[S, +A] private (
+private[antixml] class LazyVector[S, +A] private (
     private[this] var _body: Vector[A],
     private[this] var _tail: Vector[A],
     private var state: S,
@@ -52,33 +52,33 @@ private[antixml] class CatamorphicVector[S, +A] private (
       throw new IndexOutOfBoundsException(i.toString)
   }
   
-  def updated[B >: A](i: Int, b: B): CatamorphicVector[S, B] = {
+  def updated[B >: A](i: Int, b: B): LazyVector[S, B] = {
     extend(i)
     val body2 = if (i < body.length)
       body.updated(i, b)
     else
       throw new IndexOutOfBoundsException(i.toString)
     
-    new CatamorphicVector(body2, tail, state, f)
+    new LazyVector(body2, tail, state, f)
   }
   
-  def +:[B >: A](b: B): CatamorphicVector[S, B] =
-    new CatamorphicVector(b +: body, tail, state, f)
+  def +:[B >: A](b: B): LazyVector[S, B] =
+    new LazyVector(b +: body, tail, state, f)
   
-  def :+[B >: A](b: B): CatamorphicVector[S, B] =
-    new CatamorphicVector(body, tail :+ b, state, f)
+  def :+[B >: A](b: B): LazyVector[S, B] =
+    new LazyVector(body, tail :+ b, state, f)
   
-  def ++[B >: A](that: CatamorphicVector[S, B]): CatamorphicVector[S, B] =
-    new CatamorphicVector(force ++ that.body, that.tail, that.state, that.f)
+  def ++[B >: A](that: LazyVector[S, B]): LazyVector[S, B] =
+    new LazyVector(force ++ that.body, that.tail, that.state, that.f)
   
-  def ++[B >: A](that: Vector[B]): CatamorphicVector[S, B] =
-    new CatamorphicVector(body, tail ++ that, state, f)
+  def ++[B >: A](that: Vector[B]): LazyVector[S, B] =
+    new LazyVector(body, tail ++ that, state, f)
   
-  def map[B](f: A => B): CatamorphicVector[S, B] = {
+  def map[B](f: A => B): LazyVector[S, B] = {
     val body2 = body map f
     val tail2 = tail map f
     val f2 = this.f andThen { _ map { case (s, a) => (s, f(a)) } }
-    new CatamorphicVector(body2, tail2, state, f2)
+    new LazyVector(body2, tail2, state, f2)
   }
   
   def force: Vector[A] = {
@@ -116,10 +116,10 @@ private[antixml] class CatamorphicVector[S, +A] private (
     forced.length
   }
   
-  override def toString = "CatamorphicVector(%s, %s, %s, %s)".format(body, tail, state, f)
+  override def toString = "LazyVector(%s, %s, %s, %s)".format(body, tail, state, f)
 }
 
-private[antixml] object CatamorphicVector {
-  def apply[S, A](init: S)(f: S => Option[(S, A)]): CatamorphicVector[S, A] =
-    new CatamorphicVector(Vector(), Vector(), init, f)
+private[antixml] object LazyVector {
+  def apply[S, A](init: S)(f: S => Option[(S, A)]): LazyVector[S, A] =
+    new LazyVector(Vector(), Vector(), init, f)
 }
