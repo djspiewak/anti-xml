@@ -54,7 +54,7 @@ a:hover {
 	
 	border-style: solid;
 	border-width: 1px;
-	border-color: #999;
+	border-color: #ccc;
 	border-bottom: none;
 	
 	padding: 0.75em;
@@ -71,6 +71,12 @@ a:hover {
 	-webkit-border-top-right-radius: 0.75em;
 	-ie-border-top-right-radius: 0.75em;
 	-o-border-top-right-radius: 0.75em;
+	
+	font-weight: bold;
+	
+	background: #ccc;
+	color: #333;
+	text-shadow: #f0f0f0 0px 0.07em;
 }
 
 .header .version-tag .stable,
@@ -115,11 +121,11 @@ a:hover {
 .main {
 	border-top-style: solid;
 	border-top-width: 2px;
-	border-top-color: #999;
+	border-top-color: #ccc;
 	
 	border-left-style: solid;
 	border-left-width: 2px;
-	border-left-color: #999;
+	border-left-color: #ccc;
 	
 	border-top-left-radius: 1em;
 	-moz-border-radius-topleft: 1em;
