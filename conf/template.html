@@ -10,43 +10,45 @@
 		<link rel="stylesheet" type="text/css" href="style.css"/>
 	</head>
 	<body>
-		<div class="header">
-			<h1 class="title" onclick="window.location = 'index.html';">Anti-XML</h1>
-			<h2 class="subtitle" onclick="window.location = 'index.html';">the non-violent solution</h2>
-			<div class="version-tag">
-				<span class="stable">stable version: 0.2</span>
-				<span class="latest">latest version: 0.3-SNAPSHOT</span>
+		<div class="container">
+			<div class="header">
+				<h1 class="title" onclick="window.location = 'index.html';">Anti-XML</h1>
+				<h2 class="subtitle" onclick="window.location = 'index.html';">the non-violent solution</h2>
+				<div class="version-tag">
+					<span class="stable">stable version: 0.2</span>
+					<span class="latest">latest version: 0.3-SNAPSHOT</span>
+				</div>
 			</div>
-		</div>
-		
-		<div class="sidebar">
-			<ul>
-				<li class="nav-link"><a href="/">Main</a></li>
-				<li class="nav-link"><a href="faq.html">FAQ</a></li>
-				<li class="nav-link"><a href="usage.html">Usage</a></li>
-			</ul>
 			
-			<ul>
-				<li class="nav-title">Documentation</li>
-				<li class="nav-link"><a href="selectors.html">Selectors</a></li>
-				<li class="nav-link"><a href="zippers.html">Zippers</a></li>
-				<li class="nav-link"><a href="performance.html">Performance</a></li>
-			</ul>
+			<div class="sidebar">
+				<ul>
+					<li class="nav-link"><a href="/">Main</a></li>
+					<li class="nav-link"><a href="faq.html">FAQ</a></li>
+					<li class="nav-link"><a href="usage.html">Usage</a></li>
+				</ul>
+				
+				<ul>
+					<li class="nav-title">Documentation</li>
+					<li class="nav-link"><a href="selectors.html">Selectors</a></li>
+					<li class="nav-link"><a href="zippers.html">Zippers</a></li>
+					<li class="nav-link"><a href="performance.html">Performance</a></li>
+				</ul>
+				
+				<ul>
+					<li class="nav-title">Project</li>
+					<li><a href="contributing.html">Contributing</a></li>
+					<li><a href="http://github.com/djspiewak/anti-xml">Source</a></li>
+					<li><a href="http://www.danielspiewak.com/anti-xml/doc/">Scaladoc</a></li>
+					<li><a href="license.html">License</a></li>
+				</ul>
+			</div>
 			
-			<ul>
-				<li class="nav-title">Project</li>
-				<li><a href="contributing.html">Contributing</a></li>
-				<li><a href="http://github.com/djspiewak/anti-xml">Source</a></li>
-				<li><a href="http://www.danielspiewak.com/anti-xml/doc/">Scaladoc</a></li>
-				<li><a href="license.html">License</a></li>
-			</ul>
-		</div>
-		
-		<div class="main">
-			<div class="content">
-				%(body_pre_docinfo)s
-				%(docinfo)s
-				%(body)s
+			<div class="main">
+				<div class="content">
+					%(body_pre_docinfo)s
+					%(docinfo)s
+					%(body)s
+				</div>
 			</div>
 		</div>
 	</body>
