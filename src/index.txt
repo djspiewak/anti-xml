@@ -1,16 +1,14 @@
 .. :mode=rest:
 
 Anti-XML is a proposed replacement for the ``scala.xml`` package in
-the Scala standard library.
-
-The standard package is outdated and beyond fixing.  We need to start
-over, on solid foundations and unburdened by backward compatibility.
-
-Anti-XML aims for quality in three major areas:
+the Scala standard library.  The standard package is outdated and
+beyond fixing.  We need to start over, on solid foundations and
+unburdened by backward compatibility.  Anti-XML aims for quality in
+three major areas:
 
 * **Usability**
 
-  * Leverage powerful ideas like combinators and proper ADT_ s
+  * Leverage powerful ideas like combinators and proper ADTs_
   * Leverage the 2.8 collections library
   * Provide consistent selector behavior
   * Avoid these missteps: ``Node <: NodeSeq <: Seq[Node]``,
@@ -31,6 +29,6 @@ Anti-XML aims for quality in three major areas:
 We are exploring `many ideas`_ for this project. It will be
 interesting to see where things go!
 
-.. _ADT: http://en.wikipedia.org/wiki/Algebraic_data_type
+.. _ADTs: http://en.wikipedia.org/wiki/Algebraic_data_type
 .. _many ideas: http://dl.dropbox.com/u/1679797/anti-xml-todo.html
 .. _Novell Vibe: http://vibe.novell.com
