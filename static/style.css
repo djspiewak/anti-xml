@@ -38,11 +38,21 @@
 	display: block;
 }
 
+
+/* sidebar */
+
+.sidebar,
+.main {
+	font-size: 130%;
+}
+
 .sidebar {
-	width: 12em;
+	width: 11em;
 	position: absolute;
 	top: 135px;
 	left: 0px;
+	
+	line-height: 1.5em;
 }
 
 .sidebar li {
@@ -54,17 +64,23 @@
 	margin-left: -0.5em;
 	margin-bottom: 0.5em;
 	font-weight: bold;
+	font-size: 110%;
+}
+
+.sidebar a,
+.sidebar a:visited {
+	color: #00b;
 }
 
 
 /* main content */
 
 .main {
-	margin-left: 12em;
+	margin-left: 11em;
 }
 
 .main .content {
-	font-size: 116%;
+	font-size: 90%;
 }
 
 
