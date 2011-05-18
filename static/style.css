@@ -80,9 +80,9 @@ a:hover {
 }
 
 .sidebar {
+	float: left;
 	width: 12em;
-	position: absolute;
-	top: 135px;
+	position: relative;
 	left: 0px;
 	
 	line-height: 1.5em;
