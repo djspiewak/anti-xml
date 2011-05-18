@@ -40,6 +40,26 @@ a {
 	position: absolute;
 	right: 25px;
 	bottom: 25px;
+	
+	border-style: solid;
+	border-width: 1px;
+	border-color: #999;
+	border-bottom: none;
+	
+	padding: 0.75em;
+	padding-bottom: 0.325em;
+	padding-top: 0.5em;
+	
+	border-top-left-radius: 0.75em;
+	-moz-border-radius-topleft: 0.75em;
+	-webkit-border-top-left-radius: 0.75em;
+	-ie-border-top-left-radius: 0.75em;
+	-o-border-top-left-radius: 0.75em;
+	border-top-right-radius: 0.75em;
+	-moz-border-radius-topright: 0.75em;
+	-webkit-border-top-right-radius: 0.75em;
+	-ie-border-top-right-radius: 0.75em;
+	-o-border-top-right-radius: 0.75em;
 }
 
 .header .version-tag .stable,
