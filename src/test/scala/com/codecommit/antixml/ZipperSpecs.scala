@@ -51,6 +51,13 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
   }
   
   "zipper updates within '\\' results" should {
+    "rebuild from empty result set" in {
+      val xml = Group(<parent><child/><child/></parent>.anti)
+      (xml \ 'foo).unselect mustEqual xml
+      (bookstore \ 'book \ 'foo).unselect mustEqual (bookstore \ 'book)
+      (bookstore \ 'book \ 'foo).unselect.unselect mustEqual Group(bookstore)
+    }
+    
     "rebuild updated at one level" in {
       val books = bookstore \ "book"
       val book0 = books(0).copy(attrs=Attributes("updated" -> "yes"))

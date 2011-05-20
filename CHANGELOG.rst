@@ -7,6 +7,7 @@ CHANGELOG
 
 * **Bug Fixes**
 
+  * ``Zipper#unselect`` on empty selection results no functions appropriately
   * `Issue 12`_ – Utility Operations on Group Return an Invalid Zipper
 
     * Utility methods on ``Group`` now return ``Group`` when possible, rather

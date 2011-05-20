@@ -165,7 +165,8 @@ trait Selectable[+A <: Node] {
       builder ++= cat
       builder.result
     } else {
-      cbf2().result
+      val zipper = toZipper
+      cbf(zipper, zipper.toVector map Function.const(None)).result
     }
   }
   
