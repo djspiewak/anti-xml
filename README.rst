@@ -92,7 +92,7 @@ build systems.
   
     <dependency>
       <groupId>com.codecommit</groupId>
-      <artifactId>anti-xml_2.8.1</artifactId>
+      <artifactId>anti-xml_2.9.0-1</artifactId>
       <version>0.2</version>
     </dependency>
     
@@ -102,6 +102,7 @@ Supported Versions of Scala
 
 Anti-XML is cross-built_ for the following Scala versions:
 
+* **2.9.0-1**
 * **2.9.0**
 * **2.8.1**
 
