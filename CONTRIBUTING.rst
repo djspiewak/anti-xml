@@ -39,37 +39,29 @@ Legal Nastiness
 
 Alright, here comes a mountain of boring; it's important though, so **please read!**
 As you should have already seen, Anti-XML is licensed under the `BSD License`_.
-The copyright holder for all of the code in the Git repository *Daniel Spiewak*.
 This is very important to understand: if you contribute code to Anti-XML, you
-implicitly agree to transfer ownership of that code to Daniel Spiewak!  In this
-context, "contribute code" means opening a pull request on GitHub, informally via
-email, or any other method by which code in your purview enters the primary Git
-repository for Anti-XML.  If you create a pull request for commits on which someone
-else is the author, you are certifying that you have obtained the relevant
-permission and are empowered to release the copyright on that code (as well as
-your own) to Daniel Spiewak.
+are agreeing to assign a non-exclusive, worldwide, royalty-free copyright license
+to the Anti-XML project, collectively represented by *Daniel Spiewak*.  In
+plain-English, this means that if you contribute, you're letting Anti-XML incorporate,
+control and extend the contributions you submit.  There is a more precise, legal
+definition of this assignment below (drawn from the `Common Public License`_).
 
-To be clear, this implicit contributor agreement is not because I'm a copyright-hungry
-control freak who simply must posess the fairest code in the land.  Rather, it is
-so that I have the ability to steer the project and control the licensing as
-necessary (e.g. applying the BSD License is a decision which requires such ownership).
-If anything, this makes it slightly harder on me, since I am now legally
-responsible for *everything* in the repository.  So, if some company decides we're
-stepping on their patents, I'm the one who is held accountable.
+All of this is pretty standard for an open-source project.  Basically, there is
+an understanding that if you contribute, you're giving away that source code
+under the terms of the project license.  The only reason I have to spell it out
+here is to prevent law suits (and also to ensure that the code provenance is clear
+for any corporation which wishes to make use of the library).  There is nothing
+required or implied here that is particularly out of the ordinary.
 
-Most large projects (e.g. Apache, Eclipse, Scala) have committer agreements which
-must be signed and filed basically stating the majority of the above.  We're not
-going to have that for Anti-XML, simply because it's a lot of work and it imposes
-a huge barrier to contribution.  Instead, we're going to rely on the implicit
-assumption that if you ask me to pull your commits into the Git repository, you
-are (at the same time) transfering the copyright on that code to Daniel Spiewak.
-For my part, I will not pull a commit into the repository without someone actually
-asking me to do so.  This prevents me from "stealing" code out from under you.
-It also makes it possible for someone to fork Anti-XML without worrying about me
-taking their work without permission.
+The important point here is that you implicitly agree to these terms when you
+submit a pull request to the project.  In other words, if you *ask* me to include
+your contributions into the main Git repository, you are assumed to have agreed
+to these terms.  This is analogous to the "shrink wrap" agreement used by certain
+hardware OEMs.  If I could make GitHub show this agreement when you submit the
+pull request, I would.
 
-If, for whatever reason, you decide after the fact that you *don't* want to
-assign copyright on your code over to me, let me know within 30 days of the pull
+If, for whatever reason, you decide after the fact that you *don't* agree to
+these terms on your contribution, let me know within 30 days of the pull
 request and I'll remove your code from the repository, no questions asked.  If
 you discover the mistake after the 30 day window, I'll still try to accomodate
 you, but I can't make any guarantees given the fact that additional code may have
@@ -84,7 +76,84 @@ interesting things, like the actual code.
 `Daniel Spiewak`_
 
 
+Legalese
+========
+
+(shamelessly stolen from the text of the `Common Public License`_)
+
+
+Definitions
+-----------
+
+"Contribution" means:
+
+* in the case of the initial Contributor, the initial code and
+  documentation distributed under this Agreement, and
+* in the case of each subsequent Contributor:
+
+  i) changes to the Program, and
+  ii) additions to the Program;
+
+where such changes and/or additions to the Program originate
+from and are distributed by that particular Contributor. A
+Contribution 'originates' from a Contributor if it was added to the
+Program by such Contributor itself or anyone acting on such
+Contributor's behalf. Contributions do not include additions to the
+Program which: (i) are separate modules of software distributed in
+conjunction with the Program under their own license agreement,
+and (ii) are not derivative works of the Program.
+
+"Contributor" means any person or entity that distributes the Program.
+
+"Licensed Patents " mean patent claims licensable by a Contributor
+which are necessarily infringed by the use or sale of its Contribution
+alone or when combined with the Program.
+
+"Program" means the Contributions distributed in accordance with this Agreement.
+
+"Recipient" means anyone who receives the Program under this
+Agreement, including all Contributors.
+
+
+Agreement
+---------
+
+* Subject to the terms of this Agreement, each Contributor
+  hereby grants Recipient a non-exclusive, worldwide, royalty-free
+  copyright license to reproduce, prepare derivative works of, publicly
+  display, publicly perform, distribute and sublicense the Contribution
+  of such Contributor, if any, and such derivative works, in source code
+  and object code form.
+* Subject to the terms of this Agreement, each Contributor
+  hereby grants Recipient a non-exclusive, worldwide, royalty-free
+  patent license under Licensed Patents to make, use, sell, offer to
+  sell, import and otherwise transfer the Contribution of such
+  Contributor, if any, in source code and object code form. This patent
+  license shall apply to the combination of the Contribution and the
+  Program if, at the time the Contribution is added by the Contributor,
+  such addition of the Contribution causes such combination to be
+  covered by the Licensed Patents. The patent license shall not apply to
+  any other combinations which include the Contribution. No hardware per
+  se is licensed hereunder.
+* Recipient understands that although each Contributor grants
+  the licenses to its Contributions set forth herein, no assurances are
+  provided by any Contributor that the Program does not infringe the
+  patent or other intellectual property rights of any other entity. Each
+  Contributor disclaims any liability to Recipient for claims brought by
+  any other entity based on infringement of intellectual property rights
+  or otherwise. As a condition to exercising the rights and licenses
+  granted hereunder, each Recipient hereby assumes sole responsibility
+  to secure any other intellectual property rights needed, if any. For
+  example, if a third party patent license is required to allow
+  Recipient to distribute the Program, it is Recipient's responsibility
+  to acquire that license before distributing the Program.
+* Each Contributor represents that to its knowledge it has
+  sufficient copyright rights in its Contribution, if any, to grant the
+  copyright license set forth in this Agreement.
+
+
 .. _feature branch: http://nvie.com/posts/a-successful-git-branching-model/
 .. _Scala Style Guide: http://davetron5000.github.com/scala-style/
 .. _BSD License: http://www.opensource.org/licenses/bsd-license.php
 .. _Daniel Spiewak: mailto:djspiewak@gmail.com
+.. _Common Public License: http://www.opensource.org/licenses/cpl1.0
