@@ -119,6 +119,14 @@ body {
 	font-size: 110%;
 }
 
+.sidebar .nav-link .nav-link {
+	margin-left: -1.5em;
+}
+
+.sidebar li ul {
+	margin-bottom: 0.5em;
+}
+
 .sidebar a,
 .sidebar a:visited {
 	color: #00b;
