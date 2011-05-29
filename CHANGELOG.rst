@@ -5,6 +5,8 @@ CHANGELOG
 0.3
 ===
 
+* Deep-select now returns a ``Group`` rather than a ``Zipper`` with an invalid
+  context
 * **Bug Fixes**
 
   * ``Zipper#unselect`` fails to rebuild siblings at the second level when some

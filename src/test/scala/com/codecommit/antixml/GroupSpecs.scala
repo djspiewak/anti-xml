@@ -75,6 +75,11 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
   }
   
   "deep selection on Group" should {
+    "return something of type Group (*not* type Zipper) on element select" in {
+      val ns = <foo/>.anti
+      validate[Group[Elem]](ns \\ 'bar)
+    }
+    
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
       ns \\ "parent" mustEqual Group(elem("parent"))

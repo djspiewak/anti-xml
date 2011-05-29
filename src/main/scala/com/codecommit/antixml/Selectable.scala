@@ -203,20 +203,20 @@ trait Selectable[+A <: Node] {
    * the resulting zipper will likely throw an exception.  At the very least, it
    * won't return a useful result.  The implementation of this feature is ongoing.
    * 
-   * @usecase def \\(selector: Selector[Node]): Zipper[Node]
+   * @usecase def \\(selector: Selector[Node]): Group[Node]
    */
-  def \\[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
-    implicit val cbf2 = cbf.lift[That]
+  def \\[B, That](selector: Selector[B])(implicit cbf: CanBuildFrom[Group[_], B, That], coerce: That => Traversable[B]): That = {
+    implicit val cbfwz = CanBuildFromWithZipper.identityCanBuildFrom(cbf, coerce)
     
     if (matches(selector)) {
       val recursive = toGroup collect {
         case Elem(_, _, _, _, children) => children \\ selector
-        case _ => cbf2().result
+        case _ => cbf().result
       }
       
-      ((this \ selector) /: recursive)(cbf.append)
+      ((this \ selector) /: recursive)(cbfwz.append)
     } else {
-      cbf2().result
+      cbf().result
     }
   }
   
