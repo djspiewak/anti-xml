@@ -191,7 +191,9 @@ body {
 	line-height: 1.5em;
 }
 
-.main .content p {
+.main .content p,
+.main .content table,
+.main .content img {
 	margin-top: 1.5em;
 	margin-bottom: 1.5em;
 }
@@ -216,6 +218,36 @@ body {
 
 .main .content dd .last {
 	margin-bottom: 0em;
+}
+
+
+/* tables */
+
+.main .content table {
+	border: none;
+	border-collapse: collapse;
+	
+	border-top: solid;
+	border-bottom: solid;
+	border-width: 0.1em;
+	border-color: #999;
+}
+
+.main .content th,
+.main .content td {
+	padding: 0.5em;
+	padding-left: 1em;
+	padding-right: 1em;
+	border: none;
+}
+
+.main .content th {
+	font-size: 110%;
+	text-align: left;
+	
+	border-bottom: solid;
+	border-width: 0.2em;
+	border-color: #ccc;
 }
 
 
