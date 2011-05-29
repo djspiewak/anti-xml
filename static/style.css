@@ -196,6 +196,28 @@ body {
 	margin-bottom: 1.5em;
 }
 
+.main .content dd p {
+	margin-top: 1em;
+	margin-bottom: 1em;
+}
+
+.main .content dt {
+	font-weight: bold;
+	margin-bottom: 0.5em;
+}
+
+.main .content dd {
+	margin-bottom: 1em;
+}
+
+.main .content dd .first {
+	margin-top: 0em;
+}
+
+.main .content dd .last {
+	margin-bottom: 0em;
+}
+
 
 /* page title */
 

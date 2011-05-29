@@ -4,4 +4,78 @@
 FAQ
 ===
 
-*Coming soon!*
+Why a ``scala.xml`` replacement?
+    Mostly because ``scala.xml`` has a lot of problems that become apparent as
+    soon as you try to do anything non-trivial with the library.  The `Novell Vibe`_
+    project makes *extensive* use of ``scala.xml``, and it has been an incredibly
+    painful experience.  The good news is that our pain is your gain, since we
+    have drawn on that (very unpleasant) experience in the design and implementation
+    of Anti-XML.
+    
+    An exhaustive list of features is beyond the scope of this FAQ, but even a
+    cursory glance through the documentation should illuminate many of the
+    significant areas where Anti-XML is functionally distinct from ``scala.xml``.
+    
+What is the ultimate goal of the project?
+    Not to suck.
+    
+    We sincerely hope that this library is useful to anyone trying to do serious
+    XML processing in Scala.  Ultimately, it would be very nice if Anti-XML
+    were incorporated into the Scala standard library as a replacement for
+    ``scala.xml``.  However, such a change would be backwards-incompatible and
+    is a decision which is entirely out of our hands.  At any rate, we're not
+    there yet.  For now, we're stablizing, experimenting and streamlining the
+    library and API.  If you have any suggestions, don't hesitate to let us know!
+    
+How can I help?
+    We have an extensive `todo list`_ which contains most of the big, brainstorm
+    ideas that have been driving our development.  Also, like any non-trivial
+    project, we do have `outstanding bugs`_.  Feel free to grab anything that
+    strikes your fancy and start hacking!  Alternatively, you may feel inspired
+    to work on something that we hadn't even considered.  Feel free to experiment
+    and try different things!  Be sure to read the `contributing information`_
+    and submit a pull request if you want your changes to be incorporated into
+    the main-line repository.
+    
+What license is used by Anti-XML?
+    The BSD License.
+    
+Who is responsible for this monstrosity?
+    An exhaustive list of contributors would be impossible to keep up to date.
+    However, the major contributions have come from the following sources (in
+    order of contributed lines):
+    
+    * `Daniel Spiewak`_
+    * `David LaPalomento`_
+    * `Heiko Seeberger`_
+    * `Jesper Steen Møller`_
+    
+Is Anti-XML ready for production use?
+    Mostly, yes.  We have a very extensive test suite, and we strive to ensure
+    a high quality of code.  However, bugs are inevitable, and we are a very
+    young project.  While *I* would feel comfortable using Anti-XML in a production
+    setting, different people have different comfort levels with such things.
+    
+    The best answer here is simply to judge for yourself.  Clone the Git repository,
+    build the sources, read the spec suite and generate a code coverage report.
+    Try a few examples and see what you think.
+    
+Is the API stable?
+    Mostly, but we don't make any guarantees at this point.  We're currently in
+    a pre-1.0 state, and so we don't feel any inhibition with respect to API
+    changes.  The main concepts and even most of the details in the public API
+    *have* remained stable since the 0.1 release though, so you can expect most
+    changes and incompatibilities to be minor and easily corrected.  Once we
+    reach 1.0, we will be freezing the API and ensuring that future point-releases
+    (e.g. x.0 to x.1) will be backwards-compatible in terms of the API and core
+    semantics.
+    
+.. _Novell Vibe: http://vibe.novell.com
+.. _todo list: http://dl.dropbox.com/u/1679797/anti-xml-todo.html
+.. _outstanding bugs: https://github.com/djspiewak/anti-xml/issues
+.. _contributing information: https://github.com/djspiewak/anti-xml/blob/master/CONTRIBUTING.rst
+
+.. _Daniel Spiewak: http://twitter.com/djspiewak
+.. _David LaPalomento: http://twitter.com/dlapalomento
+.. _Heiko Seeberger: http://twitter.com/hseeberger
+.. _Jesper Steen Møller: http://twitter.com/hr_Moller
