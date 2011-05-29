@@ -46,9 +46,14 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
   
   def unselect: Zipper[Node] = {
     val nodes2 = (map zip parent.toVectorCase).foldLeft(VectorCase[Node]()) {
-      case (acc, (Some((from, to, _, _)), _: Elem)) if from == to => acc
-      case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) => acc :+ rebuild(self.slice(from, to), childMap)
-      case (acc, (_, e)) => acc :+ e
+      case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) if from == to =>
+        acc :+ rebuild(Group(), childMap mapValues Function.const(Set[Int]()))
+      
+      case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) =>
+        acc :+ rebuild(self.slice(from, to), childMap)
+      
+      case (acc, (_, e)) =>
+        acc :+ e
     }
 
     new Group(nodes2) with Zipper[Node] {

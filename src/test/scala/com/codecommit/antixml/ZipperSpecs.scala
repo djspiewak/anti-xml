@@ -33,6 +33,7 @@ import org.specs2.ScalaCheck
 import org.specs2.matcher.MustExpectable._
 import org.scalacheck._
 
+import scala.collection.immutable.Map
 import scala.io.Source
 
 class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
@@ -169,6 +170,42 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       
       xml2 mustEqual xml
     }
+    
+    "rebuild following filter at the first level" in {
+      val books = bookstore \ 'book
+      val bookstore2 = (books filter (books(1) !=)).unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+          children must haveSize(2)
+          children \ 'title \ text mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
+        }
+      }
+    }
+    
+    "rebuild second level siblings following filter at the second level" in {
+      val titles = bookstore \ 'book \ 'title
+      val books2 = (titles filter (titles(1) ==)).unselect
+      
+      books2 must haveSize(3)
+      books2(0) mustEqual <book><author>Hemmingway</author></book>.anti
+      books2(1) mustEqual <book><title>I, Robot</title><author>Isaac Asimov</author></book>.anti
+      books2(2) mustEqual <book><author>Dean Wampler</author><author>Alex Payne</author></book>.anti
+    }
+    
+    "rebuild following filter at the second level" in {
+      val titles = bookstore \ 'book \ 'title
+      val bookstore2 = (titles filter (titles(1) !=)).unselect.unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty =>
+          children must haveSize(3)
+      }
+      
+      val titles2 = bookstore2 \ 'book \ 'title
+      titles2 must haveSize(2)
+      (titles2 \ text) mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
+    }
   }
   
   "utility methods on Zipper" >> {
@@ -180,6 +217,16 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       }
       
       func(xml.toZipper) mustEqual xml
+    }
+    
+    "identity filter should return self" in check { xml: Group[Node] =>
+      val result = xml.toZipper filter Function.const(true)
+      result mustEqual xml
+    }
+    
+    "identity filter and unselect should return self" in check { xml: Group[Node] =>
+      val sub = xml \ *
+      (sub filter Function.const(true) unselect) mustEqual xml
     }
   }
   

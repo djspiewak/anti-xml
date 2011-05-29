@@ -145,14 +145,14 @@ private[antixml] case class Vector1[+A](_1: A) extends VectorCase[A] {
     if (index == 0) 
       _1 
     else
-      throw new IndexOutOfBoundsException
+      throw new IndexOutOfBoundsException(index.toString)
   }
   
   def updated[B >: A](index: Int, b: B) = {
     if (index == 0)
       Vector1(b)
     else
-      throw new IndexOutOfBoundsException
+      throw new IndexOutOfBoundsException(index.toString)
   }
   
   def ++[B >: A](that: VectorCase[B]) = that match {
@@ -178,13 +178,13 @@ private[antixml] case class Vector2[+A](_1: A, _2: A) extends VectorCase[A] {
   def apply(index: Int) = index match {
     case 0 => _1
     case 1 => _2
-    case _ => throw new IndexOutOfBoundsException
+    case _ => throw new IndexOutOfBoundsException(index.toString)
   }
   
   def updated[B >: A](index: Int, b: B) = index match {
     case 0 => Vector2(b, _2)
     case 1 => Vector2(_1, b)
-    case _ => throw new IndexOutOfBoundsException
+    case _ => throw new IndexOutOfBoundsException(index.toString)
   }
   
   def ++[B >: A](that: VectorCase[B]) = that match {
@@ -210,14 +210,14 @@ private[antixml] case class Vector3[+A](_1: A, _2: A, _3: A) extends VectorCase[
     case 0 => _1
     case 1 => _2
     case 2 => _3
-    case _ => throw new IndexOutOfBoundsException
+    case _ => throw new IndexOutOfBoundsException(index.toString)
   }
   
   def updated[B >: A](index: Int, b: B) = index match {
     case 0 => Vector3(b, _2, _3)
     case 1 => Vector3(_1, b, _3)
     case 2 => Vector3(_1, _2, b)
-    case _ => throw new IndexOutOfBoundsException
+    case _ => throw new IndexOutOfBoundsException(index.toString)
   }
   
   def ++[B >: A](that: VectorCase[B]) = that match {
@@ -243,7 +243,7 @@ private[antixml] case class Vector4[+A](_1: A, _2: A, _3: A, _4: A) extends Vect
     case 1 => _2
     case 2 => _3
     case 3 => _4
-    case _ => throw new IndexOutOfBoundsException
+    case _ => throw new IndexOutOfBoundsException(index.toString)
   }
   
   def updated[B >: A](index: Int, b: B) = index match {
@@ -251,7 +251,7 @@ private[antixml] case class Vector4[+A](_1: A, _2: A, _3: A, _4: A) extends Vect
     case 1 => Vector4(_1, b, _3, _4)
     case 2 => Vector4(_1, _2, b, _4)
     case 3 => Vector4(_1, _2, _3, b)
-    case _ => throw new IndexOutOfBoundsException
+    case _ => throw new IndexOutOfBoundsException(index.toString)
   }
   
   def ++[B >: A](that: VectorCase[B]) = that match {

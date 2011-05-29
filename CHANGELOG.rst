@@ -7,6 +7,8 @@ CHANGELOG
 
 * **Bug Fixes**
 
+  * ``Zipper#unselect`` fails to rebuild siblings at the second level when some
+    results have been dropped
   * ``Zipper#unselect`` on empty selection results no functions appropriately
   * `Issue 12`_ – Utility Operations on Group Return an Invalid Zipper
 
