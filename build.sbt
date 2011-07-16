@@ -64,8 +64,6 @@ scaladocOptions in Compile <++= (unmanagedSourceDirectories in Compile) map { (u
   )
 }
 
-publishMavenStyle := true
-
 publishArtifact in (Compile, packageBin) := true
 
 publishArtifact in (Test, packageBin) := false
