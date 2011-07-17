@@ -56,6 +56,8 @@ InputKey[Option[String]]("test-perf") <<= inputTask { (args: TaskKey[Seq[String]
   }  
 }
 
+doc in Compile <<= (clean in Compile, doc in Compile) map { (c, d) => d }
+
 scaladocOptions in Compile <++= (unmanagedSourceDirectories in Compile) map { (usd) =>
   val scalaSrc: File = (usd filter { _.toString endsWith "scala" }).head
   Seq(
