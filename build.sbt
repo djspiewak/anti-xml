@@ -17,11 +17,11 @@ sourceGenerators in Compile <+= (sourceManaged in Compile, scalaVersion, streams
     } else {
       """type CompatTraversable[A] = Traversable[A]"""
     }    
-    val fullSource = """
-      package com.codecommit.antixml {
-        private[antixml] trait ScalaCompat {""" + body + """}
-      }
-      """
+    val fullSource =
+      """package com.codecommit.antixml {
+        |  private[antixml] trait ScalaCompat {%s}
+        |}
+        """.format(body).stripMargin
     val file = dir / "CompatTraversable.scala"
     IO.write(file, fullSource)
     Seq(file)
