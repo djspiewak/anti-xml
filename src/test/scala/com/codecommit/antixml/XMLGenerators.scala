@@ -55,7 +55,7 @@ trait XMLGenerators {
   implicit val arbAttributes: Arbitrary[Attributes] = Arbitrary(genAttributes)
   implicit val arbQName: Arbitrary[QName] = Arbitrary(genQName)
   
-  lazy val elemSelectorGenerator = oneOf(identifiers) map stringToSelector
+  lazy val elemSelectorGenerator = oneOf(identifiers) map Selector.stringToSelector
   
   lazy val nodeSelectorGenerator: Gen[Selector[Node]] = for {
     flag <- arbitrary[Boolean]

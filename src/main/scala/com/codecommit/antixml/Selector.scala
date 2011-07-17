@@ -36,6 +36,25 @@ trait Selector[+A] extends PartialFunction[Node, A] {
 }
 
 object Selector {
+
+  /**
+   * Implicitly lifts a [[scala.String]] into an instance of [[com.codecommit.antixml.Selector]]
+   * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
+   * For example: `ns \ "name"`
+   */
+  implicit def stringToSelector(name: String): Selector[Elem] =
+    Selector({ case e @ Elem(_, `name`, _, _,  _) => e }, Some(name))
+
+  /**
+   * Implicitly lifts a [[scala.Symbol]] into an instance of [[com.codecommit.antixml.Selector]]
+   * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
+   * For example: `ns \ 'name`
+   */
+  implicit def symbolToSelector(sym: Symbol): Selector[Elem] = {
+    val Symbol(name) = sym
+    stringToSelector(name)
+  }
+  
   def apply[A](pf: PartialFunction[Node, A], name: Option[String] = None) =
     new Selector[A] {
       override val elementName = name

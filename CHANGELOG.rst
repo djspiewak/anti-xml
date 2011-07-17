@@ -7,6 +7,8 @@ CHANGELOG
 
 * Deep-select now returns a ``Group`` rather than a ``Zipper`` with an invalid
   context
+* Implicit conversions from ``String`` and ``Symbol`` to ``Selector`` are now
+  hidden in the ``Selector`` companion object
 * **Bug Fixes**
 
   * ``Zipper#unselect`` fails to rebuild siblings at the second level when some
