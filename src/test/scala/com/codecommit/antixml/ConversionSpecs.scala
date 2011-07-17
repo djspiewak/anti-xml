@@ -45,11 +45,11 @@ class ConversionSpecs extends Specification with ScalaCheck {
       val n: xml.Node = e
       val ns: xml.NodeSeq = e
       
-      val e2 = e.anti
-      val t2 = t.anti
-      val r2 = r.anti
-      val n2 = n.anti
-      val ns2 = ns.anti
+      val e2 = e.convert
+      val t2 = t.convert
+      val r2 = r.convert
+      val n2 = n.convert
+      val ns2 = ns.convert
       
       validate[Elem](e2)
       validate[Text](t2)
@@ -60,39 +60,39 @@ class ConversionSpecs extends Specification with ScalaCheck {
     
     "convert text nodes" in check { str: String =>
       val node = xml.Text(str)
-      node.anti mustEqual Text(str)
+      node.convert mustEqual Text(str)
     }
     
     "convert entity references" in check { str: String =>
       val ref = xml.EntityRef(str)
-      ref.anti mustEqual EntityRef(str)
-      (ref: xml.Node).anti mustEqual EntityRef(str)
+      ref.convert mustEqual EntityRef(str)
+      (ref: xml.Node).convert mustEqual EntityRef(str)
     }
     
     "not convert groups" in {
       val g = xml.Group(List(<foo/>, <bar/>))
-      g.anti must throwA[RuntimeException]
+      g.convert must throwA[RuntimeException]
     }
     
     "convert elem names without namespaces" in {
-      val e = <test/>.anti
+      val e = <test/>.convert
       e.prefix mustEqual None
       e.name mustEqual "test"
     }
     
     "convert elem names with namespaces" in {
-      val e = <w:test/>.anti
+      val e = <w:test/>.convert
       e.prefix mustEqual Some("w")
       e.name mustEqual "test"
     }
     
     "convert elem attributes" in {
-      (<test/>).anti.attrs mustEqual Map()
-      (<test a:c="1" b="foo" xmlns:a="a"/>).anti.attrs mustEqual Attributes(QName(Some("a"), "c") -> "1", "b" -> "foo")
+      (<test/>).convert.attrs mustEqual Map()
+      (<test a:c="1" b="foo" xmlns:a="a"/>).convert.attrs mustEqual Attributes(QName(Some("a"), "c") -> "1", "b" -> "foo")
     }
     
     "convert elem children" in {
-      val e = <test>Text1<child/>Text2</test>.anti
+      val e = <test>Text1<child/>Text2</test>.convert
       e.children must have size(3)
       e.children(0) mustEqual Text("Text1")
       e.children(1) mustEqual Elem(None, "child", Attributes(), Map(), Group())
@@ -100,9 +100,9 @@ class ConversionSpecs extends Specification with ScalaCheck {
     }
     
     "convert NodeSeq" in {
-      xml.NodeSeq.fromSeq(Nil).anti mustEqual Group()
+      xml.NodeSeq.fromSeq(Nil).convert mustEqual Group()
       
-      val result = xml.NodeSeq.fromSeq(List(<test1/>, <test2/>, xml.Text("text"))).anti
+      val result = xml.NodeSeq.fromSeq(List(<test1/>, <test2/>, xml.Text("text"))).convert
       val expected = Group(Elem(None, "test1", Attributes(), Map(), Group()),
         Elem(None, "test2", Attributes(), Map(), Group()),
         Text("text"))

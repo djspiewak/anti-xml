@@ -9,6 +9,7 @@ CHANGELOG
   context
 * Implicit conversions from ``String`` and ``Symbol`` to ``Selector`` are now
   hidden in the ``Selector`` companion object
+* Explicit converters now use ``convert`` instead of ``anti``
 * **Bug Fixes**
 
   * ``Zipper#unselect`` fails to rebuild siblings at the second level when some

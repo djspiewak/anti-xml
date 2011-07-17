@@ -53,7 +53,7 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
   
   "zipper updates within '\\' results" should {
     "rebuild from empty result set" in {
-      val xml = Group(<parent><child/><child/></parent>.anti)
+      val xml = Group(<parent><child/><child/></parent>.convert)
       (xml \ 'foo).unselect mustEqual xml
       (bookstore \ 'book \ 'foo).unselect mustEqual (bookstore \ 'book)
       (bookstore \ 'book \ 'foo).unselect.unselect mustEqual Group(bookstore)
@@ -137,27 +137,27 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       } yield bookElem.copy(attrs=(bookElem.attrs + ("title" -> title)), children=filteredChildren)
       
       val bookstore2 = titledBooks.unselect
-      val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
+      val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert
       bookstore2 mustEqual Group(expected)
     }
     
     "rebuild following identity map with selection miss at the top level" >> {
       "with suffix miss" in {
-        val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti, <miss/>.anti)
+        val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.convert, <miss/>.convert)
         val xml2 = (xml \ "sub") map identity unselect
         
         xml2 mustEqual xml
       }
       
       "with prefix miss" in {
-        val xml = Group(<miss/>.anti, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti)
+        val xml = Group(<miss/>.convert, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.convert)
         val xml2 = (xml \ "sub") map identity unselect
         
         xml2 mustEqual xml
       }
       
       "with prefix and suffix miss" in {
-        val xml = Group(<miss/>.anti, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti, <miss/>.anti)
+        val xml = Group(<miss/>.convert, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.convert, <miss/>.convert)
         val xml2 = (xml \ "sub") map identity unselect
         
         xml2 mustEqual xml
@@ -165,7 +165,7 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
     }
     
     "rebuild following identity map with selection miss at the second level" in {
-      val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><miss/><sub bar="test2"/></parent>.anti)
+      val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><miss/><sub bar="test2"/></parent>.convert)
       val xml2 = (xml \ "sub") map identity unselect
       
       xml2 mustEqual xml
@@ -188,9 +188,9 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       val books2 = (titles filter (titles(1) ==)).unselect
       
       books2 must haveSize(3)
-      books2(0) mustEqual <book><author>Hemmingway</author></book>.anti
-      books2(1) mustEqual <book><title>I, Robot</title><author>Isaac Asimov</author></book>.anti
-      books2(2) mustEqual <book><author>Dean Wampler</author><author>Alex Payne</author></book>.anti
+      books2(0) mustEqual <book><author>Hemmingway</author></book>.convert
+      books2(1) mustEqual <book><title>I, Robot</title><author>Isaac Asimov</author></book>.convert
+      books2(2) mustEqual <book><author>Dean Wampler</author><author>Alex Payne</author></book>.convert
     }
     
     "rebuild following filter at the second level" in {
