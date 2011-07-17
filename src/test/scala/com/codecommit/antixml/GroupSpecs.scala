@@ -45,6 +45,14 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       ns \ "parent" mustEqual Group(elem("parent"))
     }
     
+    "find an immediate descendant with string where clause" in {
+      val ns = fromString("<parent><a><child1/><child2/></a></parent>")
+      ns \ "a" \ where {
+        case "child1" => "foo"
+        case "child2" => "bar"
+      } mustEqual Group(elem("foo"), elem("bar"))
+    }
+    
     "be referentially transparent" in {
       val ns = fromString("<parent><parent/></parent>")
       ns \ "parent" mustEqual Group(elem("parent"))

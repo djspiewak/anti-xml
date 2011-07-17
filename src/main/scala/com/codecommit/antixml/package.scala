@@ -87,7 +87,15 @@ package object antixml {
     val (key, value) = pair
     (QName(None, key), value)
   }
-
+     
+  /**
+   * Converts [[PartialFunction]]`[String, String]` into an instance of [[com.codecommit.antixml.Selector]]
+   * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
+   * For example: `ns \ where { case "name" => "alternative" }`
+   */
+  def where(f: PartialFunction[String, String]): Selector[Node] =
+    Selector({ case Elem(p, name, a, s, c) if f.isDefinedAt(name) => Elem(p, f(name), a, s, c) })
+  
   /**
    * Wildcard selector which passes ''all'' nodes unmodified.  This is analogous
    * to the `"_"` selector syntax in `scala.xml`.  For example: `ns \ * \ "name"`
