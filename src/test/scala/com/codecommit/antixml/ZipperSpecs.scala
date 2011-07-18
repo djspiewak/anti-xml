@@ -43,6 +43,8 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
   implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be that large
   
   val bookstore = resource("bookstore.xml")
+  val onlyBell = Group(<bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book></bookstore>.convert)
+  val onlyPS = Group(<bookstore><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert)
   
   "Zipper#stripZipper" should {
     "effectively strip zipper context" in {
@@ -108,6 +110,41 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
     }
     
+    "rebuild after a drop at the first level" in {
+      val books = bookstore \ "book"
+      val books2 = books drop 2
+      val bookstore2: Group[Node] = books2.unselect
+      
+      bookstore2 mustEqual onlyPS
+    }
+    
+    "rebuild after a slice at the first level" in {
+      val books = bookstore \ "book"
+      val books2 = books slice (2, 3)
+      val bookstore2: Group[Node] = books2.unselect
+      
+      bookstore2 mustEqual onlyPS
+    }
+    
+    "rebuild after a take at the first level" in {
+      val books = bookstore \ "book"
+      val books2 = books take 1
+      val bookstore2: Group[Node] = books2.unselect
+      
+      bookstore2 mustEqual onlyBell
+    }
+    
+    "rebuild after a splitAt at the first level" in {
+      val books = bookstore \ "book"
+      val (books2, books3) = books splitAt 1
+      val books4 = books3 drop 1
+      val bookstore2: Group[Node] = books2.unselect
+      val bookstore4: Group[Node] = books4.unselect
+      
+      bookstore2 mustEqual onlyBell
+      bookstore4 mustEqual onlyPS
+    }
+           
     "rebuild after a flatMap at the first level" in {
       val books = bookstore \ "book"
       val books2 = books flatMap { 
