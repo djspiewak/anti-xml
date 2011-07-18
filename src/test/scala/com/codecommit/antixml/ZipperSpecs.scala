@@ -206,6 +206,18 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       titles2 must haveSize(2)
       (titles2 \ text) mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
     }
+    
+    "rebuild following 2 filters at the first level" in {
+      val books = bookstore \ 'book
+      val bookstore2 = (books filter (books(1) !=) filter (books(0) !=)).unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+          children must haveSize(1)
+          children \ 'title \ text mustEqual Vector("Programming Scala")
+        }
+      }
+    }
   }
   
   "utility methods on Zipper" >> {

@@ -105,8 +105,14 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
     
               (Map[Int, Int]() /: maps) { _ ++ _ }
             }
-    
-            val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), Map[Int, Set[Int]]())) {
+
+            val initialMap = Map[Int, Set[Int]]((0 to result.size).toSeq flatMap { i =>
+              childMap get(i) match {
+                case Some(s: Set[Int]) if s.size == 0 => Some((i, s))
+                case _ => None
+              }
+            } :_*)
+            val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), initialMap)) {
               case ((start, acc, childMap2), (chunk, i)) => {
                 val size = chunk.size
                 val source = inverseMap(i)
