@@ -127,10 +127,12 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
                 (start + size, acc ++ chunk, childMap2.updated(source, set2))
               }
             }
+            
+            val elided = childMap filterKeys {!childMap2.isDefinedAt(_)} mapValues {_ => Set.empty[Int]}
     
             val length = aggregate.length
             val delta = length - (to - from)
-            Some((from, to + delta, rebuild, childMap2, aggregate, delta))
+            Some((from, to + delta, rebuild, childMap2 ++ elided, aggregate, delta))
           }
           
           case None => None

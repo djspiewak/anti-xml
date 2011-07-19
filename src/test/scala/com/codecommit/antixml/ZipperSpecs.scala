@@ -220,6 +220,18 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       }
     }
     
+    "rebuild following composed filters" in {
+      val books = bookstore \ 'book
+      val bookstore2 = (books filter (books(0) !=) filter (books(1) !=)).unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+          children must haveSize(1)
+          children \ 'title \ text mustEqual Vector("Programming Scala")
+        }
+      }
+    }
+    
     "rebuild second level siblings following filter at the second level" in {
       val titles = bookstore \ 'book \ 'title
       val books2 = (titles filter (titles(1) ==)).unselect
