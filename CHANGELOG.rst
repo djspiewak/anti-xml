@@ -5,6 +5,13 @@ CHANGELOG
 0.3
 ===
 
+* New utility methods supported by Zipper
+
+  * ``drop``
+  * ``slice``
+  * ``splitAt``
+  * ``take``
+
 * Deep-select now returns a ``Group`` rather than a ``Zipper`` with an invalid
   context
 * Implicit conversions from ``String`` and ``Symbol`` to ``Selector`` are now
