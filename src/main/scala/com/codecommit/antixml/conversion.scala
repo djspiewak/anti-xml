@@ -59,7 +59,7 @@ class Converter[A](a: A) {
    * possible to pass the conversion explicitly.
    *
    * @see [[com.codecommit.antixml.XMLConvertable]]
-   * @usecase def anti: Node 
+   * @usecase def convert: Node 
    */
   def convert[B](implicit conversion: XMLConvertable[A, B]) = conversion(a)
 }
