@@ -11,7 +11,7 @@ CHANGELOG
   * ``slice``
   * ``splitAt``
   * ``take``
-
+  
 * Deep-select now returns a ``Group`` rather than a ``Zipper`` with an invalid
   context
 * Implicit conversions from ``String`` and ``Symbol`` to ``Selector`` are now
@@ -19,6 +19,7 @@ CHANGELOG
 * Explicit converters now use ``convert`` instead of ``anti``
 * **Bug Fixes**
 
+  * `Issue #26`_ – Zipper unselect is incorrect after multiple operations
   * ``Zipper#unselect`` fails to rebuild siblings at the second level when some
     results have been dropped
   * ``Zipper#unselect`` on empty selection results no functions appropriately
@@ -29,6 +30,7 @@ CHANGELOG
 	  by splitting it entirely from ``CanBuildFrom``.
 
 
+.. _Issue #26: https://github.com/djspiewak/anti-xml/issues/26
 .. _Issue #12: https://github.com/djspiewak/anti-xml/issues/12
 
 
