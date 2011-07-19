@@ -128,7 +128,10 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
               }
             }
             
-            val elided = childMap filterKeys {!childMap2.isDefinedAt(_)} mapValues {_ => Set.empty[Int]}
+            val elided = if (childMap.size == childMap2.size)
+              Set()
+            else
+              childMap filterKeys { !childMap2.isDefinedAt(_) } mapValues { _ => Set.empty[Int] }
     
             val length = aggregate.length
             val delta = length - (to - from)
