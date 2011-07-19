@@ -39,6 +39,10 @@ libraryDependencies <++= (scalaVersion) { (v) =>
   )
 }
 
+initialCommands in console := """import com.codecommit.antixml._
+                                |val bookstore = <bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book><book><title>I, Robot</title><author>Isaac Asimov</author></book><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert
+                                |val books = bookstore \ "book" """.stripMargin
+
 InputKey[Option[String]]("test-perf") <<= inputTask { (args: TaskKey[Seq[String]]) =>
   (args, streams, classDirectory in Test, classDirectory in Compile, managedClasspath in Test,
    compile in Test, compile in Compile) map {
