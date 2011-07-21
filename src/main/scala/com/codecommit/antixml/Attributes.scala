@@ -31,6 +31,7 @@ package com.codecommit.antixml
 import scala.collection.generic.CanBuildFrom
 import scala.collection.immutable.{HashMap, Map, MapLike}
 import scala.collection.mutable.Builder
+import com.codecommit.antixml.util.OrderPreservingMap
 
 /**
  * A special implementation of [[scala.collection.Map]]`[`[[com.codecommit.antixml.QName]]`, String]` with
@@ -154,9 +155,9 @@ object Attributes {
     def apply(from: Attributes) = apply()
   }
   
-  def newBuilder = HashMap.newBuilder[QName, String] mapResult { m: Map[QName, String] => new Attributes(m) }
+  def newBuilder = OrderPreservingMap.newBuilder[QName, String] mapResult { m: Map[QName, String] => new Attributes(m) }
   
   val empty = apply()
   
-  def apply(attrs: (QName, String)*) = new Attributes(Map(attrs: _*))
+  def apply(attrs: (QName, String)*) = new Attributes(OrderPreservingMap(attrs: _*))
 }

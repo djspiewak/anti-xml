@@ -34,6 +34,7 @@ import org.specs2.ScalaCheck
 import org.specs2.matcher.Parameters
 import org.scalacheck._
 import org.specs2.matcher.ScalaCheckMatchers._
+import scala.collection.mutable.LinkedHashMap
 
 class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
   import Prop._
@@ -108,6 +109,15 @@ class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
       val attrs2 = attrs map { case (k, v) => k -> 42 }
       validate[Map[QName, Int]](attrs2)
       attrs2 must havePairs(QName(None, "foo") -> 42, QName(None, "baz") -> 42)
+    }
+    
+    "preserve build order" in { 
+      forAll(genAttributeList) { entries: List[(QName,String)] =>
+        val attrs = Attributes(entries:_*)
+        val expectedOrder = LinkedHashMap(entries:_*).toList
+        //Converting to list just in case equals is overridden
+        List(attrs.toSeq:_*) mustEqual expectedOrder
+      }
     }
   }
   
