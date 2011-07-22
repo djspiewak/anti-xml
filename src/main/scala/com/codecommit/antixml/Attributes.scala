@@ -157,7 +157,7 @@ object Attributes {
   
   def newBuilder = OrderPreservingMap.newBuilder[QName, String] mapResult { m: Map[QName, String] => new Attributes(m) }
   
-  val empty = apply()
+  val empty = new Attributes(OrderPreservingMap())
   
-  def apply(attrs: (QName, String)*) = new Attributes(OrderPreservingMap(attrs: _*))
+  def apply(attrs: (QName, String)*) = if (attrs.isEmpty) empty else new Attributes(OrderPreservingMap(attrs: _*))
 }
