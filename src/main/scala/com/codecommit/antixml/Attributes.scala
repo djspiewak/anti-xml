@@ -156,7 +156,7 @@ object Attributes {
   
   def newBuilder = HashMap.newBuilder[QName, String] mapResult { m: Map[QName, String] => new Attributes(m) }
   
-  val empty = apply()
+  val empty = new Attributes(Map())
   
-  def apply(attrs: (QName, String)*) = new Attributes(Map(attrs: _*))
+  def apply(attrs: (QName, String)*) = if (attrs.isEmpty) empty else new Attributes(Map(attrs: _*))
 }
