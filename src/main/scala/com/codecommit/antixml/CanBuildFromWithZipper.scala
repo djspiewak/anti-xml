@@ -57,6 +57,14 @@ trait CanBuildFromWithZipper[-From, -Elem, To] { self =>
    */
   def append(left: To, right: To): To
   
+  /**
+   * Equivalent to `(left /: rest)(append)`. Subclasses may provide a more efficient
+   * implementation.
+   */
+  def appendAll(left: To, rest: TraversableOnce[To]): To = {
+    (left /: rest)(append)
+  }
+  
   def lift[CC >: To]: CanBuildFrom[From, Elem, CC] = new CanBuildFrom[From, Elem, CC] {
     def apply(from: From) = apply()
     def apply() = self(Vector())
@@ -92,6 +100,12 @@ object CanBuildFromWithZipper {
       builder ++= left
       builder ++= right
       builder.result()
-    }  
+    }
+    
+    override def appendAll(left: To, rest: TraversableOnce[To]): To = {
+      val builder = cbf() ++= left
+      rest foreach {builder ++= _}
+      builder.result()
+    }
   }
 }
