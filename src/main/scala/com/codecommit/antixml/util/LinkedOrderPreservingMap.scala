@@ -6,7 +6,50 @@ import scala.collection.generic.{ImmutableMapFactory, CanBuildFrom}
 
 private[antixml] object LinkedOrderPreservingMap extends ImmutableMapFactory[LinkedOrderPreservingMap] {
 
-  private[util] case class Link[A,+B](value: B, prev: Option[A], next: Option[A])
+  private[util] sealed abstract class Link[A,+B] {
+    def prev: Option[A]
+    def next: Option[A]
+    val value: B
+  }
+  
+  private object Link {
+    def apply[A,B](value: B, prev: Option[A], next: Option[A]): Link[A,B] = (prev,next) match {
+      case (Some(p),Some(n)) => Middle(value,p,n)
+      case (Some(p),None) => Last(value,p)
+      case (None,Some(n)) => First(value,n)
+      case (None,None) => Singleton(value)
+    }
+    
+    def unapply[A,B](link: Link[A,B]): Option[(B,Option[A],Option[A])] = 
+      Some((link.value,link.prev,link.next))
+  }
+  
+  /*
+  * The following 4 cases correspond to the possible combinations of prev==None and next==None.  Splitting
+  * these out allows us to avoid the overhead of storing Option instances directly on the Link.  On Hotspot,
+  * this cuts our per-entry overhead nearly in half.
+  */
+  
+  private case class First[A,+B](override val value: B, nextKey: A) extends Link[A,B] {
+    override def prev: None.type = None
+    override def next: Some[A] = Some(nextKey)
+  }
+  
+  private case class Middle[A,+B](override val value: B, prevKey: A, nextKey: A) extends Link[A,B] {
+    override def prev: Some[A] = Some(prevKey)
+    override def next: Some[A] = Some(nextKey)
+  }
+
+  private case class Last[A,+B](override val value: B, prevKey: A) extends Link[A,B] {
+    override def prev: Some[A] = Some(prevKey)
+    override def next: None.type = None
+  }
+
+  private case class Singleton[A,+B](override val value: B) extends Link[A,B] {
+    override def prev: None.type = None
+    override def next: None.type = None
+  }
+  
   
   implicit def canBuildFrom[A, B]: CanBuildFrom[Coll, (A, B), LinkedOrderPreservingMap[A, B]] = new MapCanBuildFrom[A, B]
   
@@ -14,7 +57,7 @@ private[antixml] object LinkedOrderPreservingMap extends ImmutableMapFactory[Lin
   
   private def singleton[A,B] (k:A, v:B) : LinkedOrderPreservingMap[A,B] = {
     val sk = Some(k)
-    new LinkedOrderPreservingMap[A,B](Map(k -> Link(v,None,None)),sk,sk)
+    new LinkedOrderPreservingMap[A,B](Map(k -> Singleton(v)),sk,sk)
   } 
   
   
