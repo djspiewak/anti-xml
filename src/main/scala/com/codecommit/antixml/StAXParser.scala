@@ -51,7 +51,7 @@ class StAXParser extends XMLParser {
   override def fromString(xml: String): Elem =
     fromReader(new StringReader(xml))
   
-  private case class ElemBuilder(ns: Option[String], name: String, prefix: Option[String], attrs: Attributes)
+  private case class ElemBuilder(name: String, prefix: Option[String], attrs: Attributes)
 
   private def fromStreamSource(source: StreamSource): Elem = {
     import XMLStreamConstants.{CDATA => CDATAFlag, CHARACTERS, COMMENT, DTD, END_ELEMENT, END_DOCUMENT, PROCESSING_INSTRUCTION, START_ELEMENT, ENTITY_REFERENCE, NAMESPACE}
@@ -102,9 +102,9 @@ class StAXParser extends XMLParser {
             i = i + 1
           }
           prefixMapping ::= prefixes
+          i = 0
           var attrs = Attributes()
           while (i < xmlReader.getAttributeCount) {
-            val ns = Option(xmlReader.getAttributeNamespace(i))
             val localName = xmlReader.getAttributeLocalName(i)
             val prefix = {
               val back = xmlReader.getAttributePrefix(i)
@@ -113,9 +113,8 @@ class StAXParser extends XMLParser {
             attrs = attrs + (QName(prefix, localName) -> xmlReader.getAttributeValue(i))
             i = i + 1
           }
-          val uri = xmlReader.getNamespaceURI
           val prefix = xmlReader.getPrefix
-          elems ::= ElemBuilder(if (uri == null || uri == "") None else Some(uri), xmlReader.getLocalName,
+          elems ::= ElemBuilder(xmlReader.getLocalName,
               if (prefix == null || prefix == "") None else Some(prefix), attrs)
            results ::= VectorCase.newBuilder[Node]           
         }

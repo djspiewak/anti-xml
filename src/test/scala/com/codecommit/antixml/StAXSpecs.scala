@@ -42,6 +42,10 @@ class StAXSpecs extends Specification {
     "parse a simpleString with an non-prefixed namespace" in {
       StAXParser.fromString("<a xmlns='urn:a'/>") mustEqual Elem(None, "a", Attributes(), Map("" -> "urn:a"), Group())
     }
+    
+    "parse a simpleString with both a namespace and an attribute" in {
+      StAXParser.fromString("<a xmlns='urn:a' key='val' />") mustEqual Elem(None, "a", Attributes("key"->"val"), Map("" -> "urn:a"), Group())
+    }
 
   }
 }
