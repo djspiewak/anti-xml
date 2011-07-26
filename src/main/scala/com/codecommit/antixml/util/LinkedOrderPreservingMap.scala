@@ -2,207 +2,354 @@ package com.codecommit.antixml.util
 
 import scala.annotation.tailrec
 import scala.collection.immutable.{Map, MapLike}
+import scala.collection.mutable.{Builder}
 import scala.collection.generic.{ImmutableMapFactory, CanBuildFrom}
 
+/**
+ * An `OrderPreservingMap` implementation that layers an immutable doubly linked-list structure on top of a default
+ * scala immutable Map.  The additional indirection provided by the map allows for efficient local operations on the list.  
+ * Asymptotic performance is the same as that of the underlying map.  Sufficiently small maps have their own, optimized,
+ * representations.
+ * 
+ */
+private[antixml] sealed trait LinkedOrderPreservingMap[A,+B] extends OrderPreservingMap[A,B] with MapLike[A,B,LinkedOrderPreservingMap[A,B]] {
+  override def empty: LinkedOrderPreservingMap[A,B] = LinkedOrderPreservingMap.empty
+
+  override def + [B1 >: B] (kv: (A, B1)): LinkedOrderPreservingMap[A, B1]
+
+}
+
 private[antixml] object LinkedOrderPreservingMap extends ImmutableMapFactory[LinkedOrderPreservingMap] {
-
-  private[util] sealed abstract class Link[A,+B] {
-    def prev: Option[A]
-    def next: Option[A]
-    val value: B
-  }
-  
-  private object Link {
-    def apply[A,B](value: B, prev: Option[A], next: Option[A]): Link[A,B] = (prev,next) match {
-      case (Some(p),Some(n)) => Middle(value,p,n)
-      case (Some(p),None) => Last(value,p)
-      case (None,Some(n)) => First(value,n)
-      case (None,None) => Singleton(value)
-    }
-    
-    def unapply[A,B](link: Link[A,B]): Option[(B,Option[A],Option[A])] = 
-      Some((link.value,link.prev,link.next))
-  }
-  
-  /*
-  * The following 4 cases correspond to the possible combinations of prev==None and next==None.  Splitting
-  * these out allows us to avoid the overhead of storing Option instances directly on the Link.  On Hotspot,
-  * this cuts our per-entry overhead nearly in half.
-  */
-  
-  private case class First[A,+B](override val value: B, nextKey: A) extends Link[A,B] {
-    override def prev: None.type = None
-    override def next: Some[A] = Some(nextKey)
-  }
-  
-  private case class Middle[A,+B](override val value: B, prevKey: A, nextKey: A) extends Link[A,B] {
-    override def prev: Some[A] = Some(prevKey)
-    override def next: Some[A] = Some(nextKey)
-  }
-
-  private case class Last[A,+B](override val value: B, prevKey: A) extends Link[A,B] {
-    override def prev: Some[A] = Some(prevKey)
-    override def next: None.type = None
-  }
-
-  private case class Singleton[A,+B](override val value: B) extends Link[A,B] {
-    override def prev: None.type = None
-    override def next: None.type = None
-  }
-  
   
   implicit def canBuildFrom[A, B]: CanBuildFrom[Coll, (A, B), LinkedOrderPreservingMap[A, B]] = new MapCanBuildFrom[A, B]
   
-  override def empty [A,B]: LinkedOrderPreservingMap[A,B] = new LinkedOrderPreservingMap(Map.empty,None,None)
+  private val theEmpty = new Linked0[Any,Nothing]
   
-  private def singleton[A,B] (k:A, v:B) : LinkedOrderPreservingMap[A,B] = {
-    val sk = Some(k)
-    new LinkedOrderPreservingMap[A,B](Map(k -> Singleton(v)),sk,sk)
-  } 
+  override def empty[A,B] = theEmpty.asInstanceOf[LinkedOrderPreservingMap[A, B]] //Ugly, but should be OK
   
-  
-}
-
-/**
- * An simple `OrderPreservingMap` implementation that layers an immutable doubly linked-list structure on top of a default
- * scala immutable Map.  The additional indirection provided by the map allows for efficient local operations on the list.  
- * Asymptotic performance is the same as that of the underlying map.
- * 
- * Note that most code should use the [[com.codecommit.antixml.util.OrderPreservingMap]] companion object to produce 
- * OrderPreservingMaps rather than directly use LinkedOrderPreservingMap.  For large maps, the `OrderPreservingMap` companion
- * produces LinkedOrderPreservingMaps, but for small maps it produces more efficient specializations.
- */
-private[antixml] class LinkedOrderPreservingMap[A,+B] private (delegate:Map[A,LinkedOrderPreservingMap.Link[A,B]], firstKey:Option[A], lastKey:Option[A]) extends OrderPreservingMap[A,B] with MapLike[A,B,LinkedOrderPreservingMap[A,B]] {
-  
-  import LinkedOrderPreservingMap.{Link, singleton}
-  
-  require({
-    if (delegate.isEmpty)
-      firstKey == None && lastKey == None
-    else
-      firstKey != None && lastKey != None
-  }, (delegate,firstKey,lastKey))
-      
-  private def mustGetLink(a: A): Link[A,B] = delegate.get(a) match {
-    case Some(e) => e
-    case None => throw new AssertionError("map should have contained "+a)
-  }
-  private def mustGetEntry(a: A): (A,B) = delegate.get(a) match {
-    case Some(Link(b,_,_)) => (a,b)
-    case None => throw new AssertionError("map should have contained "+a)
-  }
-  
-  private def firstInOrder: Option[(A,B)] = firstKey match {
-    case Some(a) => Some(mustGetEntry(a))
-    case None => None
-  }
-  
-  private def nextInOrder(key: A): Option[(A,B)] = delegate.get(key) match {
-    case Some(Link(_,_,Some(next))) => Some(mustGetEntry(next))
-    case Some(Link(_,_,None)) => None
-    case None => None
-  }
-  
-  override def iterator: Iterator[(A,B)] = {
-    type Cursor = (A,Link[A,B]) 
-    def cursor(k: Option[A]): Option[Cursor] = k map {(key: A) => (key, mustGetLink(key))}
-    new Iterator[(A,B)] {
-      private var curs = cursor(firstKey)
-      override def hasNext: Boolean = (curs != None)
-      override def next: (A,B) = curs match {
-        case Some((key,Link(value,_,nextKey))) => {
-          curs = cursor(nextKey)
-          (key,value)
-        }
-        case None => throw new NoSuchElementException()
-      }
-    }
+  /** Represents an interior link or boundary of the linked list.*/
+  private sealed trait LinkOrBoundary[+A,+B] {
+    val value: B
+    def maybePrev: Option[A]
+    def maybeNext: Option[A]
   }
 
-  override def foreach [U] (f: ((A,B)) => U) = {
-    type Cursor = (A,Link[A,B]) 
-    def cursor(k: Option[A]): Option[Cursor] = k map {(key: A) => (key, mustGetLink(key))}
-    @tailrec def step(curs: Option[Cursor]):Unit = curs match {
-      case None =>
-      case Some((key,Link(value,_,nextKey))) => {
-        f((key,value))
-        step(cursor(nextKey))
-      }
-    }
-    step(cursor(firstKey))
+  /** Represents an interior node of the linked list.*/
+  private case class Link[+A,+B] (override val value: B, prevKey: A, nextKey: A) extends LinkOrBoundary[A,B] {
+    override def maybePrev = Some(prevKey)
+    override def maybeNext = Some(nextKey)
   }
-
-  override def empty:LinkedOrderPreservingMap[A,B] = LinkedOrderPreservingMap.empty
   
-  override def + [B1 >: B] (kv: (A, B1)): LinkedOrderPreservingMap[A, B1] = {
-    val (k,v) = kv
-    delegate.get(k) match {
-      case Some(Link(old,prev,next)) =>
-        new LinkedOrderPreservingMap(delegate.updated(k,Link(v,prev,next)), firstKey, lastKey)
+  /** 
+   * Represents either the first or last node of the linked list.  Lists of size 1 use a specialized
+   * represention, so a node will never be simultaneously first and last.
+   */
+  private sealed trait Boundary[+A,+B] extends LinkOrBoundary[A,B]
+  
+  private case class First[+A,+B] (key: A, override val value: B, nextKey: A) extends Boundary[A,B] {
+    override def maybePrev = None
+    override def maybeNext = Some(nextKey)
+  }
+  
+  private case class Last[+A,+B] (key: A, override val value: B, prevKey: A) extends Boundary[A,B] {
+    override def maybePrev = Some(prevKey)
+    override def maybeNext = None
+  }
+  
+  /**
+   * Implementation for maps of size > 4.  Interior nodes are maintained in a `Map[A,Link[A,B]]` structure.
+   * Boundary nodes are maintained in their own fields.  
+   */
+  private class LinkedN[A,+B] (interior:Map[A,Link[A,B]],
+                              firstLink: First[A,B],
+                              lastLink: Last[A,B]) extends LinkedOrderPreservingMap[A,B] {
+
+    //interior.size < 3 implies this.size < 5 implies we should be using a small map implementation                        
+    require(interior.size >= 3, (interior, firstLink, lastLink))
+    
+
+    private def mustGetLinkOrBoundary(a: A): LinkOrBoundary[A,B] = interior.get(a) match {
+      case Some(e) => e
       case None => {
-        lastKey match {
-          case None => singleton(k,v)
-          case Some(tlk) => {
-            val Link(tlv,tlp,_) = mustGetLink(tlk)
-            val link1 = Link(tlv,tlp,Some(k))
-            val link2 = Link(v,Some(tlk),None)
-            new LinkedOrderPreservingMap(delegate.updated(tlk,link1).updated(k,link2),firstKey,Some(k))
-          } 
+        if (a == firstLink.key)
+          firstLink
+        else if (a == lastLink.key)
+          lastLink
+        else
+          throw new AssertionError("map should have contained "+a)
+      }
+    }
+    
+    override def iterator = {
+      type Cursor = (A,LinkOrBoundary[A,B]) 
+      def cursor(k: Option[A]): Option[Cursor] = k map {(key: A) => (key, mustGetLinkOrBoundary(key))}
+      new Iterator[(A,B)] {
+        private var curs: Option[Cursor] = Some((firstLink.key,firstLink))
+        override def hasNext: Boolean = (curs != None)
+        override def next: (A,B) = curs match {
+          case Some((key,link)) => {
+            curs = cursor(link.maybeNext)
+            (key,link.value)
+          }
+          case None => throw new NoSuchElementException()
         }
       }
     }
-  }
   
-  override def - (key: A): LinkedOrderPreservingMap[A, B] = delegate.get(key) match {
-    case None => this
-    case Some(Link(_, None, None)) => empty
-    case Some(Link(_, prev, next)) => {
-      val (delg1, nhead) = prev match {
-        case None => (delegate, next)
-        case Some(pk) => {
-          val Link(pv, pp, _) = mustGetLink(pk)
-          (delegate.updated(pk,Link(pv,pp,next)), firstKey)
+    override def foreach [U] (f: ((A,B)) => U) = {
+      type Cursor = (A,LinkOrBoundary[A,B]) 
+      def cursor(k: Option[A]): Option[Cursor] = k map {(key: A) => (key, mustGetLinkOrBoundary(key))}
+      @tailrec def step(curs: Option[Cursor]) {
+        curs match {
+          case None =>
+          case Some((key,link)) => {
+            f((key,link.value))
+            step(cursor(link.maybeNext))
+          }
         }
       }
-      val (delg2, ntail) = next match {
-        case None => (delg1, prev)
-        case Some(nk) => {
-          val Link(nv, _, nn) = mustGetLink(nk)
-          (delg1.updated(nk,Link(nv,prev,nn)), lastKey)
-        }
-      }
-      new LinkedOrderPreservingMap(delg2 - key,nhead,ntail)
+      step(Some((firstLink.key,firstLink)))
     }
-     
+  
+    override def empty = LinkedOrderPreservingMap.empty
+    
+    override def + [B1 >: B] (kv: (A, B1)): LinkedOrderPreservingMap[A, B1] = {
+      val (k,v) = kv
+      interior.get(k) match {
+        case Some(Link(old,prev,next)) =>
+          new LinkedN(interior.updated(k,Link(v,prev,next)), firstLink, lastLink)
+        case None => {
+          if (k==firstLink.key) {
+            new LinkedN(interior, firstLink.copy(value=v), lastLink)
+          } else if (k==lastLink.key) {
+            new LinkedN(interior, firstLink, lastLink.copy(value=v))
+          } else {
+            val interior2 = interior.updated(lastLink.key,Link(lastLink.value,lastLink.prevKey,k))
+            new LinkedN(interior2, firstLink, Last(k, v, lastLink.key))
+          }
+        }
+      }
+    }
+    
+    override def - (key: A) = {
+      if (size == 5) {
+        //This case is special because we may be switching to a small map.
+        val buf = toBuffer filter {x => key != x._1}
+        if (buf.size == 4) {
+          val ((k0,v0),(k1,v1),(k2,v2),(k3,v3)) = (buf(0),buf(1),buf(2),buf(3))
+          new Linked4(k0,v0,k1,v1,k2,v2,k3,v3)
+        } else {
+          this
+        }
+      } else interior.get(key) match  {        
+        case Some(Link(_, prev, next)) => {
+          val (interior2, newFirst) = interior.get(prev) match {
+            case Some(link) => (interior.updated(prev, link.copy(nextKey = next)), firstLink)
+            case None => (interior, firstLink.copy(nextKey = next))
+          }
+          val (interior3, newLast) = interior.get(next) match {
+            case Some(link) => (interior2.updated(next, link.copy(prevKey = prev)), lastLink)
+            case None => (interior2, lastLink.copy(prevKey = prev))
+          }
+          new LinkedN(interior3 - key, newFirst, newLast)
+        }
+        case None => {
+          if (key==lastLink.key) {
+            val lk = lastLink.prevKey
+            val Link(lv,lkp,_) = interior(lk)
+            new LinkedN(interior - lk, firstLink, Last(lk, lv, lkp))
+          } else if (key==firstLink.key) {
+            val fk = firstLink.nextKey
+            val Link(fv,_,fkn) = interior(fk)
+            new LinkedN(interior - fk, First(fk,fv,fkn), lastLink)
+          } else
+            this
+        }
+      }
+    }
+    
+    
+    override def get (key: A) = interior.get(key) match {
+      case Some(Link(v,_,_)) => Some(v)
+      case None => {
+        if (lastLink.key==key)
+          Some(lastLink.value)
+        else if (firstLink.key==key)
+          Some(firstLink.value)
+        else
+          None
+      }
+    }
+    
+    override def head:(A,B) = (firstLink.key, firstLink.value)
+    
+    override def last:(A,B) = (lastLink.key, lastLink.value)
+    
+    override def tail = this - firstLink.key
+    
+    override def init = this - lastLink.key
+    
+    //TODO: optimize take/drop family?  toSeq?
+    
+    override def size:Int = 2 + interior.size      
+
   }
   
-  override def get (key: A): Option[B] = delegate.get(key) match {
-    case Some(Link(v,_,_)) => Some(v)
-    case None => None
+  /**
+   * Implementation for LinkedOrderPreservingMaps of size 0.
+   */
+  private class Linked0[A,+B] extends LinkedOrderPreservingMap[A, B] {
+    override def iterator = Iterator()
+    override def foreach [U] (f: ((A, B)) => U) {}
+    override def empty = this
+    override def + [B1 >: B] (kv: (A, B1)) = new Linked1(kv._1,kv._2)
+    override def - (key: A) = this
+    override def get (key: A) = None  
+    override def head = Seq().head  
+    override def last = Seq().last  
+    override def tail = this
+    override def init = this
+    override def size = 0
   }
   
-  override def head:(A,B) = firstKey match {
-    case Some(key) => mustGetEntry(key)
-    case None => throw new NoSuchElementException()
-  } 
-  
-  override def last:(A,B) = lastKey match {
-    case Some(key) => mustGetEntry(key)
-    case None => throw new NoSuchElementException()
+  /**
+   * Implementation for LinkedOrderPreservingMaps of size 1.
+   */
+  private class Linked1[A,+B](k0: A, v0: B) extends LinkedOrderPreservingMap[A,B] {
+    override def iterator = Iterator((k0,v0))
+    override def foreach [U] (f: ((A,B)) => U) {
+      f((k0,v0))
+    }
+    override def empty = LinkedOrderPreservingMap.empty
+    override def + [B1 >: B] (kv: (A, B1)) = kv match {
+      case (`k0`,v) => new Linked1(k0,v)
+      case (k,v) => new Linked2(k0,v0,k,v)
+    }
+    override def - (key: A) = key match {
+      case `k0` => LinkedOrderPreservingMap.empty
+      case _ => this
+    }
+    override def get (key: A) = key match {
+      case `k0` => Some(v0)
+      case _ => None
+    }
+    override def head = (k0,v0)  
+    override def last = (k0,v0)
+    override def tail = LinkedOrderPreservingMap.empty
+    override def init = LinkedOrderPreservingMap.empty
+    override def size:Int = 1
   }
   
-  override def tail: LinkedOrderPreservingMap[A,B] = firstKey match {
-    case Some(key) => this - key
-    case None => this
+  /**
+   * Implementation for LinkedOrderPreservingMaps of size 2.
+   */
+  private class Linked2[A,+B](k0: A, v0: B, k1: A, v1: B) extends LinkedOrderPreservingMap[A,B] {
+    override def iterator = Iterator((k0,v0),(k1,v1))
+    override def foreach [U] (f: ((A,B)) => U) = {
+      f((k0,v0))
+      f((k1,v1))
+    }
+    override def empty = LinkedOrderPreservingMap.empty
+    override def + [B1 >: B] (kv: (A, B1)) = kv match {
+      case (`k0`,value) => new Linked2(k0,value,k1,v1)
+      case (`k1`,value) => new Linked2(k0,v0,k1,value)
+      case (key,value) => new Linked3(k0,v0,k1,v1,key,value)
+    }
+    override def - (key: A) = key match {
+      case `k0` => new Linked1(k1,v1)
+      case `k1` => new Linked1(k0,v0)
+      case _ => this
+    }
+    override def get (key: A) = key match {
+      case `k0` => Some(v0)
+      case `k1` => Some(v1)
+      case _ => None
+    }  
+    override def head = (k0,v0)  
+    override def last = (k1,v1)
+    override def tail = new Linked1(k1,v1)
+    override def init = new Linked1(k0,v0)
+    override def size:Int = 2
   }
   
-  override def init: LinkedOrderPreservingMap[A,B] = lastKey match {
-    case Some(key) => this - key
-    case None => this
+  /**
+   * Implementation for LinkedOrderPreservingMaps of size 3/
+   */
+   private class Linked3[A,+B](k0: A, v0: B, k1: A, v1: B, k2: A, v2: B) extends LinkedOrderPreservingMap[A,B] {
+    override def iterator = Iterator((k0,v0),(k1,v1),(k2,v2))
+    override def foreach [U] (f: ((A,B)) => U) = {
+      f((k0,v0))
+      f((k1,v1))
+      f((k2,v2))
+    }
+    override def empty = LinkedOrderPreservingMap.empty
+    override def + [B1 >: B] (kv: (A, B1)) = kv match {
+      case (`k0`,value) => new Linked3(k0,value,k1,v1,k2,v2)
+      case (`k1`,value) => new Linked3(k0,v0,k1,value,k2,v2)
+      case (`k2`,value) => new Linked3(k0,v0,k1,v1,k2,value)
+      case (key,value)  => new Linked4(k0,v0,k1,v1,k2,v2,key,value)
+    }
+    override def - (key: A) = key match {
+      case `k0` => new Linked2(k1,v1,k2,v2)
+      case `k1` => new Linked2(k0,v0,k2,v2)
+      case `k2` => new Linked2(k0,v0,k1,v1)
+      case _ => this
+    }
+    override def get (key: A) = key match {
+      case `k0` => Some(v0)
+      case `k1` => Some(v1)
+      case `k2` => Some(v2)
+      case _ => None
+    }  
+    override def head = (k0,v0)  
+    override def last = (k2,v2)
+    override def tail = new Linked2(k1,v1,k2,v2)
+    override def init = new Linked2(k0,v0,k1,v1)
+    override def size:Int = 3
   }
-  
-  //TODO: optimize take/drop family?
-  
-  override def size:Int = delegate.size
+
+  /**
+   * Implementation for LinkedOrderPreservingMaps of size 4.
+   */
+  private class Linked4[A,+B](k0: A, v0: B, k1: A, v1: B, k2: A, v2: B, k3: A, v3: B) extends LinkedOrderPreservingMap[A,B] {
+    override def iterator = Iterator((k0,v0),(k1,v1),(k2,v2),(k3,v3))
+    override def foreach [U] (f: ((A,B)) => U) = {
+      f((k0,v0))
+      f((k1,v1))
+      f((k2,v2))
+      f((k3,v3))
+    }
+    override def empty = LinkedOrderPreservingMap.empty
+    override def + [B1 >: B] (kv: (A, B1)) = kv match {
+      case (`k0`,value) => new Linked4(k0,value,k1,v1,k2,v2,k3,v3)
+      case (`k1`,value) => new Linked4(k0,v0,k1,value,k2,v2,k3,v3)
+      case (`k2`,value) => new Linked4(k0,v0,k1,v1,k2,value,k3,v3)
+      case (`k3`,value) => new Linked4(k0,v0,k1,v1,k2,v2,k3,value)
+      case (k4,v4) => {
+        val interior = Map[A,Link[A,B]](k1->Link(v1,k0,k2), k2->Link(v2,k1,k3), k3->Link(v3,k2,k4))
+        new LinkedN(interior, First(k0, v0, k1), Last(k4,v4,k3))
+      }
+    }
+    override def - (key: A) = key match {
+      case `k0` => new Linked3(k1,v1,k2,v2,k3,v3)
+      case `k1` => new Linked3(k0,v0,k2,v2,k3,v3)
+      case `k2` => new Linked3(k0,v0,k1,v1,k3,v3)
+      case `k3` => new Linked3(k0,v0,k1,v1,k2,v2)
+      case _ => this
+    }
+    override def get (key: A) = key match {
+      case `k0` => Some(v0)
+      case `k1` => Some(v1)
+      case `k2` => Some(v2)
+      case `k3` => Some(v3)
+      case _ => None
+    }  
+    override def head = (k0,v0)
+    override def last = (k3,v3)
+    override def tail = new Linked3(k1,v1,k2,v2,k3,v3)
+    override def init = new Linked3(k0,v0,k1,v1,k2,v2)
+    override def size:Int = 4
+  }
 }
+
 

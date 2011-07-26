@@ -1,5 +1,6 @@
 package com.codecommit.antixml.util
 
+import scala.collection.generic.CanBuildFrom
 import org.specs2.ScalaCheck
 import org.specs2.mutable._
 import org.specs2.matcher.{Expectable, Parameters, Matcher}
@@ -52,6 +53,18 @@ trait OrderPreservingMapSpecs extends Specification with ScalaCheck {
         }
       }
     }
+    "support arbitrary sequences of operations" in check { e: Entries[Byte,Byte] =>
+      forAll(Gen.listOfN(1000, genMapOp[Byte,Byte])) { ops =>
+        val (map, expect) = ((buildMap(e),e.entries) /: ops) { (itm, op) =>
+          val (m,e) = itm
+          op match {
+            case Add(k,v) => (m + (k,v), updateEntry(e,k,v))
+            case Remove(k) => (m - k, removeEntry(e, k))
+          }
+        }
+        map must haveSameOrderAs(expect)
+      }
+    }
   } 
   
   "non-empty order preserving maps" should {
@@ -83,6 +96,22 @@ trait OrderPreservingMapSpecs extends Specification with ScalaCheck {
         safeLast(map) must beEqualTo(safeLast(expectedEntries))
         map must haveSameOrderAs(expectedEntries)
       }
+    }
+    
+    "support removal of each element" in check { e: Entries[Byte,Byte] =>
+      //This test is similar to the previous one, except it test all indecies
+      //rather than arbitrary ones, but gives less useful information on failure.
+      val map = buildMap(e)
+      for(indx <- 0 until e.size) {
+        val removed = map - e.keys(indx)
+        val expectedEntries = (e.entries take indx) ++ (e.entries drop (indx+1))
+        
+        removed.size must beEqualTo(e.size - 1)
+        safeHead(removed) must beEqualTo(safeHead(expectedEntries))
+        safeLast(removed) must beEqualTo(safeLast(expectedEntries))
+        removed must haveSameOrderAs(expectedEntries)
+      }
+      endOfCheck
     }
 
     "support change of first value via +" in check { e: Entries[Byte,Byte] =>
@@ -120,6 +149,24 @@ trait OrderPreservingMapSpecs extends Specification with ScalaCheck {
       }
     }
     
+    "support change of each element via + " in check { e: Entries[Byte,Byte] =>
+      //This test is similar to the previous one, except it test all indecies
+      //rather than arbitrary ones, but gives less useful information on failure.
+      val map = buildMap(e)
+      for(n <- 0 until e.size) {
+        val changeTo = (e.keys(n), (e.values(n) + 1).toByte)
+        val changed = map + changeTo
+        val expectedEntries = e.entries.updated(n, changeTo)
+        
+        changed.size must beEqualTo(e.size)
+        safeHead(changed) must beEqualTo(safeHead(expectedEntries))
+        safeLast(changed) must beEqualTo(safeLast(expectedEntries))
+        changed must haveSameOrderAs(expectedEntries)
+      }
+      endOfCheck
+    }
+
+    
     "support get of all keys contained in the map" in check { e: Entries[Byte,Byte] =>
       val map = buildMap(e)
       val results = for((key,value) <- e.entries) yield map.get(key)
@@ -141,7 +188,20 @@ trait OrderPreservingMapSpecs extends Specification with ScalaCheck {
     }
     
   }
-    
+  
+  
+  def removeEntry[A,B](entries: Vector[(A,B)], key:A): Vector[(A,B)] =
+    entries filter {_._1 != key}
+  def updateEntry[A,B](entries: Vector[(A,B)], key:A, value:B): Vector[(A,B)] = 
+    if (entries exists {_._1 == key})
+      entries map {kv => if (kv._1 == key) (kv._1, value) else kv}
+    else
+      entries :+ (key,value)
+  
+  
+  /** Result to return from a check function if nothing else is convenient. */
+  val endOfCheck = org.specs2.execute.Success("Dummy")
+     
   def safeHead[A](t: Traversable[A]):Option[A] = if (t.isEmpty) None else Some(t.head)
 
   def safeLast[A](t: Traversable[A]):Option[A] = if (t.isEmpty) None else Some(t.last)
@@ -196,3 +256,4 @@ class LinkedOrderPreservingBuilderSpecs extends OrderPreservingMapSpecs {
   def builderDescription: String =
     "When using the LinkedOrderPreservingMap builder,"
 }
+
