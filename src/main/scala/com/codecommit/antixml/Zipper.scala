@@ -103,19 +103,18 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
         val intermedMap = map map {
           case Some((from, to, rebuild, childMap)) => {            
             val childMapSorted = (childMap.toSeq) sortWith { _._1 < _._1 } //TODO - Maybe just make childMap a SortedMap 
-            val localResults = result.slice(from,to)
             
-            
-            val (_, chunk, childMap2) = ((0, Vector[B](), Map[Int,Int]()) /: childMapSorted) {
+            val (lastOffset, chunk, childMap2) = ((from, Vector[B](), Map[Int,Int]()) /: childMapSorted) {
               case ((offset, acc, childMap2),(srcIndex, 0)) =>
                 (offset, acc, childMap2 + (srcIndex -> 0))
               
               case ((offset, acc, childMap2),(srcIndex,destCount)) => {
-                val items = localResults.slice(offset, offset+destCount).flatMap {x => x}
+                val items = result.slice(offset, offset+destCount).flatMap(identity)
                 (offset + destCount, acc ++ items, childMap2 + (srcIndex -> items.size))
               }
             }
-    
+            assert(lastOffset == to)
+            
             Some(chunk, rebuild, childMap2)
           }
           
