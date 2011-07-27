@@ -106,20 +106,20 @@ trait Selectable[+A <: Node] {
       
       val catBuilder = new VectorBuilder[B]
       val chunkBuilder = new VectorBuilder[Int]
-      val rebuildBuilder = new VectorBuilder[(Group[Node], Map[Int, Set[Int]]) => Node]
-      val childMapBuilder = new VectorBuilder[Map[Int, Set[Int]]]
+      val rebuildBuilder = new VectorBuilder[(Group[Node], Map[Int, Int]) => Node]
+      val childMapBuilder = new VectorBuilder[Map[Int, Int]]
       
       for (node <- toGroup) {
         node match {
           case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
-            var childMap = Map[Int, Set[Int]]()
+            var childMap = Map[Int, Int]()
             var currentChunk = 0
             
             var i = 0
             for (child <- children) {
               if (selector isDefinedAt child) {
                 catBuilder += selector(child)
-                childMap += (i -> Set(currentChunk))
+                childMap += (i -> 1)
                 currentChunk += 1
               }
               i += 1
@@ -128,12 +128,13 @@ trait Selectable[+A <: Node] {
             chunkBuilder += currentChunk
             childMapBuilder += childMap
             
-            def rebuild(children2: Group[Node], indexes: Map[Int, Set[Int]]) = {
-              val revisedChildren = children.zipWithIndex.foldLeft(Group[Node]()) {
-                case (acc, (_, i)) if indexes contains i =>
-                  indexes(i).foldLeft(acc) { _ :+ children2(_) }
-                
-                case (acc, (e, _)) => acc :+ e
+            def rebuild(children2: Group[Node], indexToSize: Map[Int, Int]) = {
+              val (revisedChildren,offset) = children.zipWithIndex.foldLeft((Group[Node](),0)) {
+                case ((acc,offset), (_, i)) if indexToSize contains i => {
+                  val chIndices = Range(offset,offset+indexToSize(i))
+                  (chIndices.foldLeft(acc) { _ :+ children2(_) } , chIndices.end) 
+                }
+                case ((acc,offset), (e, _)) => (acc :+ e, offset)
               }
               
               e.copy(children=revisedChildren)
