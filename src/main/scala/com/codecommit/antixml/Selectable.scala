@@ -103,71 +103,36 @@ trait Selectable[+A <: Node] {
     
     if (matches(selector)) {
       // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
-      
-      val catBuilder = new VectorBuilder[B]
-      val chunkBuilder = new VectorBuilder[Int]
-      val rebuildBuilder = new VectorBuilder[(Group[Node], Map[Int, Int]) => Node]
-      val childMapBuilder = new VectorBuilder[Map[Int, Int]]
-      
-      for (node <- toGroup) {
-        node match {
-          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
-            var childMap = Map[Int, Int]()
-            var currentChunk = 0
             
-            var i = 0
+      var topIndex =0
+      val contextBuilder = List.newBuilder[ZContext]
+      val resultBuilder = new VectorBuilder[B]
+        
+      for (node <- toGroup) {        
+        node match {
+          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {            
+            var botIndex = 0
             for (child <- children) {
               if (selector isDefinedAt child) {
-                catBuilder += selector(child)
-                childMap += (i -> 1)
-                currentChunk += 1
+                resultBuilder += selector(child)
+                contextBuilder += ZContext(util.Vector2(topIndex,botIndex), 1)
               }
-              i += 1
+              botIndex += 1
             }
-            
-            chunkBuilder += currentChunk
-            childMapBuilder += childMap
-            
-            def rebuild(children2: Group[Node], indexToSize: Map[Int, Int]) = {
-              val (revisedChildren,offset) = children.zipWithIndex.foldLeft((Group[Node](),0)) {
-                case ((acc,offset), (_, i)) if indexToSize contains i => {
-                  val chIndices = Range(offset,offset+indexToSize(i))
-                  (chIndices.foldLeft(acc) { _ :+ children2(_) } , chIndices.end) 
-                }
-                case ((acc,offset), (e, _)) => (acc :+ e, offset)
-              }
-              
-              e.copy(children=revisedChildren)
-            }
-            
-            rebuildBuilder += (rebuild _)
-          }
-          
-          case _ => {
-            chunkBuilder += 0
-            childMapBuilder += Map()
-            rebuildBuilder += { (_, _) => error("invoked rebuild for non-match") }
-          }
+          }          
+          case _ => ()
         }
+        topIndex += 1
       }
       
-      val cat = catBuilder.result
-      
-      lazy val (_, map) = {
-        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[Option[ZContext]]())) {
-          case ((i, acc), ((length, f), childMap)) if length != 0 =>
-            (i + length, acc :+ Some((i, i + length, f, childMap)))
-          
-          case ((i, acc), _) => (i, acc :+ None)
-        }
-      }
-      
-      val builder = cbf(toZipper, map)
-      builder ++= cat
+      val contexts:List[ZContext] = contextBuilder.result()
+            
+      val builder = cbf(toZipper, contexts)
+      builder ++= resultBuilder.result()
       builder.result
     } else {
       val zipper = toZipper
-      cbf(zipper, zipper.toVector map Function.const(None)).result
+      cbf(zipper, List()).result
     }
   }
   

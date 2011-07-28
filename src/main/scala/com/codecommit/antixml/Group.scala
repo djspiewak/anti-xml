@@ -244,8 +244,8 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   override def toZipper: Zipper[A] = {
     new Group(nodes) with Zipper[A] {
-      val map = Vector()
-      def parent = error("Attempted to move up at root of the tree")
+      val contexts = List()
+      def source = error("Attempted to move up at root of the tree")
       override val hasValidContext = false
     }
   }
@@ -312,26 +312,26 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
 object Group {
   implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Group[_], A, Zipper[A]] = {
     new CanBuildFromWithZipper[Group[_], A, Zipper[A]] {
-      def apply(outerParent: Group[_], baseMap: =>Vector[Option[ZContext]]): Builder[A, Zipper[A]] = {
+      def apply(outerSource: Group[_], baseContexts: =>List[ZContext]): Builder[A, Zipper[A]] = {
         VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
-            lazy val map = baseMap
+            override lazy val contexts = baseContexts
             
-            lazy val parent = outerParent match {
+            override lazy val source = outerSource match {
               case group: Group[Node] => group.toZipper
               case _ => error("No zipper context available")
             }
             
-            override val hasValidContext = outerParent.isInstanceOf[Group[Node]]
+            override val hasValidContext = outerSource.isInstanceOf[Group[Node]]
           }
         }
       }
       
-      def apply(baseMap: =>Vector[Option[ZContext]]): Builder[A, Zipper[A]] = {
+      def apply(baseContexts: =>List[ZContext]): Builder[A, Zipper[A]] = {
         VectorCase.newBuilder[A] mapResult { vec =>
           new Group(vec) with Zipper[A] {
-            lazy val map = baseMap
-            def parent = error("No zipper context available")
+            override lazy val contexts = baseContexts
+            override def source = error("No zipper context available")
             override val hasValidContext = false
           }
         }
