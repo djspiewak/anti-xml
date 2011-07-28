@@ -31,6 +31,7 @@ package antixml
 
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{Vector, VectorBuilder}
+import scala.collection.mutable.ArrayBuffer
 
 trait Selectable[+A <: Node] {
   
@@ -137,6 +138,124 @@ trait Selectable[+A <: Node] {
   }
   
   /**
+   * Performs a top level-select on the XML tree according to the specified selector
+   * function.  Top-level selection is defined according to the following expression:
+   *
+   * {{{
+   * nodes collect selector
+   * }}}
+   * 
+   * In other respects, this behaves as the '\' operator.  Backtrace operations are fully supported.
+   */
+  def \^[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
+    implicit val cbf2 = cbf.lift[That]
+    if (matches(selector)) {
+      // note: this is mutable and horrible for performance reasons
+            
+      var topIndex =0
+      val contextBuilder = List.newBuilder[ZContext]
+      val resultBuilder = new VectorBuilder[B]
+        
+      for (node <- toGroup) {
+        if (selector isDefinedAt node) {
+          resultBuilder += selector(node)
+          contextBuilder += ZContext(util.Vector1(topIndex), 1)
+        }
+        topIndex += 1
+      }
+      
+      val contexts:List[ZContext] = contextBuilder.result()
+            
+      val builder = cbf(toZipper, contexts)
+      builder ++= resultBuilder.result()
+      builder.result
+    } else {
+      val zipper = toZipper
+      cbf(zipper, List()).result
+    }
+  }
+  
+  /**
+   * Performs a short-circuiting deep-select on the XML tree.  Returns all nodes within the hierchy
+   * that match the selector, except for any Nodes contained in an ancestor that also match the selector.
+   *
+   * {{{
+   * def sel(g: Group[node]) = g flatMap { n =>
+   *    if (selector.isDefinedAt(node))
+   *      List(n)
+   *    else
+   *      sel(n.children)
+   * }
+   * nodes flatMap {sel(_.children)} collect selector  
+   * }}}
+   *
+   * (In the above description, `node.children' is taken to be the empty Group() if `node` is not an `Elem`).
+   *
+   * In english, `\\!` returns the sequence of matches found in a depth first traversal of the tree; 
+   * Children of a node are only traversed if the node does not itself match the selector, which guarantees a node 
+   * will only be contained in at most one location in the resulting hiearchy.  This is in contrast to `\\`, in which
+   * a single node may be contained in multiple locations in the resulting hierarchy.
+   *
+   * As with '\' and '\\', top level nodes are never selected; The search begins at the second level.
+   *
+   * Backtrace operations are fully supported and are compatible with those of '\' and '\^'.
+   * 
+   * TODO: Clean up this doc...
+   *
+   */
+  def \\![B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
+    implicit val cbf2 = cbf.lift[That]
+    if (matches(selector)) {
+      // note: this is mutable and horrible for performance reasons            
+      val contextBuilder = List.newBuilder[ZContext]
+      val resultBuilder = new VectorBuilder[B]
+      val pathBuilder = new  ArrayBuffer[Int]
+      
+      def searchDown(nodes: Group[Node]) {
+        var indx = 0
+        for(node <- nodes) {
+          if (selector isDefinedAt node) {
+            pathBuilder.append(indx)
+            resultBuilder += selector(node)
+            contextBuilder += ZContext(util.VectorCase.fromSeq(pathBuilder.toIndexedSeq), 1)
+            pathBuilder.trimEnd(1)            
+          } else node match {
+            case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
+              pathBuilder.append(indx)
+              searchDown(children)
+              pathBuilder.trimEnd(1)
+            }
+            case _ => ()
+          }
+          indx = indx + 1
+        }
+      }
+      
+      var topIndex = 0
+      for (node <- toGroup) {        
+        node match {
+          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
+            pathBuilder.append(topIndex)
+            searchDown(children)
+            pathBuilder.trimEnd(1)
+          }
+          case _ => ()
+        }
+        topIndex += 1
+      }
+      
+      val contexts:List[ZContext] = contextBuilder.result()
+            
+      val builder = cbf(toZipper, contexts)
+      builder ++= resultBuilder.result()
+      builder.result
+    } else {
+      val zipper = toZipper
+      cbf(zipper, List()).result
+    }
+  }
+  
+  /**
    * Performs a deep-select on the XML tree according to the specified selector
    * function.  Deep selection is defined according to the following recursion:
    *
@@ -185,7 +304,7 @@ trait Selectable[+A <: Node] {
     }
   }
   
- def matches(selector: Selector[_]): Boolean = true
+  def matches(selector: Selector[_]): Boolean = true
   
   def toGroup: Group[A]
   

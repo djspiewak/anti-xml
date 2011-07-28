@@ -44,16 +44,6 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
   // TODO this *may* be a poor choice of words...
   def stripZipper = new Group(toVectorCase)
     
-  
-  def inspectZipper(level: Int = 0) {
-    println(""+level+": hasValidContext = "+hasValidContext)
-    if (hasValidContext) {
-      println(""+level+": contexts = "+contexts)
-      source.inspectZipper(level + 1)
-    }
-  }
-  
-  
   /**
    * Calculates the 'unselect' replacement for a given Node in the source tree.
    *
@@ -101,8 +91,8 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
   }
   
   /**
-  * Calculates the 'unselect' replacement for each top level node in the source tree.
-  */
+   * Calculates the 'unselect' replacement for each top level node in the source tree.
+   */
   private def unselectTopLevelNodes: IndexedSeq[IndexedSeq[Node]] = {
     val (unsels, _, _) = ((Vector.empty[IndexedSeq[Node]], 0, contexts) /: source.zipWithIndex) {
       case ((acc, off, ctxs), (sourceNode, index)) => {

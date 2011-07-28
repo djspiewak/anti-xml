@@ -279,6 +279,78 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       modified(0) mustEqual <top><a0 /><a1 /><a2 /><a3 /><a4 /><a5 /><a6 /><a7 /><a8 /><a9 /></top>.convert      
     }
   }
+
+  "zipper updates within '\\^' results" should {
+    val topLevel = Group(<a1 ><a1b1 /><a1b2 /></a1>.convert, <a2><a2b1 /><a2b2 /></a2>.convert)
+    
+    "rebuild from non-trivial selector" in {
+      val second = topLevel \^ 'a2
+      
+      val changed = second map { e=>
+        e.copy(children = e.children :+ <zzz />.convert)
+      }
+      
+      val rebuild = changed.unselect
+      
+      rebuild must haveSize(2)
+      rebuild(0) mustEqual <a1 ><a1b1 /><a1b2 /></a1>.convert
+      rebuild(1) mustEqual <a2><a2b1 /><a2b2 /><zzz /></a2>.convert
+      
+    }
+    
+    "rebuild when source group comes from '\\' selection" in {
+      val original = <top><a /></top>.convert
+      val expanded = original \ 'a flatMap {
+        case e: Elem => for(i <- 0 until 10) yield e.copy(name=e.name+i)
+      }
+    
+      val filtered = expanded \^ elementWhere {e:Elem => ((e.name.substring(1).toInt) % 2) == 0}
+
+      val modified = filtered map {e => e.copy(name="z"+e.name)}
+      
+      val result = modified.unselect.unselect
+      
+      result must haveSize(1)
+      result(0) mustEqual <top><za0 /><a1 /><za2 /><a3 /><za4 /><a5 /><za6 /><a7 /><za8 /><a9 /></top>.convert      
+    }
+    
+    "rebuild from empty result set" in {
+      val xml = Group(<parent><child/><child/></parent>.convert)
+      (xml \^ 'foo).unselect mustEqual xml
+      (bookstore \ 'book \^ 'foo).unselect mustEqual (bookstore \ 'book)
+      (bookstore \^ 'bookstore \^ 'foo).unselect mustEqual (bookstore \^ 'bookstore)
+      (bookstore \ 'book \^ 'foo).unselect.unselect mustEqual Group(bookstore)
+      (bookstore \^ 'bookstore \^ 'foo).unselect.unselect mustEqual Group(bookstore)
+    }
+    
+  }
+
+  "zipper updates within '\\!' results" should {
+    
+    "rebuild after deep select" in {
+      val authors = bookstore \\! "author"
+      val author0 = authors(0).copy(attrs=Attributes("updated" -> "yes", "timestamp"->"1"))
+      val author2 = authors(2).copy(attrs=Attributes("updated" -> "yes", "timestamp"->"2"))
+      val author3 = authors(3).copy(attrs=Attributes("updated" -> "yes", "timestamp"->"3"))
+      
+      val bookstore2: Group[Node] = authors.updated(0, author0).updated(2, author2).updated(3, author3).unselect
+      
+      // find afresh without using \
+      bookstore2.head.asInstanceOf[Elem].name mustEqual "bookstore"
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].name mustEqual "book"
+      
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children must haveSize(2)
+      bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes", "timestamp"->"1")
+      
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children must haveSize(2)
+      bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes()
+      
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children must haveSize(3)
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes", "timestamp"->"2")
+      bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes", "timestamp"->"3")
+    }
+
+  }
   
   "utility methods on Zipper" >> {
     implicit val arbInt = Arbitrary(Gen.choose(0, 10))
@@ -304,4 +376,17 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
   
   def resource(filename: String) =
     XML fromSource (Source fromURL (getClass getResource ("/" + filename)))   // oooh, lispy!
+   
+  def elementWhere(pred: Elem => Boolean) = 
+    new Selector[Elem] {
+      override val elementName = None
+
+      def apply(n: Node) = n.asInstanceOf[Elem]
+
+      def isDefinedAt(n: Node) = n match {
+        case e:Elem => pred(e)
+        case _ => false
+      }
+  }
+
 }
