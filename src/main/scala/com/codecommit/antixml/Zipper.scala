@@ -37,8 +37,8 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with ScalaCompat { self =>
   // TODO dependently-typed HList, maybe?
   
-  protected def contexts: List[ZContext]
   protected def source: Zipper[Node]
+  protected def contexts: List[ZContext]
   protected val hasValidContext = true
    
   // TODO this *may* be a poor choice of words...
@@ -49,44 +49,44 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
    *
    * @param sourceNode a node from the source tree.
    * @param path the path to `sourceNode`
-   * @param offset the offset into this group to copy from when `path` matches the next path in `unmatchedContexts`.
    * @param unmatchedContexts the list of ZContexts remaining to be matched (must be sorted by path, lexicographically)
-   * @return If `sourceNode` should be replaced, the return value is `Some(result, newOffset, newContexts)`
+   * @param offset the offset into this group to copy from when `path` matches the next path in `unmatchedContexts`.
+   * @return If `sourceNode` should be replaced, the return value is `Some(result, newContexts, newOffset)`
    *         where `result` is the sequence of replacement nodes, and `newOffset` and `newContexts` reflect the
    *         advancement of `offset` and `unmatchedContexts` past the replacement nodes.  Otherwise, the return value
    *         is `None`.
    */
-  private def unselectNode(sourceNode: Node, path: IndexedSeq[Int], offset: Int, unmatchedContexts: List[ZContext]): Option[(IndexedSeq[Node], Int, List[ZContext])] = {
+  private def unselectNode(sourceNode: Node, path: IndexedSeq[Int], unmatchedContexts: List[ZContext], offset: Int): Option[(IndexedSeq[Node], List[ZContext], Int)] = {
     import Zipper.PrefixOrder
     
-    if (unmatchedContexts.isEmpty) 
-      None
-    else {
-      val ZContext(contextPath, contextCount) = unmatchedContexts.head
-      
-      PrefixOrder.tryCompare(path, contextPath) match {
-        case Some(0) => {           //exact match --> replace sourceNode
-          Some((toVectorCase.slice(offset, offset+contextCount), offset+contextCount, unmatchedContexts.tail))
-        }
-        case Some(n) if n < 0 => {  //prefix match --> recusrively replace sourceNode.children
-          sourceNode match {
-            case e@Elem(_,_,_,_,children) => {
-              val (children2,offset2,umContexts2) = ((Vector0:VectorCase[Node], offset, unmatchedContexts) /: (children.zipWithIndex)) {
-                case ((acc, off, ctx),(nd,i)) => {
-                  unselectNode(nd, path :+ i, off, ctx) match {
-                    case None => (acc :+ nd, off, ctx)
-                    case Some((nds, off2, ctx2)) => (acc ++ nds, off2, ctx2)
+    unmatchedContexts match {
+      case ZContext(contextPath, contextCount) :: contextsTail => {
+        //TODO - could make the path comparison more efficient by keeping track of the length of the match between the 2 paths.
+        PrefixOrder.tryCompare(path, contextPath) match {
+          case Some(0) => {           //paths are the same --> replace sourceNode
+            Some((toVectorCase.slice(offset, offset+contextCount), contextsTail, offset+contextCount))
+          }
+          case Some(n) if n < 0 => {  //path is a prefix of contextPath --> recusrively replace sourceNode's.children
+            sourceNode match {
+              case e@Elem(_,_,_,_,children) => {
+                val (children2,umContexts2,offset2) = ((Vector0:VectorCase[Node], unmatchedContexts, offset) /: (children.zipWithIndex)) {
+                  case ((acc, ctx, off),(nd,i)) => {
+                    unselectNode(nd, path :+ i, ctx, off) match {
+                      case None => (acc :+ nd, ctx, off)
+                      case Some((nds, ctx2, off2)) => (acc ++ nds, ctx2, off2)
+                    }
                   }
                 }
+                Some((new Vector1(e.copy(children=new Group(children2))), umContexts2, offset2))
               }
-              Some((new Vector1(e.copy(children=new Group(children2))), offset2, umContexts2))
+              case _ => error("Context path descends through a non-element sourceNode")
             }
-            case _ => error("Context path descends through a non-element sourceNode")
           }
+          case None => None  //Non-matching node
+          case Some(_) => error("Node path extends context path")
         }
-        case None => None  //Non-matching node
-        case Some(_) => error("Node path extends context path")
       }
+      case Nil => None  
     }
   }
   
@@ -94,11 +94,11 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
    * Calculates the 'unselect' replacement for each top level node in the source tree.
    */
   private def unselectTopLevelNodes: IndexedSeq[IndexedSeq[Node]] = {
-    val (unsels, _, _) = ((Vector.empty[IndexedSeq[Node]], 0, contexts) /: source.zipWithIndex) {
-      case ((acc, off, ctxs), (sourceNode, index)) => {
-        unselectNode(sourceNode, Vector1(index), off, ctxs) match {
-          case None => (acc :+ Vector1(sourceNode), off, ctxs)
-          case Some((nds, off2, ctxs2)) => (acc :+ nds, off2, ctxs2)
+    val (unsels, _, _) = ((Vector.empty[IndexedSeq[Node]], contexts, 0) /: source.zipWithIndex) {
+      case ((acc, ctxs, off), (sourceNode, index)) => {
+        unselectNode(sourceNode, Vector1(index), ctxs, off) match {
+          case None => (acc :+ Vector1(sourceNode), ctxs, off)
+          case Some((nds, ctxs2, off2)) => (acc :+ nds, ctxs2, off2)
         }
       }
     }

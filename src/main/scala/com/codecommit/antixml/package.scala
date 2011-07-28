@@ -59,7 +59,7 @@ package object antixml {
    * sorted lexicographically by path.  The offset into the target zipper is then the sum of the counts of the
    * preceeding ZContexts.
    */
-  private[antixml] case class ZContext(sourcePath: Seq[Int], count: Int) 
+  private[antixml] case class ZContext(sourcePath: IndexedSeq[Int], count: Int) 
   
   /**
    * Pimps the `anti` method onto any object for which there exists a conversion
