@@ -49,7 +49,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
     
     val nodes2 = (map zip parent.toVectorCase).foldLeft(VectorCase[Node]()) {
       case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) if from == to =>
-        acc :+ rebuild(Group(), childMap mapValues Function.const(Set[Int]()))
+        acc :+ rebuild(Group(), childMap mapValues Function.const(0))
       
       case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) =>
         acc :+ rebuild(superSlice(from, to), childMap)
@@ -101,51 +101,34 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
         val result = toVectorCase.toVector map f
   
         val intermedMap = map map {
-          case Some((from, to, rebuild, childMap)) => {
-            // get the mapping from *our* indexes to source indexes
-            val inverseMap = {
-              val maps = for ((source, targets) <- childMap)
-                yield (Map[Int, Int]() /: targets) { (acc, t) => acc + (t -> source) }
-    
-              (Map[Int, Int]() /: maps) { _ ++ _ }
-            }
-
-            val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), Map[Int, Set[Int]]())) {
-              case ((start, acc, childMap2), (chunk, i)) => {
-                val size = chunk.size
-                val source = inverseMap(i)
-    
-                val contrib = Set(start until (start + size): _*)
-                val set2 = childMap2.getOrElse(source, contrib) ++ contrib
-    
-                (start + size, acc ++ chunk, childMap2.updated(source, set2))
+          case Some((from, to, rebuild, childMap)) => {            
+            val childMapSorted = (childMap.toSeq) sortWith { _._1 < _._1 } //TODO - Maybe just make childMap a SortedMap 
+            
+            val (lastOffset, chunk, childMap2) = ((from, Vector[B](), Map[Int,Int]()) /: childMapSorted) {
+              case ((offset, acc, childMap2),(srcIndex, 0)) =>
+                (offset, acc, childMap2 + (srcIndex -> 0))
+              
+              case ((offset, acc, childMap2),(srcIndex,destCount)) => {
+                val items = result.slice(offset, offset+destCount).flatMap(identity)
+                (offset + destCount, acc ++ items, childMap2 + (srcIndex -> items.size))
               }
             }
+            assert(lastOffset == to)
             
-            val elided = if (childMap.size == childMap2.size)
-              Set()
-            else
-              childMap filterKeys { !childMap2.isDefinedAt(_) } mapValues { _ => Set.empty[Int] }
-    
-            val length = aggregate.length
-            val delta = length - (to - from)
-            Some((from, to + delta, rebuild, childMap2 ++ elided, aggregate, delta))
+            Some(chunk, rebuild, childMap2)
           }
           
           case None => None
         }
   
-        val (_, map2, chunks) = intermedMap.foldLeft((0, Vector[Option[ZContext]](), Vector[Vector[B]]())) {
-          case ((offset, map2, acc), Some((from, to, rebuild, childMap, aggregate, delta))) => {
-            val from2 = from + offset
-            val to2 = to + offset
-            val offset2 = offset + delta
-            (offset2, map2 :+ Some((from2, to2, rebuild, childMap)), acc :+ aggregate)
+        val (_, map2, chunks) = ((0, Vector[Option[ZContext]](), Vector[Vector[B]]()) /: intermedMap) {
+          case ((offset, map2, acc), Some((chunk,rebuild,childMap))) => {
+            (offset + chunk.size, map2 :+ Some((offset, offset+chunk.size, rebuild, childMap)), acc :+ chunk)
           }
           
           case ((offset, map2, acc), None) => (offset, map2 :+ None, acc)
         }
-  
+          
         val builder = cbfwz(parent.asInstanceOf[Zipper[A]], map2)
         chunks foreach (builder ++=)
         builder.result
