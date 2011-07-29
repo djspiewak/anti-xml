@@ -250,8 +250,7 @@ trait Selectable[+A <: Node] {
    * property on the result set:  A node contained in the result set cannot also appear
    * as a child of a node in the result set.  For the purpose of this discussion, 
    * a result set with this property is said to be ''topologically consistent'' with the original
-   * XML tree.  This operator can then be set to return the maximal topologically consistent
-   * set of results.
+   * XML tree.  
    *
    * As with the '\', and '\^' operators, backtrace ("zipper") operations are fully supported.  Indeed,
    * backtrace support is a major advantage of topological consistency.  Without this property,
