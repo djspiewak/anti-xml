@@ -86,11 +86,6 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
     
     // need to do this early since SAXAttributes objects may be reused
     val map = (0 until attrs.getLength).foldLeft(Attributes()) { (map, i) =>
-      val ns = {
-        val back = attrs.getURI(i)
-        if (back == "") None else Some(back)
-      }
-      
       val localName = attrs.getLocalName(i)
 
       val prefix = {
@@ -107,8 +102,6 @@ class NodeSeqSAXHandler extends DefaultHandler2 {
         None
       else
         Some(qName.substring(0, qName.length - localName.length - 1))
-      
-      val ns = if (uri == "") None else Some(uri)
       
       Elem(prefix, localName, map, scopes.headOption getOrElse Map(), children)
     }

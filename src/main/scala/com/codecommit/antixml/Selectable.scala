@@ -213,8 +213,7 @@ trait Selectable[+A <: Node] {
         case Elem(_, _, _, _, children) => children \\ selector
         case _ => cbf().result
       }
-      
-      ((this \ selector) /: recursive)(cbfwz.append)
+      cbfwz.appendAll(this \ selector, recursive)
     } else {
       cbf().result
     }

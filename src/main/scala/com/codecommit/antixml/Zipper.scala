@@ -45,12 +45,14 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
   def stripZipper = new Group(toVectorCase)
   
   def unselect: Zipper[Node] = {
+    def superSlice(from: Int, until: Int) = super.slice(from, until).toZipper 
+    
     val nodes2 = (map zip parent.toVectorCase).foldLeft(VectorCase[Node]()) {
       case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) if from == to =>
         acc :+ rebuild(Group(), childMap mapValues Function.const(Set[Int]()))
       
       case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) =>
-        acc :+ rebuild(self.slice(from, to), childMap)
+        acc :+ rebuild(superSlice(from, to), childMap)
       
       case (acc, (_, e)) =>
         acc :+ e
@@ -64,16 +66,18 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
   
   override protected[this] def newBuilder = Zipper.newBuilder[A]
   
-  override def drop(n: Int) = super.drop(n).toZipper   // TODO
+  override def drop(n: Int): Zipper[A] = slice(n, size)
   
-  override def slice(from: Int, until: Int) = super.slice(from, until).toZipper   // TODO
-  
-  override def splitAt(n: Int) = {    // TODO
-    val (left, right) = super.splitAt(n)
-    (left.toZipper, right.toZipper)
+  override def slice(from: Int, until: Int): Zipper[A] = {
+    val zwi = Map[A, Int](zipWithIndex: _*)
+    collect {
+      case e if zwi(e) >= from && zwi(e) < until => e
+    }    
   }
   
-  override def take(n: Int) = super.take(n).toZipper   // TODO
+  override def splitAt(n: Int) = (take(n), drop(n))
+  
+  override def take(n: Int) = slice(0, n)
 
   override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = cbf match {
     case cbf: CanProduceZipper[Zipper[A], B, That] => {
@@ -105,7 +109,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
     
               (Map[Int, Int]() /: maps) { _ ++ _ }
             }
-    
+
             val (_, aggregate, childMap2) = result.slice(from, to).zipWithIndex.foldLeft((0, Vector[B](), Map[Int, Set[Int]]())) {
               case ((start, acc, childMap2), (chunk, i)) => {
                 val size = chunk.size
@@ -117,10 +121,15 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
                 (start + size, acc ++ chunk, childMap2.updated(source, set2))
               }
             }
+            
+            val elided = if (childMap.size == childMap2.size)
+              Set()
+            else
+              childMap filterKeys { !childMap2.isDefinedAt(_) } mapValues { _ => Set.empty[Int] }
     
             val length = aggregate.length
             val delta = length - (to - from)
-            Some((from, to + delta, rebuild, childMap2, aggregate, delta))
+            Some((from, to + delta, rebuild, childMap2 ++ elided, aggregate, delta))
           }
           
           case None => None

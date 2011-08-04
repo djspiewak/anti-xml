@@ -33,10 +33,6 @@ package com.codecommit
  * brings in a number of implicit conversions.  Specifically:
  *
  * <ul>
- * <li>`String => Selector[Elem, Zipper[Elem]]` – Used to allow string-based
- * selection syntax with [[com.codecommit.antixml.Group]].  (e.g. `ns \ "name"`)</li>
- * <li>`Symbol => Selector[Elem, Zipper[Elem]]` – Used to allow symbol-based
- * selection syntax with [[com.codecommit.antixml.Group]].  (e.g. `ns \ 'name`)</li>
  * <li>∀`A` . `A => Converter[A]` – Implements ''explicit'' conversions from
  * `scala.xml` types to Anti-XML correspondents (where applicable).  This
  * technically makes the `anti` method available on all types.  However, that
@@ -52,24 +48,6 @@ package com.codecommit
 package object antixml {
   // (from, to, rebuild, internal map)
   private[antixml] type ZContext = (Int, Int, (Group[Node], Map[Int, Set[Int]]) => Node, Map[Int, Set[Int]])
-
-  /**
-   * Implicitly lifts a [[scala.String]] into an instance of [[com.codecommit.antixml.Selector]]
-   * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
-   * For example: `ns \ "name"`
-   */
-  implicit def stringToSelector(name: String): Selector[Elem] =
-    Selector({ case e @ Elem(_, `name`, _, _,  _) => e }, Some(name))
-
-  /**
-   * Implicitly lifts a [[scala.Symbol]] into an instance of [[com.codecommit.antixml.Selector]]
-   * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
-   * For example: `ns \ 'name`
-   */
-  implicit def symbolToSelector(sym: Symbol): Selector[Elem] = {
-    val Symbol(name) = sym
-    stringToSelector(name)
-  }
   
   /**
    * Pimps the `anti` method onto any object for which there exists a conversion

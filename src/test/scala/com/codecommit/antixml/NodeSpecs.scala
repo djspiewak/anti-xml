@@ -44,7 +44,7 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
   
   "elements" should {
     "serialize empty elements correctly" in {
-      <br/>.anti.toString mustEqual "<br/>"
+      <br/>.convert.toString mustEqual "<br/>"
     }
     
     "escape reserved characters in attribute values" in {
@@ -129,14 +129,14 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
     }
 
     "select against self" in {
-      val bookstore = <bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book><book><title>I, Robot</title><author>Isaac Asimov</author></book><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
+      val bookstore = <bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book><book><title>I, Robot</title><author>Isaac Asimov</author></book><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert
       (bookstore \ "book") mustEqual bookstore.children
       (bookstore \ "book") mustEqual bookstore.children
       (bookstore \\ "title") mustEqual (bookstore.children \\ "title")
     }
     
     "select text within self" in {
-      (<parent>Text</parent>.anti \\ text mkString) mustEqual "Text"
+      (<parent>Text</parent>.convert \\ text mkString) mustEqual "Text"
     }
     
     "delegate canonicalization to Group" in check { e: Elem =>

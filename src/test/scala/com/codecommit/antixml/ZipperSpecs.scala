@@ -43,6 +43,8 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
   implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be that large
   
   val bookstore = resource("bookstore.xml")
+  val onlyBell = Group(<bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book></bookstore>.convert)
+  val onlyPS = Group(<bookstore><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert)
   
   "Zipper#stripZipper" should {
     "effectively strip zipper context" in {
@@ -53,7 +55,7 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
   
   "zipper updates within '\\' results" should {
     "rebuild from empty result set" in {
-      val xml = Group(<parent><child/><child/></parent>.anti)
+      val xml = Group(<parent><child/><child/></parent>.convert)
       (xml \ 'foo).unselect mustEqual xml
       (bookstore \ 'book \ 'foo).unselect mustEqual (bookstore \ 'book)
       (bookstore \ 'book \ 'foo).unselect.unselect mustEqual Group(bookstore)
@@ -108,6 +110,41 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
     }
     
+    "rebuild after a drop at the first level" in {
+      val books = bookstore \ "book"
+      val books2 = books drop 2
+      val bookstore2: Group[Node] = books2.unselect
+      
+      bookstore2 mustEqual onlyPS
+    }
+    
+    "rebuild after a slice at the first level" in {
+      val books = bookstore \ "book"
+      val books2 = books slice (2, 3)
+      val bookstore2: Group[Node] = books2.unselect
+      
+      bookstore2 mustEqual onlyPS
+    }
+    
+    "rebuild after a take at the first level" in {
+      val books = bookstore \ "book"
+      val books2 = books take 1
+      val bookstore2: Group[Node] = books2.unselect
+      
+      bookstore2 mustEqual onlyBell
+    }
+    
+    "rebuild after a splitAt at the first level" in {
+      val books = bookstore \ "book"
+      val (books2, books3) = books splitAt 1
+      val books4 = books3 drop 1
+      val bookstore2: Group[Node] = books2.unselect
+      val bookstore4: Group[Node] = books4.unselect
+      
+      bookstore2 mustEqual onlyBell
+      bookstore4 mustEqual onlyPS
+    }
+           
     "rebuild after a flatMap at the first level" in {
       val books = bookstore \ "book"
       val books2 = books flatMap { 
@@ -137,27 +174,27 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       } yield bookElem.copy(attrs=(bookElem.attrs + ("title" -> title)), children=filteredChildren)
       
       val bookstore2 = titledBooks.unselect
-      val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.anti
+      val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert
       bookstore2 mustEqual Group(expected)
     }
     
     "rebuild following identity map with selection miss at the top level" >> {
       "with suffix miss" in {
-        val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti, <miss/>.anti)
+        val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.convert, <miss/>.convert)
         val xml2 = (xml \ "sub") map identity unselect
         
         xml2 mustEqual xml
       }
       
       "with prefix miss" in {
-        val xml = Group(<miss/>.anti, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti)
+        val xml = Group(<miss/>.convert, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.convert)
         val xml2 = (xml \ "sub") map identity unselect
         
         xml2 mustEqual xml
       }
       
       "with prefix and suffix miss" in {
-        val xml = Group(<miss/>.anti, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.anti, <miss/>.anti)
+        val xml = Group(<miss/>.convert, <parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><sub bar="test2"/></parent>.convert, <miss/>.convert)
         val xml2 = (xml \ "sub") map identity unselect
         
         xml2 mustEqual xml
@@ -165,7 +202,7 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
     }
     
     "rebuild following identity map with selection miss at the second level" in {
-      val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><miss/><sub bar="test2"/></parent>.anti)
+      val xml = Group(<parent><sub>Test1</sub><sub foo="test">Test2<subsub/></sub><miss/><sub bar="test2"/></parent>.convert)
       val xml2 = (xml \ "sub") map identity unselect
       
       xml2 mustEqual xml
@@ -183,14 +220,26 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       }
     }
     
+    "rebuild following composed filters" in {
+      val books = bookstore \ 'book
+      val bookstore2 = (books filter (books(0) !=) filter (books(1) !=)).unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+          children must haveSize(1)
+          children \ 'title \ text mustEqual Vector("Programming Scala")
+        }
+      }
+    }
+    
     "rebuild second level siblings following filter at the second level" in {
       val titles = bookstore \ 'book \ 'title
       val books2 = (titles filter (titles(1) ==)).unselect
       
       books2 must haveSize(3)
-      books2(0) mustEqual <book><author>Hemmingway</author></book>.anti
-      books2(1) mustEqual <book><title>I, Robot</title><author>Isaac Asimov</author></book>.anti
-      books2(2) mustEqual <book><author>Dean Wampler</author><author>Alex Payne</author></book>.anti
+      books2(0) mustEqual <book><author>Hemmingway</author></book>.convert
+      books2(1) mustEqual <book><title>I, Robot</title><author>Isaac Asimov</author></book>.convert
+      books2(2) mustEqual <book><author>Dean Wampler</author><author>Alex Payne</author></book>.convert
     }
     
     "rebuild following filter at the second level" in {
@@ -205,6 +254,18 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       val titles2 = bookstore2 \ 'book \ 'title
       titles2 must haveSize(2)
       (titles2 \ text) mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
+    }
+    
+    "rebuild following 2 filters at the first level" in {
+      val books = bookstore \ 'book
+      val bookstore2 = (books filter (books(1) !=) filter (books(0) !=)).unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+          children must haveSize(1)
+          children \ 'title \ text mustEqual Vector("Programming Scala")
+        }
+      }
     }
   }
   

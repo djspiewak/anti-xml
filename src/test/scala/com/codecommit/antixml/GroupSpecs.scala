@@ -76,7 +76,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
   
   "deep selection on Group" should {
     "return something of type Group (*not* type Zipper) on element select" in {
-      val ns = <foo/>.anti
+      val ns = <foo/>.convert
       validate[Group[Elem]](ns \\ 'bar)
     }
     
@@ -129,7 +129,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     implicit val arbInt = Arbitrary(Gen.choose(0, 10))
 
     "map should produce a Group (not a Zipper)" in {
-      val group = <parent>child</parent>.anti.children
+      val group = <parent>child</parent>.convert.children
       validate[Group[Node]](group)
       validate[Group[Node]](group map identity)
     }

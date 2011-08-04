@@ -48,7 +48,7 @@ class Converter[A](a: A) {
    * API).  Technically, this function is not just restricted to converting into
    * Anti-XML types.  However, it would probably minimize confusion if it were
    * exclusively used for this purpose.  This generality comes from the fact that
-   * the `anti` function itself doesn't perform any conversion, but merely delegates
+   * the `convert` function itself doesn't perform any conversion, but merely delegates
    * directly to the `apply` method on whatever instance of `XMLConvertable` it
    * happens to be passed.
    *
@@ -59,9 +59,9 @@ class Converter[A](a: A) {
    * possible to pass the conversion explicitly.
    *
    * @see [[com.codecommit.antixml.XMLConvertable]]
-   * @usecase def anti: Node 
+   * @usecase def convert: Node 
    */
-  def anti[B](implicit conversion: XMLConvertable[A, B]) = conversion(a)
+  def convert[B](implicit conversion: XMLConvertable[A, B]) = conversion(a)
 }
 
 
@@ -73,7 +73,7 @@ class Converter[A](a: A) {
  * instances of `XMLConvertable` will be implicit, we cannot blithely extend
  * `Function1`.  To do so would polute the scope with an unexpected proliferation
  * of ''implicit'' conversions which would be automatically injected by the Scala
- * compiler, rather than allowing us to tag them ''explicitly'' using the `anti` method.
+ * compiler, rather than allowing us to tag them ''explicitly'' using the `convert` method.
  * 
  * @see [[com.codecommit.antixml.Converter]]
  */
