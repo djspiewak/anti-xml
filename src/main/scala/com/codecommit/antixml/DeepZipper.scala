@@ -94,7 +94,7 @@ trait DeepZipper[+A <: Node] extends Group[A] { self =>
       }
     }
   }
-
+  
   /** The zipper context grouped by depth in the tree. */
   private type DepthContext = Map[Int, Seq[FullContext]]
 
@@ -196,7 +196,7 @@ trait DeepZipper[+A <: Node] extends Group[A] { self =>
     mergeWithOriginal(originals, contexts.map(_.nodeLoc))
   }
 
-  /** Merges an iterable of node locations into the original group reprsenting them. */
+  /** Merges an iterable of node locations into the original group representing them. */
   private def mergeWithOriginal[B >: A <: Node](originals: Group[Node], nodeLocs: Iterable[NodeLoc[B]]) = {
     val newNodes = nodeLocs.foldLeft(originals) { (oldNodes, nl) =>
       val NodeLoc(node, loc) = nl
@@ -253,11 +253,11 @@ object DeepZipper {
    *  It should be taken into account that nodes may be modified directly by the user
    *  or through mergings from deeper levels.
    */
-  private[antixml]type NodeMergeStrategy = (Node, Seq[(Node, Time)]) => (Node, Time)
+  private[antixml] type NodeMergeStrategy = (Node, Seq[(Node, Time)]) => (Node, Time)
 
-  private[antixml]type Path[+A <: Node] = Seq[(NodeLoc[A], ParentsList)]
+  private[antixml] type Path[+A <: Node] = Seq[(NodeLoc[A], ParentsList)]
   /** A function that creates paths on group, to be used when constructing zippers. */
-  private[antixml]type PathFunction[+A <: Node] = Group[Node] => Path[A]
+  private[antixml] type PathFunction[+A <: Node] = Group[Node] => Path[A]
 
   /** Pimping selectables with [[DeepZipper]] methods. */
   implicit def groupableToSelectable[A <: Node](g: Selectable[A]) = {
@@ -266,7 +266,7 @@ object DeepZipper {
       //TODO using strange names to avoid conflicts
 
       private def zipper[B <: Node](path: PathFunction[B]) = {
-        fromPath(g.toGroup, path)
+        fromPathFunc(g.toGroup, path)
       }
 
       /** Searching at the current level . */
@@ -312,24 +312,28 @@ object DeepZipper {
       }
     }
   }
-
-  /** Converts the nodes gathered from applying the path function to the given group into a zipper. */
-  def fromPath[A <: Node](group: Group[Node], path: PathFunction[A]) = {
+  
+  /** Converts a path with an optional parent into a zipper. */
+  def fromPath[A <: Node](parentOpt: Option[Group[Node]], path: Path[A]) = {
     import com.codecommit.antixml.util.VectorCase
 
-    val pathVals = path(group)
-    val pathNodes = VectorCase.fromSeq(pathVals.map(_._1.node))
+    val pathNodes = VectorCase.fromSeq(path.map(_._1.node))
 
     new Group[A](pathNodes) with DeepZipper[A] {
-      val parentLists = Vector(pathVals.map(_._2): _*)
-      val locations = Vector(pathVals.map(_._1.loc): _*)
-      val parent = groupToZipper(group)
+      val parentLists = Vector(path.map(_._2): _*)
+      val locations = Vector(path.map(_._1.loc): _*)
+      def parent = parentOpt map (groupToZipper(_)) getOrElse sys.error("Root has no parent")
       val mergeDuplicates = parent.mergeDuplicates
 
       // setting new time
       val time = 0
       val updateTimes = locations.map(_ => time)
     }
+  }
+
+  /** Converts the nodes gathered from applying the path function to the given group into a zipper. */
+  def fromPathFunc[A <: Node](parent: Group[Node], path: PathFunction[A]) = {
+    fromPath(Some(parent), path(parent))
   }
 
   /** A factory for [[PathFunction]]s  */
