@@ -49,7 +49,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
 
     "modify on any level" in {
       val authors = bookstore ~\\ 'author
-      val newAuthor = <author>Tolkien</author>.anti
+      val newAuthor = <author>Tolkien</author>.convert
       val newBooks =
         authors.
           updated(0, newAuthor).
@@ -83,8 +83,8 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
       val titles = bookstore ~ 'book > 'title 
       val newBooks =
         titles.
-          updated(0, <title>LOTR</title>.anti).
-          updated(1, <title>Hitchhikers Guide</title>.anti).
+          updated(0, <title>LOTR</title>.convert).
+          updated(1, <title>Hitchhikers Guide</title>.convert).
           unselect.unselect
           
       val res = fromString {
@@ -145,7 +145,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
           unselect
 
       // this time the children are ignored, because the last change is at the root
-      val res = <erased/>.anti
+      val res = <erased/>.convert
 
       newBooks mustEqual Group(res)
     	
@@ -201,7 +201,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
 
   "Zipper updates within '>' results" should {
     "rebuild from empty result set" in {
-      val xml = Group(<parent><child/><child/></parent>.anti)
+      val xml = Group(<parent><child/><child/></parent>.convert)
       (xml > 'foo).unselect mustEqual xml
       (bookstore > 'book > 'foo).unselect mustEqual (bookstore > 'book)
       (bookstore > 'book > 'foo).unselect.unselect mustEqual Group(bookstore)
@@ -265,7 +265,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
 
   "Deep selection on DeepZipper" should {
     "return something of type DeepZipper on element select" in {
-      val ns = <foo/>.anti
+      val ns = <foo/>.convert
       validate[DeepZipper[Elem]](ns ~ 'bar)
     }
 
