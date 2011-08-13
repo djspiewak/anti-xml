@@ -31,6 +31,7 @@ package antixml
 
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{Vector, VectorBuilder}
+import scala.collection.mutable.ArrayBuffer
 
 trait Selectable[+A <: Node] {
   
@@ -103,71 +104,75 @@ trait Selectable[+A <: Node] {
     
     if (matches(selector)) {
       // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
-      
-      val catBuilder = new VectorBuilder[B]
-      val chunkBuilder = new VectorBuilder[Int]
-      val rebuildBuilder = new VectorBuilder[(Group[Node], Map[Int, Int]) => Node]
-      val childMapBuilder = new VectorBuilder[Map[Int, Int]]
-      
-      for (node <- toGroup) {
-        node match {
-          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
-            var childMap = Map[Int, Int]()
-            var currentChunk = 0
             
-            var i = 0
+      var topIndex =0
+      val contextBuilder = List.newBuilder[ZContext]
+      val resultBuilder = new VectorBuilder[B]
+        
+      for (node <- toGroup) {        
+        node match {
+          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {            
+            var botIndex = 0
             for (child <- children) {
               if (selector isDefinedAt child) {
-                catBuilder += selector(child)
-                childMap += (i -> 1)
-                currentChunk += 1
+                resultBuilder += selector(child)
+                contextBuilder += ZContext(util.Vector2(topIndex,botIndex), 1)
               }
-              i += 1
+              botIndex += 1
             }
-            
-            chunkBuilder += currentChunk
-            childMapBuilder += childMap
-            
-            def rebuild(children2: Group[Node], indexToSize: Map[Int, Int]) = {
-              val (revisedChildren,offset) = children.zipWithIndex.foldLeft((Group[Node](),0)) {
-                case ((acc,offset), (_, i)) if indexToSize contains i => {
-                  val chIndices = Range(offset,offset+indexToSize(i))
-                  (chIndices.foldLeft(acc) { _ :+ children2(_) } , chIndices.end) 
-                }
-                case ((acc,offset), (e, _)) => (acc :+ e, offset)
-              }
-              
-              e.copy(children=revisedChildren)
-            }
-            
-            rebuildBuilder += (rebuild _)
-          }
-          
-          case _ => {
-            chunkBuilder += 0
-            childMapBuilder += Map()
-            rebuildBuilder += { (_, _) => error("invoked rebuild for non-match") }
-          }
+          }          
+          case _ => ()
         }
+        topIndex += 1
       }
       
-      val cat = catBuilder.result
-      
-      lazy val (_, map) = {
-        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[Option[ZContext]]())) {
-          case ((i, acc), ((length, f), childMap)) if length != 0 =>
-            (i + length, acc :+ Some((i, i + length, f, childMap)))
-          
-          case ((i, acc), _) => (i, acc :+ None)
-        }
-      }
-      
-      val builder = cbf(toZipper, map)
-      builder ++= cat
+      val contexts:List[ZContext] = contextBuilder.result()
+            
+      val builder = cbf(toZipper, contexts)
+      builder ++= resultBuilder.result()
       builder.result
     } else {
       val zipper = toZipper
-      cbf(zipper, zipper.toVector map Function.const(None)).result
+      cbf(zipper, List()).result
+    }
+  }
+  
+  /**
+   * Performs a top level-select on the XML tree according to the specified selector
+   * function.  Top-level selection is defined according to the following expression:
+   *
+   * {{{
+   * nodes collect selector
+   * }}}
+   * 
+   * In other respects, this operator behaves similarly to '\' operator.  Backtrace ("zipper") operations 
+   * are fully supported.
+   */
+  def \^[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
+    implicit val cbf2 = cbf.lift[That]
+    if (matches(selector)) {
+      // note: this is mutable and horrible for performance reasons
+            
+      var topIndex =0
+      val contextBuilder = List.newBuilder[ZContext]
+      val resultBuilder = new VectorBuilder[B]
+        
+      for (node <- toGroup) {
+        if (selector isDefinedAt node) {
+          resultBuilder += selector(node)
+          contextBuilder += ZContext(util.Vector1(topIndex), 1)
+        }
+        topIndex += 1
+      }
+      
+      val contexts:List[ZContext] = contextBuilder.result()
+            
+      val builder = cbf(toZipper, contexts)
+      builder ++= resultBuilder.result()
+      builder.result
+    } else {
+      val zipper = toZipper
+      cbf(zipper, List()).result
     }
   }
   
@@ -220,7 +225,95 @@ trait Selectable[+A <: Node] {
     }
   }
   
- def matches(selector: Selector[_]): Boolean = true
+  
+  /**
+   * Performs a greedy deep-select on the XML tree, defined as follows:
+   *
+   * {{{
+   * def childrenOf(n: Node) = n match {
+   *    e: Elem => e.children
+   *    _ => Group()
+   * }
+   *
+   * def sel(g: Group[Node]) = g flatMap { n =>
+   *   if (selector.isDefinedAt(n))
+   *     Seq(selector(n))
+   *   else
+   *     sel(childrenOf(n))
+   * }
+   *
+   * nodes flatMap {n => sel(childrenOf(n))} 
+   * }}}
+   *
+   * In english, this performs a recursive search of the tree, except it does not recurse 
+   * into the children of a node that itself matches the selector.  This imparts a useful 
+   * property on the result set:  A node contained in the result set cannot also appear
+   * as a child of a node in the result set.  For the purpose of this discussion, 
+   * a result set with this property is said to be ''topologically consistent'' with the original
+   * XML tree.  
+   *
+   * As with the '\', and '\^' operators, backtrace ("zipper") operations are fully supported.  Indeed,
+   * backtrace support is a major advantage of topological consistency.  Without this property,
+   * backtracing semmantics must provide some means of resolving conflicting updates to nodes that
+   * appear in multiple localations of the result set.
+   *
+   * As with '\' and '\\', top level nodes are never selected by this operator; The search always
+   * begins at the second level.
+   *
+   */
+  def \\![B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
+    implicit val cbf2 = cbf.lift[That]
+    if (matches(selector)) {
+      // note: this is mutable and horrible for performance reasons            
+      val contextBuilder = List.newBuilder[ZContext]
+      val resultBuilder = new VectorBuilder[B]
+      val pathBuilder = new  ArrayBuffer[Int]
+      
+      def searchDown(nodes: Group[Node]) {
+        var indx = 0
+        for(node <- nodes) {
+          if (selector isDefinedAt node) {
+            pathBuilder.append(indx)
+            resultBuilder += selector(node)
+            contextBuilder += ZContext(util.VectorCase.fromSeq(pathBuilder.toIndexedSeq), 1)
+            pathBuilder.trimEnd(1)            
+          } else node match {
+            case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
+              pathBuilder.append(indx)
+              searchDown(children)
+              pathBuilder.trimEnd(1)
+            }
+            case _ => ()
+          }
+          indx = indx + 1
+        }
+      }
+      
+      var topIndex = 0
+      for (node <- toGroup) {        
+        node match {
+          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
+            pathBuilder.append(topIndex)
+            searchDown(children)
+            pathBuilder.trimEnd(1)
+          }
+          case _ => ()
+        }
+        topIndex += 1
+      }
+      
+      val contexts:List[ZContext] = contextBuilder.result()
+            
+      val builder = cbf(toZipper, contexts)
+      builder ++= resultBuilder.result()
+      builder.result
+    } else {
+      val zipper = toZipper
+      cbf(zipper, List()).result
+    }
+  }
+  
+  def matches(selector: Selector[_]): Boolean = true
   
   def toGroup: Group[A]
   

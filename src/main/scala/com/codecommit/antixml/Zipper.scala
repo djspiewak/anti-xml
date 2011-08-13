@@ -36,31 +36,101 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 
 trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with ScalaCompat { self =>
   // TODO dependently-typed HList, maybe?
-
-  protected def map: Vector[Option[ZContext]]
-  protected def parent: Zipper[Node]
-  protected val hasValidContext = true
   
+  protected def source: Zipper[Node]
+  protected def contexts: List[ZContext]
+  protected val hasValidContext = true
+   
   // TODO this *may* be a poor choice of words...
   def stripZipper = new Group(toVectorCase)
+    
+  /**
+   * Calculates the 'unselect' replacement for a given Node in the source tree.
+   *
+   * @param sourceNode a node from the source tree.
+   * @param path the path to `sourceNode`
+   * @param unmatchedContexts the list of ZContexts remaining to be matched (must be sorted by path, lexicographically)
+   * @param offset the offset into this group to copy from when `path` matches the next path in `unmatchedContexts`.
+   * @return If `sourceNode` should be replaced, the return value is `Some(result, newContexts, newOffset)`
+   *         where `result` is the sequence of replacement nodes, and `newOffset` and `newContexts` reflect the
+   *         advancement of `offset` and `unmatchedContexts` past the replacement nodes.  Otherwise, the return value
+   *         is `None`.
+   */
+  private def unselectNode(sourceNode: Node, path: IndexedSeq[Int], unmatchedContexts: List[ZContext], offset: Int): Option[(IndexedSeq[Node], List[ZContext], Int)] = {
+    import Zipper.PrefixOrder
+    
+    unmatchedContexts match {
+      case ZContext(contextPath, contextCount) :: contextsTail => {
+        //TODO - could make the path comparison more efficient by keeping track of the length of the match between the 2 paths.
+        PrefixOrder.tryCompare(path, contextPath) match {
+          case Some(0) => {           //paths are the same --> replace sourceNode
+            Some((toVectorCase.slice(offset, offset+contextCount), contextsTail, offset+contextCount))
+          }
+          case Some(n) if n < 0 => {  //path is a prefix of contextPath --> recusrively replace sourceNode's.children
+            sourceNode match {
+              case e@Elem(_,_,_,_,children) => {
+                val (children2,umContexts2,offset2) = ((Vector0:VectorCase[Node], unmatchedContexts, offset) /: (children.zipWithIndex)) {
+                  case ((acc, ctx, off),(nd,i)) => {
+                    unselectNode(nd, path :+ i, ctx, off) match {
+                      case None => (acc :+ nd, ctx, off)
+                      case Some((nds, ctx2, off2)) => (acc ++ nds, ctx2, off2)
+                    }
+                  }
+                }
+                Some((new Vector1(e.copy(children=new Group(children2))), umContexts2, offset2))
+              }
+              case _ => error("Context path descends through a non-element sourceNode")
+            }
+          }
+          case None => None  //Non-matching node
+          case Some(_) => error("Node path extends context path")
+        }
+      }
+      case Nil => None  
+    }
+  }
+  
+  /**
+   * Calculates the 'unselect' replacement for each top level node in the source tree.
+   */
+  private def unselectTopLevelNodes: IndexedSeq[IndexedSeq[Node]] = {
+    val (unsels, _, _) = ((Vector.empty[IndexedSeq[Node]], contexts, 0) /: source.zipWithIndex) {
+      case ((acc, ctxs, off), (sourceNode, index)) => {
+        unselectNode(sourceNode, Vector1(index), ctxs, off) match {
+          case None => (acc :+ Vector1(sourceNode), ctxs, off)
+          case Some((nds, ctxs2, off2)) => (acc :+ nds, ctxs2, off2)
+        }
+      }
+    }
+    unsels
+  } 
   
   def unselect: Zipper[Node] = {
-    def superSlice(from: Int, until: Int) = super.slice(from, until).toZipper 
+    val newNodeSeqs = unselectTopLevelNodes 
+    val newNodes = newNodeSeqs.flatMap(identity)(VectorCase.canBuildFrom)
     
-    val nodes2 = (map zip parent.toVectorCase).foldLeft(VectorCase[Node]()) {
-      case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) if from == to =>
-        acc :+ rebuild(Group(), childMap mapValues Function.const(0))
-      
-      case (acc, (Some((from, to, rebuild, childMap)), _: Elem)) =>
-        acc :+ rebuild(superSlice(from, to), childMap)
-      
-      case (acc, (_, e)) =>
-        acc :+ e
-    }
-
-    new Group(nodes2) with Zipper[Node] {
-      val map = self.parent.map
-      def parent = self.parent.parent
+    if (!source.hasValidContext) {
+      new Group(newNodes) with Zipper[Node]{
+        override def source = error("Cannot unselect past original source")
+        override def contexts = List()
+        override val hasValidContext = false
+      }
+    } else {
+      val (sourceChunks, _) = ((Vector0:VectorCase[Range],0) /: source.contexts) {
+        case ((acc,off),ZContext(_, count)) => (acc :+ Range(off,off+count),off+count)
+      }
+      val newContexts = source.contexts zip sourceChunks map {
+        case (zctx, chunk) => {
+          val newCount = (0 /: chunk) {
+            case (sz, indx) => sz + newNodeSeqs(indx).size
+          }
+          zctx.copy(count=newCount)
+        }
+      }
+      new Group(newNodes) with Zipper[Node]{
+        override val source = self.source.source
+        override val contexts = newContexts
+      }
     }
   }
   
@@ -83,7 +153,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
     case cbf: CanProduceZipper[Zipper[A], B, That] => {
       implicit val cbfwz = cbf.lift
       
-      val builder = cbfwz(parent.asInstanceOf[Zipper[A]], map)      // oddly, the type-checker isn't handling this
+      val builder = cbfwz(source.asInstanceOf[Zipper[A]], contexts)      // oddly, the type-checker isn't handling this
       builder ++= (toVectorCase map f)
       builder.result
     }
@@ -99,38 +169,19 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
         super.flatMap(f)(cbf)     // don't try to preserve
       } else {
         val result = toVectorCase.toVector map f
-  
-        val intermedMap = map map {
-          case Some((from, to, rebuild, childMap)) => {            
-            val childMapSorted = (childMap.toSeq) sortWith { _._1 < _._1 } //TODO - Maybe just make childMap a SortedMap 
-            
-            val (lastOffset, chunk, childMap2) = ((from, Vector[B](), Map[Int,Int]()) /: childMapSorted) {
-              case ((offset, acc, childMap2),(srcIndex, 0)) =>
-                (offset, acc, childMap2 + (srcIndex -> 0))
-              
-              case ((offset, acc, childMap2),(srcIndex,destCount)) => {
-                val items = result.slice(offset, offset+destCount).flatMap(identity)
-                (offset + destCount, acc ++ items, childMap2 + (srcIndex -> items.size))
-              }
-            }
-            assert(lastOffset == to)
-            
-            Some(chunk, rebuild, childMap2)
+        
+        val (newChunks, newContexts, _) = ((Vector.empty[Vector[B]], Vector.empty[ZContext], 0) /: contexts) {
+          case((chunkAcc, ctxAcc, offset), z @ ZContext(_,0)) => 
+            (chunkAcc :+ Vector.empty[B], ctxAcc :+ z, offset)
+          case((chunkAcc, ctxAcc, offset), z @ ZContext(_,chunkSize)) => {
+            val fmNodes = result.slice(offset,offset+chunkSize).flatMap(identity)
+            val fmChunkSize = fmNodes.size
+            (chunkAcc :+ fmNodes, ctxAcc :+ z.copy(count=fmChunkSize), offset + chunkSize)
           }
-          
-          case None => None
         }
-  
-        val (_, map2, chunks) = ((0, Vector[Option[ZContext]](), Vector[Vector[B]]()) /: intermedMap) {
-          case ((offset, map2, acc), Some((chunk,rebuild,childMap))) => {
-            (offset + chunk.size, map2 :+ Some((offset, offset+chunk.size, rebuild, childMap)), acc :+ chunk)
-          }
-          
-          case ((offset, map2, acc), None) => (offset, map2 :+ None, acc)
-        }
-          
-        val builder = cbfwz(parent.asInstanceOf[Zipper[A]], map2)
-        chunks foreach (builder ++=)
+            
+        val builder = cbfwz(source.asInstanceOf[Zipper[A]], newContexts.toList)
+        newChunks foreach (builder ++=)
         builder.result
       }
     }
@@ -149,8 +200,8 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
   
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVectorCase) with Zipper[B] {
-      val map = self.map
-      val parent = self.parent
+      override val source = self.source
+      override val contexts = self.contexts
     }
   }
   
@@ -179,9 +230,37 @@ object Zipper {
   
   def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { vec =>
     new Group(vec) with Zipper[A] {
-      val map = Vector()
-      def parent = error("No zipper context available")
+      val contexts = List.empty
+      def source = error("No zipper context available")
       override val hasValidContext = false
     }
   }
+  
+  /**
+   * Partial order representing the 'startsWith' relationship for sequences.
+   * 
+   * 'lteq(x, y)' if and only if y.startsWith(x)
+   */
+  private object PrefixOrder extends scala.math.PartialOrdering[Seq[Int]] {
+    override def lteq(x: Seq[Int], y:Seq[Int]): Boolean = tryCompare(x,y) match {
+      case Some(n) if n <= 0 => true
+      case _ => false
+    }
+    
+    override def tryCompare(x: Seq[Int], y:Seq[Int]): Option[Int] = {
+      val xi = x.iterator
+      val yi = y.iterator
+      while (xi.hasNext && yi.hasNext)
+        if (xi.next != yi.next)
+          return None
+      
+      if (xi.hasNext)
+        Some(1)
+      else if (yi.hasNext)
+        Some(-1)
+      else
+        Some(0)
+    }
+  }
+  
 }
