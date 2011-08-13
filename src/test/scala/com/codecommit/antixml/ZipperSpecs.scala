@@ -280,11 +280,11 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
     }
   }
 
-  "zipper updates within '\\^' results" should {
+  "zipper updates within 'select' results" should {
     val topLevel = Group(<a1 ><a1b1 /><a1b2 /></a1>.convert, <a2><a2b1 /><a2b2 /></a2>.convert)
     
     "rebuild from non-trivial selector" in {
-      val second = topLevel \^ 'a2
+      val second = topLevel select 'a2
       
       val changed = second map { e=>
         e.copy(children = e.children :+ <zzz />.convert)
@@ -304,7 +304,7 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
         case e: Elem => for(i <- 0 until 10) yield e.copy(name=e.name+i)
       }
     
-      val filtered = expanded \^ elementWhere {e:Elem => ((e.name.substring(1).toInt) % 2) == 0}
+      val filtered = expanded select elementWhere {e:Elem => ((e.name.substring(1).toInt) % 2) == 0}
 
       val modified = filtered map {e => e.copy(name="z"+e.name)}
       
@@ -316,11 +316,11 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
     
     "rebuild from empty result set" in {
       val xml = Group(<parent><child/><child/></parent>.convert)
-      (xml \^ 'foo).unselect mustEqual xml
-      (bookstore \ 'book \^ 'foo).unselect mustEqual (bookstore \ 'book)
-      (bookstore \^ 'bookstore \^ 'foo).unselect mustEqual (bookstore \^ 'bookstore)
-      (bookstore \ 'book \^ 'foo).unselect.unselect mustEqual Group(bookstore)
-      (bookstore \^ 'bookstore \^ 'foo).unselect.unselect mustEqual Group(bookstore)
+      (xml select 'foo).unselect mustEqual xml
+      (bookstore \ 'book select 'foo).unselect mustEqual (bookstore \ 'book)
+      (bookstore select 'bookstore select 'foo).unselect mustEqual (bookstore select 'bookstore)
+      (bookstore \ 'book select 'foo).unselect.unselect mustEqual Group(bookstore)
+      (bookstore select 'bookstore select 'foo).unselect.unselect mustEqual Group(bookstore)
     }
     
   }

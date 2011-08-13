@@ -148,7 +148,7 @@ trait Selectable[+A <: Node] {
    * In other respects, this operator behaves similarly to '\' operator.  Backtrace ("zipper") operations 
    * are fully supported.
    */
-  def \^[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
+  def select[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
     implicit val cbf2 = cbf.lift[That]
     if (matches(selector)) {
       // note: this is mutable and horrible for performance reasons
@@ -252,7 +252,7 @@ trait Selectable[+A <: Node] {
    * a result set with this property is said to be ''topologically consistent'' with the original
    * XML tree.  
    *
-   * As with the '\', and '\^' operators, backtrace ("zipper") operations are fully supported.  Indeed,
+   * As with the '\', and 'select' operators, backtrace ("zipper") operations are fully supported.  Indeed,
    * backtrace support is a major advantage of topological consistency.  Without this property,
    * backtracing semmantics must provide some means of resolving conflicting updates to nodes that
    * appear in multiple localations of the result set.
