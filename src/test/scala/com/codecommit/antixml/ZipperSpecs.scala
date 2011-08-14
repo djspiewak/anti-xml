@@ -265,7 +265,18 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
           children must haveSize(1)
           children \ 'title \ text mustEqual Vector("Programming Scala")
         }
+      }      
+    }
+    
+    "preserve flatMap order" in {
+      val original = <top><a /></top>.convert
+      val expanded = original \ 'a flatMap {
+        case e: Elem => for(i <- 0 until 10) yield e.copy(name=e.name+i)
       }
+      val modified = expanded.unselect
+
+      modified must haveSize(1)
+      modified(0) mustEqual <top><a0 /><a1 /><a2 /><a3 /><a4 /><a5 /><a6 /><a7 /><a8 /><a9 /></top>.convert      
     }
   }
   

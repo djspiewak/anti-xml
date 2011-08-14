@@ -19,6 +19,7 @@ CHANGELOG
 * Explicit converters now use ``convert`` instead of ``anti``
 * **Bug Fixes**
 
+  * `Issue #36`_ – Zipper.unselect does not preserve order of flatMapped children
   * `Issue #19`_ – Attributes Should Be Order-Preserving
   * `Issue #26`_ – Zipper unselect is incorrect after multiple operations
   * ``Zipper#unselect`` fails to rebuild siblings at the second level when some
@@ -31,6 +32,7 @@ CHANGELOG
 	  by splitting it entirely from ``CanBuildFrom``.
 
 
+.. _Issue #36: https://github.com/djspiewak/anti-xml/issues/36
 .. _Issue #19: https://github.com/djspiewak/anti-xml/issues/19
 .. _Issue #26: https://github.com/djspiewak/anti-xml/issues/26
 .. _Issue #12: https://github.com/djspiewak/anti-xml/issues/12
