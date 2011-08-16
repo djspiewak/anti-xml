@@ -154,5 +154,8 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
     "not escape reserved characters when serialized" in {
       CDATA("Lorem \" ipsum & dolor ' sit < amet > blargh").toString mustEqual "<![CDATA[Lorem \" ipsum & dolor ' sit < amet > blargh]]>"
     }
+    "Reject the ]]> string in the constructor" in {
+      CDATA("la di ]]> da") must throwAn[IllegalArgumentException]
+    }
   }
 }
