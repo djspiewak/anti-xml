@@ -188,7 +188,7 @@ case class Text(text: String) extends Node {
  * performs escaping, use [[com.codecommit.antixml.Text]]
  */
 case class CDATA(text: String) extends Node {
-  override def toString = "<![CDATA[" + text + "]]>"
+  override def toString = "<![CDATA[" + text.replaceAllLiterally("]]>", "]]>]]&gt;<![CDATA[") + "]]>"
 }
 
 /**
