@@ -73,16 +73,15 @@ Supported Versions of Scala
 
 Anti-XML is cross-built_ for the following Scala versions:
 
-* **2.9.0-1** (0.3-SNAPSHOT release only)
+* **2.9.1.RC2**
+* **2.9.0-1**
 * **2.9.0**
-* **2.8.1**
 
-While it is theoretically possible to add support for 2.8.0, we have no plans to
-do so at this time.  The reason being that Specs2_ – the testing framework used
-by Anti-XML – has not been cross-built for 2.8.0.  Additionally, ScalaCheck_ has
-not updated its 2.8.0 cross-build in several months.  All that combined with the
-fact that 2.8.1 is a nearly-completely backwards compatible update with 2.8.0 has
-led to the conclusion that cross-building for 2.8.0 just isn't worth the effort.
+Support for the 2.8.x stream is being dropped in version 0.3.  It is believed
+that 2.9.x has had sufficient time to mature and there is very little reason to
+continue to work with 2.8.1.  However, if there is demand for a 2.8.1 (or 2.8.0)
+compatible release, open an issue and I will manually build a JAR for the appropriate
+version.
 
 .. _cross-built: http://code.google.com/p/simple-build-tool/wiki/CrossBuild
 .. _Specs2: http://etorreborre.github.com/specs2/
