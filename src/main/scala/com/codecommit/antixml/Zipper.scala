@@ -31,10 +31,10 @@ package antixml
 
 import util._
 
-import scala.collection.IndexedSeqLike
+import scala.collection.{GenTraversable, GenTraversableOnce, IndexedSeqLike}
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 
-trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with ScalaCompat { self =>
+trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { self =>
   // TODO dependently-typed HList, maybe?
 
   protected def map: Vector[Option[ZContext]]
@@ -91,7 +91,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
     case _ => super.map(f)(cbf)
   }
 
-  override def flatMap[B, That](f: A => CompatTraversable[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = cbf match {
+  override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = cbf match {
     case cbf: CanProduceZipper[Zipper[A], B, That] => {
       implicit val cbfwz = cbf.lift
       
@@ -160,7 +160,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] with
     def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Zipper[A], B, That]) =
       self filter { a => filters forall { _(a) } } map f
     
-    def flatMap[B, That](f: A => CompatTraversable[B])(implicit bf: CanBuildFrom[Zipper[A], B, That]) =
+    def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit bf: CanBuildFrom[Zipper[A], B, That]) =
       self filter { a => filters forall { _(a) } } flatMap f
     
     def foreach[B](f: A => B) = self foreach f

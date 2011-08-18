@@ -188,6 +188,8 @@ case class Text(text: String) extends Node {
  * performs escaping, use [[com.codecommit.antixml.Text]]
  */
 case class CDATA(text: String) extends Node {
+  if (text.contains("]]>"))
+    throw new IllegalArgumentException("CDATA nodes can't contain ']]>'")
   override def toString = "<![CDATA[" + text + "]]>"
 }
 
