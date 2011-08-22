@@ -84,63 +84,126 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
   override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That = {
     cbf match {
       case cbf: CanProduceDeepZipper[DeepZipper[Node], B, That] => { // subtypes of this are the only expected types, so ignoring type erasure
-        val cbfwdz = cbf.lift
-        
-        val result = toVector.map(f)
-        val indices = result.indices
-            
-        val emptyContext = Vector[LocationContext]()
-        val startIndex = 0
-        
-        /* This will hold the true for locations preserved by flatMapping and false
-           for the ones that were removed. */
-        val initLocMap = Map[(ParentsList, Location), Boolean]() withDefaultValue false
-        
-        val initData = (initLocMap, emptyContext, startIndex, time) 
-
-        val (locMap, contexts, _, newTime) = 
-	        indices.foldLeft(initData) { (x, localIndex) =>
-	          val (locMap, context, globalIndex, time) = x
-	          val res = result(localIndex)
-	
-	          val parent = parentLists(localIndex)
-	          
-	          /* Assuming here that duplicate location come only from flatMapping, 
-	             otherwise the results of unselection will be undefined */
-	          val location = locations(localIndex)
-	          
-	          // each flatMapped segment gets its own time, this way the merging order can be properly defined
-	          val newTime = time + 1
-	
-	          val (newContexts, resSize) =
-	            res.foldLeft((emptyContext, 0)) { (ci, n) =>
-	              val (contexts, i) = ci
-	              
-	              val context = LocationContext(location, parent, newTime)
-	              (contexts :+ context, i + 1)
-	            }
-	          
-	          val newGlobalIndex = globalIndex + resSize
-	          val resRange = globalIndex until newGlobalIndex
-	          val loc = (parent, location)
-	          val newIndices = locMap(loc) ++ resRange
-	          val newLocMap = locMap.updated(loc, newIndices)
-	
-	          (newLocMap, newContexts, newGlobalIndex, newTime)
-	        }
-        
-        val newEmpties = locMap.filter(_._2.isEmpty).keySet // holding on to locations flatMapped to oblivion
-        val builder = cbfwdz(self.parent, contexts, emptiesSet ++ newEmpties)
-        result foreach (builder ++= _.toList)
-        builder.result
+        val liftedF = (x: (A, Int)) => f(x._1)
+        flatMapWithIndex(liftedF)(cbf.lift)
       }
       
       case _ => super.flatMap(f)(cbf)
     }
   }
   
+  /** A specialized flatMap where the mapping function receives the index of the 
+   * current element as an argument. */
+  private def flatMapWithIndex[B, That](f: ((A, Int)) => GenTraversableOnce[B])(cbfwdz: CanBuildFromWithDeepZipper[DeepZipper[Node], B, That]): That = {
+    val result = toVector.zipWithIndex.map(f)
+    val indices = result.indices
+    
+    val emptyContext = Vector[LocationContext]()
+
+    /* This will hold the true for locations preserved by flatMapping and false
+           for the ones that were removed. */
+    val initLocMap = Map[(ParentsList, Location), Boolean]() withDefaultValue false
+
+    val initData = (initLocMap, emptyContext, time)
+
+    val (locMap, contexts, newTime) =
+      indices.foldLeft(initData) { (x, localIndex) =>
+        val (locMap, context, time) = x
+        val res = result(localIndex)
+
+        val parent = parentLists(localIndex)
+
+        /* Assuming here that duplicate location come only from flatMapping, 
+	             otherwise the results of unselection will be undefined. */
+        val location = locations(localIndex)
+
+        // each flatMapped segment gets its own time, this way the merging order can be properly defined
+        val newTime = time + 1
+
+        val (newContexts, resSize) =
+          res.foldLeft((emptyContext, 0)) { (ci, n) =>
+            val (contexts, i) = ci
+
+            val context = LocationContext(location, parent, newTime)
+            (contexts :+ context, i + 1)
+          }
+
+        val loc = (parent, location)
+        val resEmpty = resSize == 0
+        // if at least one non empty result is present for this loc, we get a true
+        val locEmpty = locMap(loc) || resEmpty
+        val newLocMap = locMap.updated(loc, locEmpty)
+
+        (newLocMap, newContexts, newTime)
+      }
+
+    val newEmpties = locMap.filter(!_._2).keySet // holding on to locations flatMapped to oblivion
+    val builder = cbfwdz(self.parent, contexts, emptiesSet ++ newEmpties)
+    result foreach (builder ++= _.toList)
+    builder.result
+  }
+  
+  private type NodeTransform = Node => Seq[Node]
+  private type FullLoc = (ParentsList, Location)
+  
+  /** Preparing the context of the zipper for unselection.
+   * 
+   *  Given that all duplicate locations in the zipper were created by applications of flatMap:
+   *  * We separate a single entry from each duplicates list which will remain in the full context
+   *  * The leftovers are converted into node transformation functions.
+   *  * The node transforms should be applied at the location to which they were mapped to, to replace the values at these locations (appending the duplicates to the location).
+   *  * In addition to the above transforms, transforms for locations that were removed from the zipper are also provided (to remove the nodes from these locations). 
+   *  
+   *  The unselection data is composed from the non duplicate contexts and the transformation functions. */
+  private def unselectionData: (Vector[FullContext], Map[FullLoc, NodeTransform]) = {
+    val (contexts, transforms) = contextsWithTransforms
+    val allTransforms = transforms ++ emptyTransforms
+    (contexts, allTransforms)
+  }
+
+  /** The contexts objects from the zipper after removing duplicates.
+   *  The removed duplicates are returned as transforms which append the duplicates to a given node mapped to the appropriate location.*/
+  private def contextsWithTransforms: (Vector[FullContext], Map[FullLoc, NodeTransform]) = {
+    val byLoc = fullContext.groupBy(fc => (fc.parentsList, fc.nodeLoc.loc))
+
+    val initContexts = Vector[FullContext]()
+    val initTransforms = Map[FullLoc, NodeTransform]()
+
+    val (contexts, transforms) =
+      byLoc.foldLeft((initContexts, initTransforms)) { (ct, le) =>
+        val (cont, trans) = ct
+        val (loc, entry) = le
+
+        val (h, t) = (entry.head, entry.tail) // entries cannot be empty as they were obtained by groupBy
+
+        val newContexts = cont :+ h
+        val newTransforms =
+          if (t.isEmpty) trans
+          else {
+            val transFunc = (n: Node) => {
+              val nodes = t.map(_.nodeLoc.node)
+              n +: nodes // appending extras
+            }
+            trans + ((loc, transFunc))
+          }
+
+        (newContexts, newTransforms)
+      }
+    
+    (contexts, transforms)
+  }
+  
+  /** The node transforms that should be applied at locations that were removed from the zipper. */
+  private def emptyTransforms: Set[(FullLoc, NodeTransform)] = {
+    val toEmpty = (_: Node) => Seq[Node]() // removing the node for an empty location
+    val res = emptiesSet.map(loc => (loc, toEmpty))
+    res
+  }
+  
   /** Applying the node updates. */
   lazy val unselect: DeepZipper[Node] = {
+    val (fullContext, transforms) = unselectionData
+    
     if (fullContext.isEmpty) self.parent // no updates
     else {
       // grouping the nodes by their depth in the tree
@@ -157,7 +220,7 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
 
         // setting new time
         val time = self.parent.time + 1
-        val updateTimes = self.parent.updateTimes.map(t => time)
+        val updateTimes = self.parent.updateTimes.map(_ => time)
       }
     }
   }
