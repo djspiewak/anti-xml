@@ -5,27 +5,34 @@ import scala.collection.generic.CanBuildFrom
 import DeepZipper._
 
 /** A factory for [[DeepZipper]] instances. 
- * @tparam PathNode The type of nodes to be used on the path instances provided to the factory.
+ * @tparam N The type of nodes to be contained in the [[DeepZipper]] (if any).
  */
-trait CanBuildFromWithDeepZipper[-From, -Elem, To, PathNode <: Node] {
-	def apply(parent: From, path: Path[PathNode]): Builder[Elem, To]
-	def apply(path: Path[PathNode]): Builder[Elem, To]
+trait CanBuildFromWithDeepZipper[-From, -Elem, To] {
+    /** Creates a new builder.
+     * 
+     *  @param parent The parent of the zipper
+     *  @param contexts The contexts from which the zipper should be composed.
+     *  The contexts will be merged to the builder's input to produce a zipper.
+     *  @parent emptiesSet A set of empty locations in the zipper. */
+	def apply(parent: Option[From], contexts: Vector[LocationContext], emptiesSet: EmptiesSet): Builder[Elem, To]
 }
 
 /** A marker interface for [[CanBuildFrom]] instances that can be lifted into
- * [[CanBuildFromWithDeepZipper]] instances. */
-trait CanProduceDeepZipper[-From, -Elem, To, PathNode <: Node] { this: CanBuildFrom[From, Elem, _ >: To] =>
-  def lift: CanBuildFromWithDeepZipper[From, Elem, To, PathNode]
+ * [[CanBuildFromWithDeepZipper]] instances which operate on [[Node]] types. */
+trait CanProduceDeepZipper[-From, A <: Node, To] { this: CanBuildFrom[From, A, _ >: To] =>
+  def lift: CanBuildFromWithDeepZipper[From, A, To]
 }
 
 /** Different implicit implementations of [[CanBuildFromWithDeepZipper]]. */
 object CanBuildFromWithDeepZipper {
   
+  //TODO is this used anywhere?
+  
   /** Implicitly lifts [[CanBuildFrom]] instances into instances of [[CanBuildFromWithDeepZipper]]. */
   implicit def identityCanBuildFrom[From, Elem, To](implicit cbf: CanBuildFrom[From, Elem, To]) = {
-    new CanBuildFromWithDeepZipper[From, Elem, To, Node] {
-      def apply(parent: From, path: Path[Node]) = cbf()
-      def apply(path: Path[Node]) = cbf()
+    new CanBuildFromWithDeepZipper[From, Elem, To] {
+      /** Creates a builder that just ignores anything [[DeepZipper]] related. */
+      def apply(parent: Option[From], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = cbf()
     }
   }
 }

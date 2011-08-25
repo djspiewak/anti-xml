@@ -31,8 +31,18 @@ package com.codecommit.antixml
 import org.specs2.mutable._
 import org.specs2.ScalaCheck
 import org.scalacheck._
+import scala.collection.mutable.Builder
+import scala.collection.generic.CanBuildFrom
 
 class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with UtilGenerators {
+  // TODO Temporarily moving this implicit from Group to resolve clashes with DeepZipper
+  implicit def canBuildFrom[A <: Node]: CanBuildFrom[Group[_], A, Group[A]] = new CanBuildFrom[Group[_], A, Group[A]] with CanProduceZipper[Group[_], A, Zipper[A]] {
+    def apply(from: Group[_]): Builder[A, Group[A]] = apply()
+    def apply() = Group.newBuilder[A]
+    
+    def lift = Group.canBuildFromWithZipper
+  }
+  
   import Prop._
   import XML._
   
