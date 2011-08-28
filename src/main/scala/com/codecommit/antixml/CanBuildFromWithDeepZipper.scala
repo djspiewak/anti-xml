@@ -26,8 +26,6 @@ trait CanProduceDeepZipper[-From, A <: Node, To] { this: CanBuildFrom[From, A, _
 /** Different implicit implementations of [[CanBuildFromWithDeepZipper]]. */
 object CanBuildFromWithDeepZipper {
   
-  //TODO is this used anywhere?
-  
   /** Implicitly lifts [[CanBuildFrom]] instances into instances of [[CanBuildFromWithDeepZipper]]. */
   implicit def identityCanBuildFrom[From, Elem, To](implicit cbf: CanBuildFrom[From, Elem, To]) = {
     new CanBuildFromWithDeepZipper[From, Elem, To] {
