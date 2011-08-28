@@ -312,20 +312,19 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
       (bookstore2 > "book" > "title" > *) must beLike((_:Node) match { case Text("Programming Scala") => ok }).forall
     }
     
-    //TODO can't run this as selection with non node types is unsupported
-//    // my attempt at a "real world" test case"
-//    "rebuild after non-trivial for-comprehension" in {
-//      val titledBooks = for {
-//        bookElem <- bookstore > "book"
-//        title <- bookElem > "title" > text
-//        if !title.trim.isEmpty
-//        val filteredChildren = bookElem.children filter { case Elem(None, "title", _, _, _) => false case _ => true }
-//      } yield bookElem.copy(attrs=(bookElem.attrs + ("title" -> title)), children=filteredChildren)
-//      
-//      val bookstore2 = titledBooks.unselect
-//      val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert
-//      bookstore2 mustEqual Group(expected)
-//    }
+    // my attempt at a "real world" test case"
+    "rebuild after non-trivial for-comprehension" in {
+      val titledBooks = for {
+        bookElem <- bookstore > "book"
+        title <- bookElem > "title" > text
+        if !title.trim.isEmpty
+        val filteredChildren = bookElem.children filter { case Elem(None, "title", _, _, _) => false case _ => true }
+      } yield bookElem.copy(attrs=(bookElem.attrs + ("title" -> title)), children=filteredChildren)
+      
+      val bookstore2 = titledBooks.unselect
+      val expected = <bookstore><book title="For Whom the Bell Tolls"><author>Hemmingway</author></book><book title="I, Robot"><author>Isaac Asimov</author></book><book title="Programming Scala"><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert
+      bookstore2 mustEqual Group(expected)
+    }
     
     "rebuild following identity map with selection miss at the top level" >> {
       "with suffix miss" in {
@@ -357,31 +356,29 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
       xml2 mustEqual xml
     }
     
-    //TODO can't run this as selection with non node types is unsupported
-//    "rebuild following filter at the first level" in {
-//      val books = bookstore > 'book
-//      val bookstore2 = (books filter (books(1) !=)).unselect
-//      
-//      bookstore2.head must beLike {
-//        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
-//          children must haveSize(2)
-//          children > 'title > text mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
-//        }
-//      }
-//    }
+    "rebuild following filter at the first level" in {
+      val books = bookstore > 'book
+      val bookstore2 = (books filter (books(1) !=)).unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+          children must haveSize(2)
+          children > 'title > text mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
+        }
+      }
+    }
     
-    //TODO can't run this as selection with non node types is unsupported
-//    "rebuild following composed filters" in {
-//      val books = bookstore > 'book
-//      val bookstore2 = (books filter (books(0) !=) filter (books(1) !=)).unselect
-//      
-//      bookstore2.head must beLike {
-//        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
-//          children must haveSize(1)
-//          children > 'title > text mustEqual Vector("Programming Scala")
-//        }
-//      }
-//    }
+    "rebuild following composed filters" in {
+      val books = bookstore > 'book
+      val bookstore2 = (books filter (books(0) !=) filter (books(1) !=)).unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+          children must haveSize(1)
+          children > 'title > text mustEqual Vector("Programming Scala")
+        }
+      }
+    }
     
     "rebuild second level siblings following filter at the second level" in {
       val titles = bookstore > 'book > 'title
@@ -393,33 +390,31 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
       books2(2) mustEqual <book><author>Dean Wampler</author><author>Alex Payne</author></book>.convert
     }
 
-    //TODO can't run this as selection with non node types is unsupported
-    //    "rebuild following filter at the second level" in {
-    //      val titles = bookstore > 'book > 'title
-    //      val bookstore2 = (titles filter (titles(1) !=)).unselect.unselect
-    //      
-    //      bookstore2.head must beLike {
-    //        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty =>
-    //          children must haveSize(3)
-    //      }
-    //      
-    //      val titles2 = bookstore2 > 'book > 'title
-    //      titles2 must haveSize(2)
-    //      (titles2 > text) mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
-    //    }
+        "rebuild following filter at the second level" in {
+          val titles = bookstore > 'book > 'title
+          val bookstore2 = (titles filter (titles(1) !=)).unselect.unselect
+          
+          bookstore2.head must beLike {
+            case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty =>
+              children must haveSize(3)
+          }
+          
+          val titles2 = bookstore2 > 'book > 'title
+          titles2 must haveSize(2)
+          (titles2 > text) mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
+        }
 
-    //TODO can't run this as selection with non node types is unsupported
-    //    "rebuild following 2 filters at the first level" in {
-    //      val books = bookstore > 'book
-    //      val bookstore2 = (books filter (books(1) !=) filter (books(0) !=)).unselect
-    //      
-    //      bookstore2.head must beLike {
-    //        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
-    //          children must haveSize(1)
-    //          children > 'title > text mustEqual Vector("Programming Scala")
-    //        }
-    //      }      
-    //    }
+        "rebuild following 2 filters at the first level" in {
+          val books = bookstore > 'book
+          val bookstore2 = (books filter (books(1) !=) filter (books(0) !=)).unselect
+          
+          bookstore2.head must beLike {
+            case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+              children must haveSize(1)
+              children > 'title > text mustEqual Vector("Programming Scala")
+            }
+          }      
+        }
 
     "preserve flatMap order" in {
       val original = <top><a/></top>.convert
@@ -546,7 +541,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
     }
   }
 
-  "Paths" should {
+  "Path values" should {
     import PathCreator._
 
     val s = *
@@ -575,7 +570,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
     val group = Group(x0, x1, x2)
 
     def ps(pars: (Elem, Int)*) = List(pars.map(ParentLoc.tupled): _*)
-    def nl(n: Node, l: Int) = NodeLoc(n, l)
+    def nl(n: Node, l: Int) = WithLoc(n, l)
 
     val root = List((nl(x0, 0), ps()), (nl(x1, 1), ps()), (nl(x2, 2), ps()))
     val directChild = List(
@@ -640,7 +635,25 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck with DataTa
     "apply selectors recursively on the children" in {
       allChildren(selDeep)(group) mustEqual selResNoRoot
     }
+  }
+  
+  "Paths" should {
+    "not contain duplicate locations" in {
+      new Path(Seq((WithLoc("foo", 1), Nil), (WithLoc("bar", 1), Nil))) must throwA[IllegalArgumentException]
+    }
 
+    "properly split locations and contents" in {
+      val p1 = ParentLoc(elem("a"), 1) :: Nil
+      val loc1 = WithLoc("foo", 2)
+      val p2 = ParentLoc(elem("b"), 1) :: ParentLoc(elem("c"), 2) :: Nil
+      val loc2 = WithLoc("bar", 2)
+      val path = new Path(Seq((loc1, p1), (loc2, p2)))
+
+      path.contents mustEqual Seq("foo", "bar")
+      path.locs mustEqual Seq(
+        LocationContext(loc1.loc, p1, DeepZipper.initTime),
+        LocationContext(loc2.loc, p2, DeepZipper.initTime))
+    }
   }
 
   def validate[Expected] = new {

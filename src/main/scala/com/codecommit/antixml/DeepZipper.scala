@@ -94,7 +94,7 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
   }
   override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That =
     flatMap(pf.lift andThen { _.toTraversable })
-
+  // end copy code
     
   override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That = {
     val liftedF = (a: A) => Seq(f(a))
@@ -467,11 +467,12 @@ object DeepZipper {
    */
   private[antixml]type Location = Int
 
-  private[antixml] sealed class WithLoc[+A](content: A, loc: Location)
   /** A location of a node within its parent. */
-  private[antixml] case class NodeLoc[+A <: Node](node: A, loc: Location) extends WithLoc[A](node, loc)
+  private[antixml] case class NodeLoc[+A <: Node](node: A, loc: Location) 
   /** Parents can only be [[Elem]]s. */
-  private[antixml] case class ParentLoc(elem: Elem, loc: Location) extends WithLoc[Elem](elem, loc)
+  private[antixml] case class ParentLoc(elem: Elem, loc: Location)
+  /** Containing any data. */
+  private[antixml] case class WithLoc[+A](content: A, loc: Location)
   
   /** A location of node under its list of parents. */
   private[antixml] case class FullLoc(parentsList: ParentsList, loc: Location)
@@ -492,7 +493,7 @@ object DeepZipper {
   private[antixml] type Time = Int
   
   /** The initial time of the zipper. */
-  private val initTime: Time = 0
+  private[antixml] val initTime: Time = 0
 
   /** A wrapper for the full context of a [[DeepZipper]] location. */
   private[antixml] case class FullContext[+A <: Node](
@@ -519,11 +520,25 @@ object DeepZipper {
    *  or through mergings from deeper levels.
    */
   private[antixml] type NodeMergeStrategy = (Node, Seq[(Node, Time)]) => (Node, Time)
+  
+  /** The values from a path function in raw form. */
+  private[antixml] type PathVals[+A] = Seq[(WithLoc[A], ParentsList)]
 
-  /** TODO note about duplicates on path */
-  private[antixml] type Path[+A <: Node] = Seq[(NodeLoc[A], ParentsList)]
+  /** A wrapper for path function values, cannot contain duplicate locations. */
+  private[antixml] class Path[+A](vals: PathVals[A]) {
+    private val contexts =
+      vals.map { wp =>
+        val (withLoc, parents) = wp
+        (LocationContext(withLoc.loc, parents, initTime), withLoc.content)
+      }
+    
+    /** The location contexts and the corresponding contents. */
+    val (locs, contents) = contexts.unzip
+    require(locs.toSet.size == locs.size, "Cannot have duplicate locations in path") // enforcing no duplicates policy 
+  }
+  
   /** A function that creates paths on group, to be used when constructing zippers. */
-  private[antixml] type PathFunction[+A <: Node] = Group[Node] => Path[A]
+  private[antixml] type PathFunction[+A] = Group[Node] => PathVals[A]
 
   /** Pimping selectables with [[DeepZipper]] methods. */
   implicit def groupableToSelectable[A <: Node](g: Selectable[A]) = {
@@ -531,27 +546,28 @@ object DeepZipper {
     new {
       //TODO using strange names to avoid conflicts
 
-      private def zipper[B <: Node](path: PathFunction[B]) = {
+      private def zipper[B, That](path: PathFunction[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
         fromPathFunc(g.toGroup, path)
       }
 
-      /** Searching at the current level . */
-      def ~\[B <: Node](s: Selector[B]) = {
+      /** Searching at the current level. */
+      
+      def ~\[B, That](s: Selector[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
         zipper(fromNodes(s))
       }
 
       /** Searching on all levels (breadth first). */
-      def ~\\[B <: Node](s: Selector[B]) = {
+      def ~\\[B, That](s: Selector[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
         zipper(all(s))
       }
 
       /** Searching one level below. */
-      def >[B <: Node](s: Selector[B]) = {
+      def >[B, That](s: Selector[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
         zipper(directChildren(s))
       }
 
       /** Searching one level below and beyond (breadth first). */
-      def ~[B <: Node](s: Selector[B]) = {
+      def ~[B, That](s: Selector[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
         zipper(allChildren(s))
       }
 
@@ -610,32 +626,25 @@ object DeepZipper {
    *  @param parentGroup The parent from which the path was created.
    *  @param path Cannot contain duplicate locations.
    */
-  def fromPath[A <: Node](parentGroup: Group[Node], path: Path[A]): DeepZipper[A] = {
-    import com.codecommit.antixml.util.VectorCase
+  def fromPath[A, That](parent: Group[Node], path: Path[A])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], A, That]): That = {
+	 import path._
+	 
+	// this is valid only if the path has no duplicate locations
+    val emptiesSet = defaultEmptiesSet 
     
-    //TODO find a consistent way to enforce this requirement - use a Path class
+    val builder = cbfwdz(Some(parent), Vector(locs: _*), emptiesSet)
+    builder ++= contents
     
-    require(path.toSet.size == path.size) // enforcing no duplicates policy 
-    val emptiesSet = defaultEmptiesSet // this is valid only if the above condition holds
-    
-    val contexts =
-      path.map { np =>
-        val (nodeLoc, parents) = np
-        FullContext(nodeLoc, parents, initTime)
-      }
-    
-    fromContexts(Some(parentGroup), Vector(contexts: _*), emptiesSet)
-    
+    builder.result
   }
   
-  /** Converts the nodes gathered from applying the path function to the given group into a zipper. */
-  def fromPathFunc[A <: Node](parent: Group[Node], path: PathFunction[A]): DeepZipper[A] = {
-    fromPath(parent, path(parent))
+  /** Converts the nodes gathered from applying the path function to the given group into a `That`. */
+  def fromPathFunc[A, That](parent: Group[Node], path: PathFunction[A])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], A, That]): That = {
+    fromPath(parent, new Path(path(parent)))
   }
 
   /** A factory for [[PathFunction]]s  */
   object PathCreator {
-    //TODO generalize to arbitrary types of selectors
 
     /*
      * First applying the paths using the overloads without the selector,
@@ -644,38 +653,38 @@ object DeepZipper {
      */
 
     /** A path function that selects on nodes in the given group. */
-    def fromNodes[A <: Node](selector: Selector[A])(nodes: Group[Node]): Path[A] = {
+    def fromNodes[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
       applySelector(selector)(fromNodesWithParent(Nil, nodes))
     }
 
     /** A path function that selects on the given nodes and recursively on the children (breadth first). */
-    def all[A <: Node](selector: Selector[A])(nodes: Group[Node]): Path[A] = {
+    def all[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
       fromNodes(selector)(nodes) ++ allChildren(selector)(nodes)
     }
 
     /** A path function that selects on the children of the given group. */
-    def directChildren[A <: Node](selector: Selector[A])(nodes: Group[Node]): Path[A] = {
+    def directChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
       applySelector(selector)(directChildren(nodes))
     }
 
     /** A path function that selects on the recursively on all the children of the given group (breadth first). */
-    def allChildren[A <: Node](selector: Selector[A])(nodes: Group[Node]): Path[A] = {
+    def allChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
       applySelector(selector)(allChildren(nodes))
     }
 
     /** Lifting the selector so that it can operate on path entries. */
-    private def liftSelector[A <: Node](s: Selector[A]): PartialFunction[(NodeLoc[Node], ParentsList), (NodeLoc[A], ParentsList)] = {
-      case (NodeLoc(n, i), p) if s.isDefinedAt(n) => (NodeLoc(s(n), i), p)
+    private def liftSelector[A](s: Selector[A]): PartialFunction[(WithLoc[Node], ParentsList), (WithLoc[A], ParentsList)] = {
+      case (WithLoc(n, i), p) if s.isDefinedAt(n) => (WithLoc(s(n), i), p)
     }
 
     /** Applies the selector to the given path. */
-    private def applySelector[A <: Node](s: Selector[A])(path: Path[Node]) = {
+    private def applySelector[A](s: Selector[A])(path: PathVals[Node]): PathVals[A] = {
       path.collect(liftSelector(s))
     }
 
     /** Converting a group of nodes to the corresponding node locations. */
     private def nodesToLocs[A <: Node](nodes: Group[Node]) = {
-      nodes.zipWithIndex.map(Function.tupled(NodeLoc[Node]))
+      nodes.zipWithIndex.map(Function.tupled(WithLoc[Node]))
     }
 
     /** Creating a path from this group of nodes. */
@@ -683,19 +692,19 @@ object DeepZipper {
       nodesToLocs(n) map ((_, p))
     }
 
-    private def directChildren(nodes: Group[Node]): Path[Node] = collectChild(nodes, Nil)
+    private def directChildren(nodes: Group[Node]): PathVals[Node] = collectChild(nodes, Nil)
 
-    private def allChildren(nodes: Group[Node]): Path[Node] = {
+    private def allChildren(nodes: Group[Node]): PathVals[Node] = {
       allChildren(directChildren(nodes))
     }
 
     /** Recursively taking all the children of a given path. */
-    private def allChildren(p: Path[Node]): Path[Node] = {
+    private def allChildren(p: PathVals[Node]): PathVals[Node] = {
       if (p.isEmpty) Nil
       else {
         val children =
           p.flatMap{ nlp =>
-            val (NodeLoc(n, l), p) = nlp
+            val (WithLoc(n, l), p) = nlp
             collectChild(n, l, p)
           }
         p ++ allChildren(children)
@@ -703,7 +712,7 @@ object DeepZipper {
     }
 
     /** Collecting the children of a single node. */
-    private def collectChild(n: Node, l: Location, p: ParentsList): Path[Node] = {
+    private def collectChild(n: Node, l: Location, p: ParentsList): PathVals[Node] = {
       n match {
         case e: Elem => fromNodesWithParent(ParentLoc(e, l) :: p, e.children)
         case _ => Nil
@@ -711,7 +720,7 @@ object DeepZipper {
     }
 
     /** Collecting the children of the given nodes. */
-    private def collectChild(n: Group[Node], p: ParentsList): Path[Node] = {
+    private def collectChild(n: Group[Node], p: ParentsList): PathVals[Node] = {
       n.zipWithIndex flatMap { nl =>
         val (n, l) = nl
         collectChild(n, l, p)
