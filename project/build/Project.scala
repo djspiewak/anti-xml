@@ -36,8 +36,19 @@ import scala.io.Source
 
 class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify with ScctProject {
 
-  val scalaCheck = "org.scala-tools.testing" %% "scalacheck" % "1.8" % "test" withSources
-  val specs2 = "org.specs2" %% "specs2" % "1.3" % "test" withSources
+  val scalaCheck = {
+    val scalacheckCrossVersion = crossScalaVersionString match {
+      case "2.9.1" => "2.9.1.RC3"
+      case v => v
+    }
+    val scalacheckVersion = crossScalaVersionString match {
+      case "2.8.1" => "1.8"
+      case _ => "1.9"
+    }
+    "org.scala-tools.testing" % ("scalacheck_" + scalacheckCrossVersion) % scalacheckVersion % "test" withSources
+  }
+  
+  val specs2 = "org.specs2" %% "specs2" % "1.5" % "test" withSources
   val jvmSizeOf = "com.github.dmlap" %% "sizeof" % "0.1" % "test" from "http://cloud.github.com/downloads/dmlap/jvm-sizeof/jvm-sizeof-0.1.jar"
 
   def specs2Framework = new TestFramework("org.specs2.runner.SpecsFramework")
