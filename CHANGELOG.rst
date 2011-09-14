@@ -5,6 +5,7 @@ CHANGELOG
 0.3
 ===
 
+* Zipper now works for both ``\`` and ``\\`` methods
 * New utility methods supported by Zipper
 
   * ``drop``
