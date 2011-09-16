@@ -121,7 +121,7 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
     
     val emptyContext = Vector[LocationContext]()
 
-    /* This will hold the true for locations preserved by flatMapping and false
+    /* This will hold true for locations preserved by flatMapping and false
        for the ones that were removed. */
     val initLocMap = Map[FullLoc, Boolean]() withDefaultValue false
 
@@ -134,14 +134,15 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
 
         val parent = parentLists(localIndex)
 
-        /* Assuming here that duplicate location come only from flatMapping, 
+        /* Assuming here that duplicate locations come only from flatMapping, 
 	       otherwise the results of unselection will be undefined. */
         val location = locations(localIndex)
 
         // each flatMapped segment gets its own time, this way the merging order can be properly defined
         val newTime = time + 1
-
-        val (newContexts, resSize) =
+        
+        // converting res into context, folding because it doesn't have a "size" method
+        val (newContexts, resSize) =  
           res.foldLeft((emptyContext, 0)) { (ci, n) =>
             val (contexts, i) = ci
 
@@ -253,20 +254,10 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
   /** Merging all the nodes that were updated in the zipper to provide the new
    *  values after unselection.
    *
-   *  Contexts and transforms cannot be both empty simultaneously.
+   *  Contexts and transforms cannot be empty simultaneously.
    */
   private def mergeContext(context: DepthContext, transforms: DepthTransforms): DeepZipper[Node] = {
-    assert(!(context.isEmpty && transforms.isEmpty), "Cannot merge an empty context") 
-    
-    val optContext = toOpt(context)
-    val optTransforms = toOpt(transforms)
-
-    val maxFunc = (_: Map[Int, _]).maxBy(_._1)._1 // taking the maximal key from a map
-    val contDepth = optContext map maxFunc
-    val transDepth = optTransforms map maxFunc
-    val depths = contDepth ++ transDepth // not empty as per above assertion
-    
-    val maxDepth = depths.max
+    val maxDepth = getMaxDepth(context, transforms)
     
     // having only a single depth, the context is fully merged
     if (maxDepth == 0) mergeRoot(context, transforms) 
@@ -280,6 +271,22 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
       val newTransforms = transforms - maxDepth
       mergeContext(newContext, newTransforms)
     }
+  }
+
+  /** @return the max depth implied by the given context and transforms (cannot be both empty). */
+  private def getMaxDepth(context: DepthContext, transforms: DepthTransforms) = {
+
+    assert(!(context.isEmpty && transforms.isEmpty), "Cannot merge an empty context")
+
+    val optContext = toOpt(context)
+    val optTransforms = toOpt(transforms)
+
+    val maxFunc = (_: Map[Int, _]).maxBy(_._1)._1 // taking the maximal key from a map
+    val contDepth = optContext map maxFunc
+    val transDepth = optTransforms map maxFunc
+    val depths = contDepth ++ transDepth // not empty as per above assertion
+
+    depths.max
   }
 
   /** Taking contexts and transforms at a single depth and merging them into a list
@@ -454,18 +461,19 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
 
 /** A factory for [[DeepZipper]] instances.
  *  Zippers may be created directly from groups through [[DeepZipper.groupToZipper]] or
- *  through selection using a [[PathFunction]] with [[DeepZipper.fromPath]]
+ *  through selection using a [[PathFunction]] with [[DeepZipper.fromPath]]/[[DeepZipper.fromPathFunc]]
  *
  *  By importing the implicits in this object any [[Selectable]] can be pimped with
  *  shallow/deep selection methods, which directly take selectors as input.
  *  TODO examples
  */
 object DeepZipper {
+  import PathCreator._
 
   /** The number represents the number of the node in its parent's children list.
    *  In case the node is root, the number is its position in the group to which it belongs.
    */
-  private[antixml]type Location = Int
+  private[antixml] type Location = Int
 
   /** A location of a node within its parent. */
   private[antixml] case class NodeLoc[+A <: Node](node: A, loc: Location) 
@@ -474,11 +482,11 @@ object DeepZipper {
   /** Containing any data. */
   private[antixml] case class WithLoc[+A](content: A, loc: Location)
   
-  /** A location of node under its list of parents. */
+  /** A location of a node under its list of parents. */
   private[antixml] case class FullLoc(parentsList: ParentsList, loc: Location)
   
   /** A set of locations nested in parents lists that are empty locations in a zipper 
-   * coupled with their las update time. */
+   * coupled with their last update time. */
   private[antixml] type EmptiesSet = Set[(FullLoc, Time)]
   
   /** A default empties set. */
@@ -508,8 +516,6 @@ object DeepZipper {
     parentsList: ParentsList,
     updateTime: Time)
     
-  private[antixml] case class LocContext(loc: Location, parentsList: ParentsList, updateTime: Time)
-
   /** A merging function which takes a node, which represents the node before any modifications
    *  and a sequence of nodes with their corresponding update times,
    *  which are versions of the same node after some modifications.
@@ -521,25 +527,6 @@ object DeepZipper {
    */
   private[antixml] type NodeMergeStrategy = (Node, Seq[(Node, Time)]) => (Node, Time)
   
-  /** The values from a path function in raw form. */
-  private[antixml] type PathVals[+A] = Seq[(WithLoc[A], ParentsList)]
-
-  /** A wrapper for path function values, cannot contain duplicate locations. */
-  private[antixml] class Path[+A](vals: PathVals[A]) {
-    private val contexts =
-      vals.map { wp =>
-        val (withLoc, parents) = wp
-        (LocationContext(withLoc.loc, parents, initTime), withLoc.content)
-      }
-    
-    /** The location contexts and the corresponding contents. */
-    val (locs, contents) = contexts.unzip
-    require(locs.toSet.size == locs.size, "Cannot have duplicate locations in path") // enforcing no duplicates policy 
-  }
-  
-  /** A function that creates paths on group, to be used when constructing zippers. */
-  private[antixml] type PathFunction[+A] = Group[Node] => PathVals[A]
-
   /** Pimping selectables with [[DeepZipper]] methods. */
   implicit def groupableToSelectable[A <: Node](g: Selectable[A]) = {
     import PathCreator._
@@ -600,7 +587,7 @@ object DeepZipper {
     }
   }
   
-  /** Converts a contexts into zipper instances.
+  /** Converts contexts into zipper instances.
    * @param parentGroup The parent of the newly created zipper.
    * @param contexts The contents of the zipper.
    * @param empties The set of empty locations in the zipper. */
@@ -643,135 +630,5 @@ object DeepZipper {
     fromPath(parent, new Path(path(parent)))
   }
 
-  /** A factory for [[PathFunction]]s  */
-  object PathCreator {
-
-    /*
-     * First applying the paths using the overloads without the selector,
-     * then applying the selector.
-     * This way the traversal is not modified during selection.
-     */
-
-    /** A path function that selects on nodes in the given group. */
-    def fromNodes[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-      applySelector(selector)(fromNodesWithParent(Nil, nodes))
-    }
-
-    /** A path function that selects on the given nodes and recursively on the children (breadth first). */
-    def all[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-      fromNodes(selector)(nodes) ++ allChildren(selector)(nodes)
-    }
-
-    /** A path function that selects on the children of the given group. */
-    def directChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-      applySelector(selector)(directChildren(nodes))
-    }
-
-    /** A path function that selects on the recursively on all the children of the given group (breadth first). */
-    def allChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-      applySelector(selector)(allChildren(nodes))
-    }
-
-    /** Lifting the selector so that it can operate on path entries. */
-    private def liftSelector[A](s: Selector[A]): PartialFunction[(WithLoc[Node], ParentsList), (WithLoc[A], ParentsList)] = {
-      case (WithLoc(n, i), p) if s.isDefinedAt(n) => (WithLoc(s(n), i), p)
-    }
-
-    /** Applies the selector to the given path. */
-    private def applySelector[A](s: Selector[A])(path: PathVals[Node]): PathVals[A] = {
-      path.collect(liftSelector(s))
-    }
-
-    /** Converting a group of nodes to the corresponding node locations. */
-    private def nodesToLocs[A <: Node](nodes: Group[Node]) = {
-      nodes.zipWithIndex.map(Function.tupled(WithLoc[Node]))
-    }
-
-    /** Creating a path from this group of nodes. */
-    private def fromNodesWithParent(p: ParentsList, n: Group[Node]) = {
-      nodesToLocs(n) map ((_, p))
-    }
-
-    private def directChildren(nodes: Group[Node]): PathVals[Node] = collectChild(nodes, Nil)
-
-    private def allChildren(nodes: Group[Node]): PathVals[Node] = {
-      allChildren(directChildren(nodes))
-    }
-
-    /** Recursively taking all the children of a given path. */
-    private def allChildren(p: PathVals[Node]): PathVals[Node] = {
-      if (p.isEmpty) Nil
-      else {
-        val children =
-          p.flatMap{ nlp =>
-            val (WithLoc(n, l), p) = nlp
-            collectChild(n, l, p)
-          }
-        p ++ allChildren(children)
-      }
-    }
-
-    /** Collecting the children of a single node. */
-    private def collectChild(n: Node, l: Location, p: ParentsList): PathVals[Node] = {
-      n match {
-        case e: Elem => fromNodesWithParent(ParentLoc(e, l) :: p, e.children)
-        case _ => Nil
-      }
-    }
-
-    /** Collecting the children of the given nodes. */
-    private def collectChild(n: Group[Node], p: ParentsList): PathVals[Node] = {
-      n.zipWithIndex flatMap { nl =>
-        val (n, l) = nl
-        collectChild(n, l, p)
-      }
-    }
-  }
-
-  /** A basic merging strategy which takes the most recent updates from the different nodes
-   *  and creates a single node from them.
-   */
-  private[antixml] object BasicNodeMergeStrategy extends NodeMergeStrategy {
-    def apply(node: Node, alternatives: Seq[(Node, Time)]) = {
-      val max @ (newestNode, maxUpTime) = alternatives.maxBy(_._2) // by time
-
-      node match {
-        case e: Elem => {
-          newestNode match {
-            case ne: Elem =>
-              // at least one elem to merge with
-              mergeElem(e, alternatives.collect({ case (e: Elem, t: Time) => (e, t) })) // deconstructing because of type erasure 
-            case _ => max // simple nodes, not trying to combine anything, just taking the most recent
-          }
-        }
-        case _ => max // a simple node again
-      }
-    }
-
-    /** Trying to merge an [[Elem]] with others of the same type, assuming that changes may have propagated from
-     *  the children, hence separately merging the children and the rest of the node.
-     */
-    private def mergeElem(origElem: Elem, alternatives: Seq[(Elem, Time)]) = {
-      val child = (_: Elem).children;
-
-      // properties that don't depend on deeper levels
-      val pref = (_: Elem).prefix;
-      val name = (_: Elem).name;
-      val attrs = (_: Elem).attrs;
-      val scope = (_: Elem).scope;
-      val nonChildFuncs = List(pref, name, attrs, scope)
-
-      def maxBy(f: Elem => Any) = alternatives.maxBy { et =>
-        val (e, t) = et
-        if (f(e) != f(origElem)) Some(t)
-        else None
-      }
-
-      // the nodes that were updated in non child parts
-      val (maxNonChild, nonChildTime) = nonChildFuncs.map(maxBy(_)).maxBy(_._2) // by time
-      val (maxChild, childTime) = maxBy(child)
-
-      (maxNonChild.copy(children = maxChild.children), nonChildTime.max(childTime))
-    }
-  }
+  
 }
