@@ -53,6 +53,23 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
     }
   }
   
+  "Zipper#slice" should {
+    "work correctly in the presence of equal siblings" in {
+      val xml = <a><b /><c1 /><b /><c2 /></a>.convert
+      
+      val sliced = (xml \ *).slice(1,3)
+      sliced mustEqual <a><c1 /><b /></a>.convert.children
+      sliced.unselect(0) mustEqual <a><c1 /><b /></a>.convert
+    }
+    
+    "work when there's no zipper context" in {
+      val xml = <a><b /><c1 /><b /><c2 /></a>.convert
+      
+      val sliced = (xml.children).toZipper.slice(1,3)
+      sliced mustEqual <a><c1 /><b /></a>.convert.children
+    }    
+  }
+  
   "zipper updates within '\\' results" should {
     "rebuild from empty result set" in {
       val xml = Group(<parent><child/><child/></parent>.convert)
