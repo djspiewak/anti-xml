@@ -5,12 +5,13 @@ import scala.collection.generic.CanBuildFrom
 import com.codecommit.antixml.util.VectorCase
 import scala.collection.IndexedSeqLike
 import scala.collection.GenTraversableOnce
+import scala.collection.mutable.Builder
 
 /** A zipper which allows deep selection.
  *
  *  Zipper instances may be created through factory methods on the companion.
  */
-sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[A]] { self =>
+trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[A]] { self =>
 
   /*
    * All the vectors beneath should have the same length.
@@ -457,6 +458,7 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
    */
   protected val mergeDuplicates: NodeMergeStrategy
 
+  override def toDeepZipper = this
 }
 
 /** A factory for [[DeepZipper]] instances.
@@ -527,6 +529,35 @@ object DeepZipper {
    */
   private[antixml] type NodeMergeStrategy = (Node, Seq[(Node, Time)]) => (Node, Time)
   
+  implicit def canBuildFromWithDeepZipper[A <: Node] = {
+    new CanBuildFromWithDeepZipper[DeepZipper[_ <: Node], A, DeepZipper[A]] {
+      def builder(parent: Option[DeepZipper[_ <: Node]], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = {
+        Vector.newBuilder[A] mapResult { res =>
+          val nodeContexts = (contexts zip res) map { cn => 
+            val (context, node) = cn
+            import context._
+            val nodeLoc = NodeLoc(node, loc)
+            FullContext(nodeLoc, parentsList, updateTime)
+          }
+          fromContexts(parent, nodeContexts, emptiesSet)
+        }
+      }
+      
+      def apply(parent: Option[DeepZipper[_ <: Node]], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = {
+        builder(parent, contexts, emptiesSet)
+      }
+    }
+  }
+  
+  implicit def canBuildFromDeep[A <: Node]: CanBuildFrom[DeepZipper[_ <: Node], A, DeepZipper[A]] = {
+    new CanBuildFrom[DeepZipper[_ <: Node], A, DeepZipper[A]] with CanProduceDeepZipper[DeepZipper[_ <: Node], A, DeepZipper[A]] {
+      def apply(from: DeepZipper[_ <: Node]): Builder[A, DeepZipper[A]] = apply()
+      def apply(): Builder[A, DeepZipper[A]] = DeepZipper.newBuilder[A]
+
+      def lift = canBuildFromWithDeepZipper
+    }
+  }
+  
   /** Pimping selectables with [[DeepZipper]] methods. */
   implicit def groupableToSelectable[A <: Node](g: Selectable[A]) = {
     import PathCreator._
@@ -562,32 +593,10 @@ object DeepZipper {
   }
   
   def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { vec =>
-    groupToZipper(new Group(vec))
+    new Group(vec).toDeepZipper
   }
 
-  /** Converts a group into a zipper. */
-  def groupToZipper[A <: Node](group: Group[A]): DeepZipper[A] = {
-    group match {
-      case zipper: DeepZipper[_] => zipper
-      case _ => {
-        val emptyParent: ParentsList = List[ParentLoc]()
-        val locs = Vector(group.indices: _*)
-
-        new Group[A](group.toVectorCase) with DeepZipper[A] {
-          val parentLists = locs.map(_ => emptyParent)
-          val emptiesSet = defaultEmptiesSet
-          val locations = locs
-          def parent = None
-          val mergeDuplicates = BasicNodeMergeStrategy // TODO this should be pluggable
-
-          val time = initTime
-          val updateTimes = locs.map(_ => time)
-        }
-      }
-    }
-  }
-  
-  /** Converts contexts into zipper instances.
+  /** Converts a contexts into zipper instances.
    * @param parentGroup The parent of the newly created zipper.
    * @param contexts The contents of the zipper.
    * @param empties The set of empty locations in the zipper. */
@@ -601,7 +610,7 @@ object DeepZipper {
       val parentLists = parents
       val emptiesSet = empties
       val locations = locs
-      def parent = parentGroup map groupToZipper
+      def parent = parentGroup map { _.toDeepZipper }
       val mergeDuplicates = parent map (_.mergeDuplicates) getOrElse BasicNodeMergeStrategy
 
       val time = if (newUpdateTimes.isEmpty) initTime else newUpdateTimes.max

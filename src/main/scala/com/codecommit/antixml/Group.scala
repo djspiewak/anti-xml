@@ -258,6 +258,24 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   def toGroup = this
   
+  def toDeepZipper: DeepZipper[A] = {
+    import DeepZipper._
+    
+    val emptyParent: ParentsList = List[ParentLoc]()
+    val locs = Vector(indices: _*)
+
+    new Group[A](toVectorCase) with DeepZipper[A] {
+      val parentLists = locs.map(_ => emptyParent)
+      val emptiesSet = Set[(FullLoc, Time)]()
+      val locations = locs
+      def parent = None
+      val mergeDuplicates = BasicNodeMergeStrategy // TODO this should be pluggable
+
+      val time = initTime
+      val updateTimes = locs.map(_ => time)
+    }
+  }
+  
   private[antixml] def toVectorCase: VectorCase[A] = nodes
   
   /**
@@ -348,10 +366,10 @@ object Group {
    * Any input longer than the number of contexts will be ignored.
    */
   implicit def canBuildFromWithDeepZipper[A <: Node] = {
-    new CanBuildFromWithDeepZipper[Group[Node], A, DeepZipper[A]] {
+    new CanBuildFromWithDeepZipper[Group[_ <: Node], A, DeepZipper[A]] {
       import DeepZipper._
       
-      def builder(parent: Option[Group[Node]], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = {
+      def builder(parent: Option[Group[_ <: Node]], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = {
         Vector.newBuilder[A] mapResult { res =>
           val nodeContexts = (contexts zip res) map { cn => 
             val (context, node) = cn
@@ -363,20 +381,21 @@ object Group {
         }
       }
       
-      def apply(parent: Option[Group[Node]], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = {
+      def apply(parent: Option[Group[_ <: Node]], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = {
         builder(parent, contexts, emptiesSet)
       }
     }
   }
   
   /** Provides a [[CanBuildFrom]] instance which mixes in [[CanProduceDeepZipper]]  */
-  implicit def canBuildFromDeep[A <: Node]: CanBuildFrom[Group[Node], A, DeepZipper[A]] =
-    new CanBuildFrom[Group[Node], A, DeepZipper[A]] with CanProduceDeepZipper[Group[Node], A, DeepZipper[A]] {
-      def apply(from: Group[Node]) = apply()
-      def apply() = DeepZipper.newBuilder[A]
+  implicit def canBuildFromDeep[A <: Node]: CanBuildFrom[Group[_ <: Node], A, Group[A]] = {
+    new CanBuildFrom[Group[_ <: Node], A, Group[A]] with CanProduceDeepZipper[Group[_ <: Node], A, DeepZipper[A]] {
+      def apply(from: Group[_ <: Node]): Builder[A, Group[A]] = apply()
+      def apply(): Builder[A, Group[A]] = newBuilder[A]
 
       def lift = canBuildFromWithDeepZipper
     }
+  }
   
   /*  //TODO this creates ambiguities with DeepZipper
   implicit def canBuildFrom[A <: Node]: CanBuildFrom[Group[_], A, Group[A]] = new CanBuildFrom[Group[_], A, Group[A]] with CanProduceZipper[Group[_], A, Zipper[A]] {
