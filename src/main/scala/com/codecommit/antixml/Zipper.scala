@@ -68,11 +68,9 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
   
   override def drop(n: Int): Zipper[A] = slice(n, size)
   
-  override def slice(from: Int, until: Int): Zipper[A] = {
-    val zwi = Map[A, Int](zipWithIndex: _*)
-    collect {
-      case e if zwi(e) >= from && zwi(e) < until => e
-    }    
+  override def slice(from: Int, until: Int): Zipper[A] = flatMapWithIndex {
+    case (e,i) if i >= from && i < until => Vector1(e)
+    case (e,_) => Vector0
   }
   
   override def splitAt(n: Int) = (take(n), drop(n))
@@ -90,53 +88,81 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
 
     case _ => super.map(f)(cbf)
   }
-
+  
   override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = cbf match {
+    //We could just delegate to flatMapWithIndex but this way we avoid the zipWithIndex overhead.
     case cbf: CanProduceZipper[Zipper[A], B, That] => {
-      implicit val cbfwz = cbf.lift
-      
       if (!hasValidContext) {
         super.flatMap(f)(cbf)     // don't try to preserve
       } else {
         val result = toVectorCase.toVector map f
-  
-        val intermedMap = map map {
-          case Some((from, to, rebuild, childMap)) => {            
-            val childMapSorted = (childMap.toSeq) sortWith { _._1 < _._1 } //TODO - Maybe just make childMap a SortedMap 
-            
-            val (lastOffset, chunk, childMap2) = ((from, Vector[B](), Map[Int,Int]()) /: childMapSorted) {
-              case ((offset, acc, childMap2),(srcIndex, 0)) =>
-                (offset, acc, childMap2 + (srcIndex -> 0))
-              
-              case ((offset, acc, childMap2),(srcIndex,destCount)) => {
-                val items = result.slice(offset, offset+destCount).flatMap(identity)
-                (offset + destCount, acc ++ items, childMap2 + (srcIndex -> items.size))
-              }
-            }
-            assert(lastOffset == to)
-            
-            Some(chunk, rebuild, childMap2)
-          }
-          
-          case None => None
-        }
-  
-        val (_, map2, chunks) = ((0, Vector[Option[ZContext]](), Vector[Vector[B]]()) /: intermedMap) {
-          case ((offset, map2, acc), Some((chunk,rebuild,childMap))) => {
-            (offset + chunk.size, map2 :+ Some((offset, offset+chunk.size, rebuild, childMap)), acc :+ chunk)
-          }
-          
-          case ((offset, map2, acc), None) => (offset, map2 :+ None, acc)
-        }
-          
-        val builder = cbfwz(parent.asInstanceOf[Zipper[A]], map2)
-        chunks foreach (builder ++=)
-        builder.result
+        flatReplace(result, cbf.lift)
       }
     }
-
     case _ => super.flatMap(f)(cbf)
   }
+
+  private def flatMapWithIndex[B, That](f: ((A, Int)) => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = {
+    def withoutContext: That = {
+      val raw = toVectorCase.zipWithIndex flatMap f
+      cbf(self).++=(raw).result()  //copy using correct CanBuildFrom
+    }
+    
+    cbf match {
+      case cbf: CanProduceZipper[Zipper[A], B, That] => {
+        if (!hasValidContext) {
+          withoutContext     // don't try to preserve
+        } else {
+          val result = toVectorCase.zipWithIndex map f
+          flatReplace(result, cbf.lift)
+        }
+      }
+  
+      case _ => withoutContext
+    }
+  }
+  
+  /**
+   * Builds a new Zipper by replacing each item of this sequence with the traversable in the corresponding position in `replacements`
+   * and then concatenating the results.
+   */
+  private def flatReplace[B, That](replacements: IndexedSeq[GenTraversableOnce[B]], cbfwz: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
+    assert(hasValidContext)
+    val intermedMap = map map {
+      case Some((from, to, rebuild, childMap)) => {            
+        val childMapSorted = (childMap.toSeq) sortWith { _._1 < _._1 } //TODO - Maybe just make childMap a SortedMap 
+        
+        val (lastOffset, chunk, childMap2) = ((from, Vector[B](), Map[Int,Int]()) /: childMapSorted) {
+          case ((offset, acc, childMap2),(srcIndex, 0)) =>
+            (offset, acc, childMap2 + (srcIndex -> 0))
+          
+          case ((offset, acc, childMap2),(srcIndex,destCount)) => {
+            val items = replacements.slice(offset, offset+destCount).flatMap(identity)
+            (offset + destCount, acc ++ items, childMap2 + (srcIndex -> items.size))
+          }
+        }
+        assert(lastOffset == to)
+        
+        Some(chunk, rebuild, childMap2)
+      }
+        
+      case None => None
+    }
+  
+    val (_, map2, chunks) = ((0, Vector[Option[ZContext]](), Vector[Vector[B]]()) /: intermedMap) {
+      case ((offset, map2, acc), Some((chunk,rebuild,childMap))) => {
+        (offset + chunk.size, map2 :+ Some((offset, offset+chunk.size, rebuild, childMap)), acc :+ chunk)
+      }
+      
+      case ((offset, map2, acc), None) => (offset, map2 :+ None, acc)
+    }
+      
+    val builder = cbfwz(parent.asInstanceOf[Zipper[A]], map2)
+    chunks foreach (builder ++=)
+    builder.result
+  }
+    
+  
   
   override def filter(f: A => Boolean): Zipper[A] = collect {
     case e if f(e) => e

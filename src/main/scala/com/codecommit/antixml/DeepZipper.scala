@@ -2,7 +2,7 @@ package com.codecommit.antixml
 
 import DeepZipper._
 import scala.collection.generic.CanBuildFrom
-import com.codecommit.antixml.util.VectorCase
+import com.codecommit.antixml.util.{VectorCase, Vector0, Vector1}
 import scala.collection.IndexedSeqLike
 import scala.collection.GenTraversableOnce
 
@@ -80,11 +80,9 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
   override protected[this] def newBuilder = DeepZipper.newBuilder[A]
 
   // TODO copy coded from Zipper
-  override def slice(from: Int, until: Int): DeepZipper[A] = {
-    val zwi = Map[A, Int](zipWithIndex: _*)
-    collect {
-      case e if zwi(e) >= from && zwi(e) < until => e
-    }
+  override def slice(from: Int, until: Int): DeepZipper[A] = flatMapWithIndex {
+    case (e,i) if i >= from && i < until => Vector1(e)
+    case (e,_) => Vector0
   }
   override def drop(n: Int) = slice(n, size)
   override def take(n: Int) = slice(0, n)
@@ -112,6 +110,7 @@ sealed trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Deep
       case _ => super.flatMap(f)(cbf)
     }
   }
+
   
   /** A specialized flatMap where the mapping function receives the index of the 
    * current element as an argument. */
