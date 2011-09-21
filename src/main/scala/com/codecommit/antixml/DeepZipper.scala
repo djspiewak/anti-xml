@@ -458,7 +458,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
    */
   protected val mergeDuplicates: NodeMergeStrategy
 
-  override def toDeepZipper = this
+  override def toZipper = this
   
   def stripZipper = new Group(toVectorCase)
 }
@@ -595,7 +595,7 @@ object DeepZipper {
   }
   
   def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { vec =>
-    new Group(vec).toDeepZipper
+    new Group(vec).toZipper
   }
 
   /** Converts a contexts into zipper instances.
@@ -612,7 +612,7 @@ object DeepZipper {
       val parentLists = parents
       val emptiesSet = empties
       val locations = locs
-      def parent = parentGroup map { _.toDeepZipper }
+      def parent = parentGroup map { _.toZipper }
       val mergeDuplicates = parent map (_.mergeDuplicates) getOrElse BasicNodeMergeStrategy
 
       val time = if (newUpdateTimes.isEmpty) initTime else newUpdateTimes.max

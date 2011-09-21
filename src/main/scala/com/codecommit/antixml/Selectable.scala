@@ -141,5 +141,5 @@ trait Selectable[+A <: Node] {
   
   def toGroup: Group[A]
   
-  def toZipper: Zipper[A] = toGroup.toZipper
+  def toZipper: DeepZipper[A] = toGroup.toZipper
 }

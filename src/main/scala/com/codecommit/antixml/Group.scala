@@ -242,23 +242,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
    */
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
-  override def toZipper: Zipper[A] = {
-    new Group(nodes) with Zipper[A] {
-      val map = Vector()
-      def parent = error("Attempted to move up at root of the tree")
-      override val hasValidContext = false
-    }
-  }
-  
-  /**
-   * Produces a [[scala.collection.immutable.Vector]] which contains all of the
-   * nodes in this `Group`.  This function is guaranteed to run in constant time.
-   */
-  def toVector = nodes.toVector
-  
-  def toGroup = this
-  
-  def toDeepZipper: DeepZipper[A] = {
+  override def toZipper: DeepZipper[A] = {
     import DeepZipper._
     
     val emptyParent: ParentsList = List[ParentLoc]()
@@ -275,6 +259,14 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
       val updateTimes = locs.map(_ => time)
     }
   }
+  
+  /**
+   * Produces a [[scala.collection.immutable.Vector]] which contains all of the
+   * nodes in this `Group`.  This function is guaranteed to run in constant time.
+   */
+  def toVector = nodes.toVector
+  
+  def toGroup = this
   
   private[antixml] def toVectorCase: VectorCase[A] = nodes
   
@@ -328,36 +320,6 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
  * new `Group`(s) from specified nodes.
  */
 object Group {
-  implicit def canBuildFromWithZipper[A <: Node]: CanBuildFromWithZipper[Group[_], A, Zipper[A]] = {
-    new CanBuildFromWithZipper[Group[_], A, Zipper[A]] {
-      def apply(outerParent: Group[_], baseMap: =>Vector[Option[ZContext]]): Builder[A, Zipper[A]] = {
-        VectorCase.newBuilder[A] mapResult { vec =>
-          new Group(vec) with Zipper[A] {
-            lazy val map = baseMap
-            
-            lazy val parent = outerParent match {
-              case group: Group[Node] => group.toZipper
-              case _ => error("No zipper context available")
-            }
-            
-            override val hasValidContext = outerParent.isInstanceOf[Group[Node]]
-          }
-        }
-      }
-      
-      def apply(baseMap: =>Vector[Option[ZContext]]): Builder[A, Zipper[A]] = {
-        VectorCase.newBuilder[A] mapResult { vec =>
-          new Group(vec) with Zipper[A] {
-            lazy val map = baseMap
-            def parent = error("No zipper context available")
-            override val hasValidContext = false
-          }
-        }
-      }
-      
-      def append(left: Zipper[A], right: Zipper[A]) = left ++ right
-    }
-  }
   
   /** Creates instances of [[CanBuildFromWithDeepZipper]] for [[Group]] types.  
    * 
