@@ -560,40 +560,6 @@ object DeepZipper {
     }
   }
   
-  /** Pimping selectables with [[DeepZipper]] methods. */
-  implicit def groupableToSelectable[A <: Node](g: Selectable[A]) = {
-    import PathCreator._
-    new {
-      //TODO using strange names to avoid conflicts
-
-      private def zipper[B, That](path: PathFunction[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
-        fromPathFunc(g.toGroup, path)
-      }
-
-      /** Searching at the current level. */
-      
-      def ~\[B, That](s: Selector[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
-        zipper(fromNodes(s))
-      }
-
-      /** Searching on all levels (breadth first). */
-      def ~\\[B, That](s: Selector[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
-        zipper(all(s))
-      }
-
-      /** Searching one level below. */
-      def >[B, That](s: Selector[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
-        zipper(directChildren(s))
-      }
-
-      /** Searching one level below and beyond (breadth first). */
-      def ~[B, That](s: Selector[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], B, That]): That = {
-        zipper(allChildren(s))
-      }
-
-    }
-  }
-  
   def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { vec =>
     new Group(vec).toZipper
   }
