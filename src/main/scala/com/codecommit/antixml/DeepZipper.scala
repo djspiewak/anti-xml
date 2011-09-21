@@ -459,6 +459,8 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
   protected val mergeDuplicates: NodeMergeStrategy
 
   override def toDeepZipper = this
+  
+  def stripZipper = new Group(toVectorCase)
 }
 
 /** A factory for [[DeepZipper]] instances.

@@ -434,7 +434,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
           g andThen { _ collect { case e => e } }
         }
 
-        func(groupToZipper(xml)) mustEqual xml
+        func(xml.toDeepZipper) mustEqual xml
       }
 
       "identity filter should return self" in check { xml: Group[Node] =>

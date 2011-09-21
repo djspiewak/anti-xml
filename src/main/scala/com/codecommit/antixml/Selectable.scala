@@ -73,8 +73,8 @@ trait Selectable[+A <: Node] {
    * }}}
    *
    * The three selection expressions here produce very different results.  The
-   * first will produce a collection of type [[com.codecommit.antixml.Zipper]]`[`[[com.codecommit.antixml.Elem]]`]`,
-   * the second will produce [[com.codecommit.antixml.Zipper]]`[`[[com.codecommit.antixml.Node]]`]`,
+   * first will produce a collection of type [[com.codecommit.antixml.DeepZipper]]`[`[[com.codecommit.antixml.Elem]]`]`,
+   * the second will produce [[com.codecommit.antixml.DeepZipper]]`[`[[com.codecommit.antixml.Node]]`]`,
    * while the third will produce [[scala.collection.Traversable]]`[`[[scala.String]]`]`.
    * This reflects the fact that the selector produced (by implicit conversion)
    * from a `String` will only filter for nodes of type [[com.codecommit.antixml.Elem]].
@@ -95,80 +95,13 @@ trait Selectable[+A <: Node] {
    * with immutable tree structures: the need to manually rebuild the entire
    * ancestry of the tree after making a change somewhere within.
    * 
-   * @see [[com.codecommit.antixml.Zipper]]
-   * @usecase def \(selector: Selector[Node]): Zipper[Node]
+   * @see [[com.codecommit.antixml.DeepZipper]]
+   * @usecase def \(selector: Selector[Node]): DeepZipper[Node]
    */
-  def \[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
-    implicit val cbf2 = cbf.lift[That]
-    
-    if (matches(selector)) {
-      // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
-      
-      val catBuilder = new VectorBuilder[B]
-      val chunkBuilder = new VectorBuilder[Int]
-      val rebuildBuilder = new VectorBuilder[(Group[Node], Map[Int, Int]) => Node]
-      val childMapBuilder = new VectorBuilder[Map[Int, Int]]
-      
-      for (node <- toGroup) {
-        node match {
-          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
-            var childMap = Map[Int, Int]()
-            var currentChunk = 0
-            
-            var i = 0
-            for (child <- children) {
-              if (selector isDefinedAt child) {
-                catBuilder += selector(child)
-                childMap += (i -> 1)
-                currentChunk += 1
-              }
-              i += 1
-            }
-            
-            chunkBuilder += currentChunk
-            childMapBuilder += childMap
-            
-            def rebuild(children2: Group[Node], indexToSize: Map[Int, Int]) = {
-              val (revisedChildren,offset) = children.zipWithIndex.foldLeft((Group[Node](),0)) {
-                case ((acc,offset), (_, i)) if indexToSize contains i => {
-                  val chIndices = Range(offset,offset+indexToSize(i))
-                  (chIndices.foldLeft(acc) { _ :+ children2(_) } , chIndices.end) 
-                }
-                case ((acc,offset), (e, _)) => (acc :+ e, offset)
-              }
-              
-              e.copy(children=revisedChildren)
-            }
-            
-            rebuildBuilder += (rebuild _)
-          }
-          
-          case _ => {
-            chunkBuilder += 0
-            childMapBuilder += Map()
-            rebuildBuilder += { (_, _) => error("invoked rebuild for non-match") }
-          }
-        }
-      }
-      
-      val cat = catBuilder.result
-      
-      lazy val (_, map) = {
-        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[Option[ZContext]]())) {
-          case ((i, acc), ((length, f), childMap)) if length != 0 =>
-            (i + length, acc :+ Some((i, i + length, f, childMap)))
-          
-          case ((i, acc), _) => (i, acc :+ None)
-        }
-      }
-      
-      val builder = cbf(toZipper, map)
-      builder ++= cat
-      builder.result
-    } else {
-      val zipper = toZipper
-      cbf(zipper, zipper.toVector map Function.const(None)).result
-    }
+  def \[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithDeepZipper[Group[_ <: Node], B, That]): That = {
+    import DeepZipper._
+    import PathCreator._
+    fromPathFunc(toGroup, directChildren(selector))
   }
   
   /**
@@ -195,29 +128,13 @@ trait Selectable[+A <: Node] {
    * considered in the selection.  Thus, deep selection is not ''exactly'' the
    * same as the XPath `//` operator, since `//` will consider the outermost level,
    * while Anti-XML's deep selection `\\` will not.
-   *
-   * '''Note:''' For certain selectors (such as an element name selector defined
-   * using a `String` or `Symbol`), the result of this method will be a zipper,
-   * similar to the results from the shallow-select operator (`\`).  This zipper
-   * will ''not'' be valid!  Zipper context synthesis for deep selection is
-   * currently unimplemented.  Thus, any attempt to use the `unselect` method on
-   * the resulting zipper will likely throw an exception.  At the very least, it
-   * won't return a useful result.  The implementation of this feature is ongoing.
    * 
-   * @usecase def \\(selector: Selector[Node]): Group[Node]
+   * @usecase def \\(selector: Selector[Node]): DeepZipper[Node]
    */
-  def \\[B, That](selector: Selector[B])(implicit cbf: CanBuildFrom[Group[_], B, That], coerce: That => Traversable[B]): That = {
-    implicit val cbfwz = CanBuildFromWithZipper.identityCanBuildFrom(cbf, coerce)
-    
-    if (matches(selector)) {
-      val recursive = toGroup collect {
-        case Elem(_, _, _, _, children) => children \\ selector
-        case _ => cbf().result
-      }
-      cbfwz.appendAll(this \ selector, recursive)
-    } else {
-      cbf().result
-    }
+  def \\[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithDeepZipper[Group[_ <: Node], B, That]): That = {
+    import DeepZipper._
+    import PathCreator._
+    fromPathFunc(toGroup, allChildren(selector))
   }
   
  def matches(selector: Selector[_]): Boolean = true

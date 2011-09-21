@@ -85,11 +85,6 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
   }
   
   "deep selection on Group" should {
-    "return something of type Group (*not* type Zipper) on element select" in {
-      val ns = <foo/>.convert
-      validate[Group[Elem]](ns \\ 'bar)
-    }
-    
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
       ns \\ "parent" mustEqual Group(elem("parent"))
@@ -131,7 +126,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     "work with an alternative selector" in {
       val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
       val strs = ns \\ text
-      strs mustEqual Vector("Some text", "More text", "top", "outside", "sub1", "top3-outer", "top1", "top2", "phoney")
+      strs mustEqual Vector("Some text", "More text", "top", "outside", "sub1", "top3-outer", "phoney", "top1", "top2")
     }
   }
   
@@ -142,6 +137,13 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       val group = <parent>child</parent>.convert.children
       validate[Group[Node]](group)
       validate[Group[Node]](group map identity)
+    }
+    
+    "map with non-Node result should produce an IndexedSeq" in {
+      val group = Group(<parent>child</parent>.convert)
+      val res = group map { _.name }
+      validate[scala.collection.immutable.IndexedSeq[String]](res)
+      res mustEqual Vector("parent")
     }
     
     "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
