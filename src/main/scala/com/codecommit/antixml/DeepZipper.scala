@@ -250,8 +250,8 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
     res
   }
   
-  /** Converting anything that may be empty into an optional value. */
-  private def toOpt[A <: {def isEmpty: Boolean}](s: A) = if (s.isEmpty) None else Some(s) 
+  private def toOpt[Coll <: Traversable[_]](xs: Coll): Option[Coll] =
+    if (xs.isEmpty) None else Some(xs) 
   
   /** The zipper context grouped by depth in the tree. */
   private type DepthContext = Map[Int, Seq[FullContext]]
