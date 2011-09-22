@@ -17,8 +17,10 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
    * All the vectors beneath should have the same length.
    */
   
-  import DeepZipper.{FullContext => FullContextParam}
-  type FullContext = FullContextParam[Node]
+  private type FullContext = DeepZipper.FullContext[Node]
+  
+  /** Transforming a node with its update time into a sequence of nodes with an overall update time. */
+  private type NodeTransform = Node => (Seq[Node], Time)
 
   /** Keeping track of internal time.
    *
@@ -34,7 +36,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
 
   protected def parent: Option[DeepZipper[Node]]
   
-  private def getParent = parent getOrElse sys.error("Root has no parent")
+  private def parentOrError = parent getOrElse sys.error("Root has no parent")
 
   /** The location of each node in the group in its parent's list of children. */
   protected def locations: Vector[Location]
@@ -63,6 +65,24 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
 
     nodesWithContext
   }
+  
+  /** Applying the node updates. */
+  lazy val unselect: DeepZipper[Node] = {
+    val (fullContext, transforms) = unselectionData
+    
+    if (fullContext.isEmpty && transforms.isEmpty) parentOrError // no updates
+    else {
+      // grouping the nodes by their depth in the tree
+      val byDepthContexts = fullContext.groupBy(_.parentsList.length) withDefaultValue Vector()
+      val byDepthTransforms = transforms.groupBy(_._1.parentsList.length) withDefaultValue Map()
+
+      val newZipper = mergeContext(byDepthContexts, byDepthTransforms)
+
+      newZipper
+    }
+  }
+
+  override protected[this] def newBuilder = DeepZipper.newBuilder[A]
 
   override def updated[B >: A <: Node](index: Int, node: B) = {
     new Group(super.updated(index, node).toVectorCase) with DeepZipper[B] {
@@ -78,24 +98,25 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
     }
   }
 
-  override protected[this] def newBuilder = DeepZipper.newBuilder[A]
-
-  // TODO copy coded from Zipper
   override def slice(from: Int, until: Int): DeepZipper[A] = {
     val zwi = Map[A, Int](zipWithIndex: _*)
     collect {
       case e if zwi(e) >= from && zwi(e) < until => e
     }
   }
+  
   override def drop(n: Int) = slice(n, size)
+  
   override def take(n: Int) = slice(0, n)
+  
   override def splitAt(n: Int) = (take(n), drop(n))
+  
   override def filter(f: A => Boolean): DeepZipper[A] = collect {
     case e if f(e) => e
   }
+  
   override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That =
     flatMap(pf.lift andThen { _.toTraversable })
-  // end copy code
     
   override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That = {
     val liftedF = (a: A) => Seq(f(a))
@@ -113,6 +134,10 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
       case _ => super.flatMap(f)(cbf)
     }
   }
+
+  override def toZipper = this
+  
+  def stripZipper = new Group(toVectorCase)
   
   /** A specialized flatMap where the mapping function receives the index of the 
    * current element as an argument. */
@@ -166,9 +191,6 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
     result foreach (builder ++= _.toList)
     builder.result
   }
-  
-  /** Transforming a node with its update time into a sequence of nodes with an overall update time. */
-  private type NodeTransform = Node => (Seq[Node], Time)
   
   /** Preparing the context of the zipper for unselection.
    * 
@@ -226,22 +248,6 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
       (loc, toEmpty(time))
     }
     res
-  }
-  
-  /** Applying the node updates. */
-  lazy val unselect: DeepZipper[Node] = {
-    val (fullContext, transforms) = unselectionData
-    
-    if (fullContext.isEmpty && transforms.isEmpty) getParent // no updates
-    else {
-      // grouping the nodes by their depth in the tree
-      val byDepthContexts = fullContext.groupBy(_.parentsList.length) withDefaultValue Vector()
-      val byDepthTransforms = transforms.groupBy(_._1.parentsList.length) withDefaultValue Map()
-
-      val newZipper = mergeContext(byDepthContexts, byDepthTransforms)
-
-      newZipper
-    }
   }
   
   /** Converting anything that may be empty into an optional value. */
@@ -320,7 +326,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
     val mergedChildren = mergeOriginalWithContext(oldChildren, uniques)
     
     
-    val defaultTransform: NodeTransform = n => (Seq(n), initTime)
+    val defaultTransform: NodeTransform = n => (Seq(n), 0)
 
     // incorporating the transform into the merged children
     val transformed =
@@ -385,7 +391,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
       fullMap(n)
     }
 
-    getParent.flatMapWithIndex(flatMapFunc)
+    parentOrError.flatMapWithIndex(flatMapFunc)
   }
   
   /** Creating the mapping functions that should be applied at the root level implied by the transform functions. */
@@ -428,7 +434,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
     val uniques = // merging duplicates
       root.map { lc =>
         val (l, c) = lc
-        val orig = getParent(l)
+        val orig = parentOrError(l)
         val alternatives = c.map(fc => (fc.nodeLoc.node, fc.updateTime)).toSeq
         val (merged, _) = mergeDuplicates(orig, alternatives)
         NodeLoc(merged, l)
@@ -457,10 +463,6 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
    *  just simple currying
    */
   protected val mergeDuplicates: NodeMergeStrategy
-
-  override def toZipper = this
-  
-  def stripZipper = new Group(toVectorCase)
 }
 
 /** A factory for [[DeepZipper]] instances.
@@ -478,23 +480,10 @@ object DeepZipper {
    *  In case the node is root, the number is its position in the group to which it belongs.
    */
   private[antixml] type Location = Int
-
-  /** A location of a node within its parent. */
-  private[antixml] case class NodeLoc[+A <: Node](node: A, loc: Location) 
-  /** Parents can only be [[Elem]]s. */
-  private[antixml] case class ParentLoc(elem: Elem, loc: Location)
-  /** Containing any data. */
-  private[antixml] case class WithLoc[+A](content: A, loc: Location)
-  
-  /** A location of a node under its list of parents. */
-  private[antixml] case class FullLoc(parentsList: ParentsList, loc: Location)
   
   /** A set of locations nested in parents lists that are empty locations in a zipper 
    * coupled with their last update time. */
   private[antixml] type EmptiesSet = Set[(FullLoc, Time)]
-  
-  /** A default empties set. */
-  private val defaultEmptiesSet: EmptiesSet = Set[(FullLoc, Time)]()
 
   /** Represents a list of a node's parents, where the first item is the direct
    *  parent of the node, and the last is the root of the tree.
@@ -503,22 +492,6 @@ object DeepZipper {
 
   /** The units in which time is measured in the zipper. Assumed non negative. */
   private[antixml] type Time = Int
-  
-  /** The initial time of the zipper. */
-  private[antixml] val initTime: Time = 0
-
-  /** A wrapper for the full context of a [[DeepZipper]] location. */
-  private[antixml] case class FullContext[+A <: Node](
-    nodeLoc: NodeLoc[A], 
-    parentsList: ParentsList,
-    updateTime: Time)
-
-  /** A [[DeepZipper]] context for a location, fully describes its surrounding without specifying the content. */
-  private[antixml] case class LocationContext(
-    /** The location of the context beneath its parent. */
-    loc: Location,
-    parentsList: ParentsList,
-    updateTime: Time)
     
   /** A merging function which takes a node, which represents the node before any modifications
    *  and a sequence of nodes with their corresponding update times,
@@ -568,7 +541,7 @@ object DeepZipper {
    * @param parentGroup The parent of the newly created zipper.
    * @param contexts The contents of the zipper.
    * @param empties The set of empty locations in the zipper. */
-  def fromContexts[A <: Node](parentGroup: Option[Group[Node]], contexts: Vector[FullContext[A]], empties: EmptiesSet): DeepZipper[A] = {
+  private[antixml] def fromContexts[A <: Node](parentGroup: Option[Group[Node]], contexts: Vector[FullContext[A]], empties: EmptiesSet): DeepZipper[A] = {
     val vals = VectorCase.fromSeq(contexts map (_.nodeLoc.node))
     val locs = contexts map (_.nodeLoc.loc)
     val parents = contexts map (_.parentsList)
@@ -581,7 +554,7 @@ object DeepZipper {
       def parent = parentGroup map { _.toZipper }
       val mergeDuplicates = parent map (_.mergeDuplicates) getOrElse BasicNodeMergeStrategy
 
-      val time = if (newUpdateTimes.isEmpty) initTime else newUpdateTimes.max
+      val time = if (newUpdateTimes.isEmpty) 0 else newUpdateTimes.max
       val updateTimes = newUpdateTimes
     }
   }
@@ -590,22 +563,44 @@ object DeepZipper {
    *  @param parentGroup The parent from which the path was created.
    *  @param path Cannot contain duplicate locations.
    */
-  def fromPath[A, That](parent: Group[Node], path: Path[A])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], A, That]): That = {
+  private[antixml] def fromPath[A, That](parent: Group[Node], path: Path[A])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], A, That]): That = {
 	 import path._
 	 
 	// this is valid only if the path has no duplicate locations
-    val emptiesSet = defaultEmptiesSet 
     
-    val builder = cbfwdz(Some(parent), Vector(locs: _*), emptiesSet)
+    val builder = cbfwdz(Some(parent), Vector(locs: _*), Set())
     builder ++= contents
     
     builder.result
   }
   
   /** Converts the nodes gathered from applying the path function to the given group into a `That`. */
-  def fromPathFunc[A, That](parent: Group[Node], path: PathFunction[A])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], A, That]): That = {
+  private[antixml] def fromPathFunc[A, That](parent: Group[Node], path: PathFunction[A])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], A, That]): That = {
     fromPath(parent, new Path(path(parent)))
   }
 
+  /** A location of a node within its parent. */
+  private[antixml] case class NodeLoc[+A <: Node](node: A, loc: Location) 
   
+  /** Parents can only be [[Elem]]s. */
+  private[antixml] case class ParentLoc(elem: Elem, loc: Location)
+  
+  /** Containing any data. */
+  private[antixml] case class WithLoc[+A](content: A, loc: Location)
+  
+  /** A location of a node under its list of parents. */
+  private[antixml] case class FullLoc(parentsList: ParentsList, loc: Location)
+
+  /** A wrapper for the full context of a [[DeepZipper]] location. */
+  private[antixml] case class FullContext[+A <: Node](
+    nodeLoc: NodeLoc[A], 
+    parentsList: ParentsList,
+    updateTime: Time)
+
+  /** A [[DeepZipper]] context for a location, fully describes its surrounding without specifying the content. */
+  private[antixml] case class LocationContext(
+    /** The location of the context beneath its parent. */
+    loc: Location,
+    parentsList: ParentsList,
+    updateTime: Time)
 }

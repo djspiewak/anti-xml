@@ -255,7 +255,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
       def parent = None
       val mergeDuplicates = BasicNodeMergeStrategy // TODO this should be pluggable
 
-      val time = initTime
+      val time = 0
       val updateTimes = locs.map(_ => time)
     }
   }

@@ -116,8 +116,8 @@ class PathCreatorSpecs extends SpecificationWithJUnit {
 
       path.contents mustEqual Seq("foo", "bar")
       path.locs mustEqual Seq(
-        LocationContext(loc1.loc, p1, DeepZipper.initTime),
-        LocationContext(loc2.loc, p2, DeepZipper.initTime))
+        LocationContext(loc1.loc, p1, 0),
+        LocationContext(loc2.loc, p2, 0))
     }
   }
   
