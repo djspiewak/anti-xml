@@ -33,6 +33,15 @@ import scala.collection.immutable.Seq
 
 trait Selector[+A] extends PartialFunction[Node, A]
 
+trait OptimizingSelector[+A] extends Selector[A] {
+  /***
+   * Provides a hint as to whether the selector can any children or their
+   * descendants in the specified group.  Note that this is mearly a hint,
+   * `isDefinedAt` is the authoritative determinant of whether a selector matches.
+   */
+  def canMatchIn(group: Group[Node]): Boolean
+}
+
 /** A selector that selects an element by name. */
 private[antixml] class ElemSelector(val elementName: String) extends Selector[Elem] {
   // not using a case class to allow inheritance

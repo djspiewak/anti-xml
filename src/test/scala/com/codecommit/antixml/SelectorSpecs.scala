@@ -55,4 +55,48 @@ class SelectorSpecs extends Specification {
       <parent><foo/><bar/>Baz<foo/></parent>.convert \ 'foo mustEqual Group(<foo/>.convert, <foo/>.convert)
     }
   }
+  
+    
+  
+  "Optimizing selectors" should {
+    val bookstore = new StAXParser().fromString {
+      "<bookstore>" +
+        "<book>" +
+          "<title>For Whom the Bell Tolls</title>" +
+          "<author>Hemmingway</author>" +
+        "</book>" +
+        "<book>" +
+          "<title>I, Robot</title>" +
+          "<author>Isaac Asimov</author>" +
+        "</book>" +
+        "<book>" +
+          "<title>Programming Scala</title>" +
+          "<author>Dean Wampler</author>" +
+          "<author>Alex Payne</author>" +
+        "</book>" +
+        "<book>" +
+          "<title>An anonymous transcript</title>" +
+        "</book>" +
+      "</bookstore>" 
+    }
+    
+    "work using a non-trivial canMatchIn and mapping" in {
+      val titlesOfBooksWithAuthors = new OptimizingSelector[String]() {
+        private val pf: PartialFunction[Node, String] = {
+          case e:Elem if (e \ 'author).nonEmpty => (e \ 'title \ text).mkString
+        }
+
+        override def isDefinedAt(e:Node) = pf.isDefinedAt(e)
+        override def apply(sel: Node):String = pf(sel)
+        override def canMatchIn(g: Group[Node]) = {
+          g.matches("author") && g.matches("title")
+        }
+      }
+      
+      val result = bookstore \\ titlesOfBooksWithAuthors
+      result mustEqual Vector("For Whom the Bell Tolls","I, Robot","Programming Scala")
+      
+    }
+  }
+  
 }
