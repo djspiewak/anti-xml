@@ -34,7 +34,7 @@ import scala.collection.immutable.Seq
 trait Selector[+A] extends PartialFunction[Node, A]
 
 /** A selector that selects an element by name. */
-class ElemSelector(val elementName: String) extends Selector[Elem] {
+private[antixml] class ElemSelector(val elementName: String) extends Selector[Elem] {
   // not using a case class to allow inheritance
   private val pf: PartialFunction[Node, Elem] = {
     case e @ Elem(_, `elementName`, _, _, _) => e
@@ -51,7 +51,7 @@ object Selector {
    * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
    * For example: `ns \ "name"`
    */
-  implicit def stringToSelector(name: String): ElemSelector = new ElemSelector(name)
+  implicit def stringToSelector(name: String): Selector[Elem] = new ElemSelector(name)
 
   /**
    * Implicitly lifts a [[scala.Symbol]] into an instance of [[com.codecommit.antixml.Selector]]
@@ -63,9 +63,10 @@ object Selector {
     stringToSelector(name)
   }
   
-  def apply[A](pf: PartialFunction[Node, A]) =
+  def apply[A](pf: PartialFunction[Node, A]) = {
     new Selector[A] {
       def apply(node: Node) = pf(node)
       def isDefinedAt(node: Node) = pf isDefinedAt node
     }
+  }
 }
