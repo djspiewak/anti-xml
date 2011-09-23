@@ -30,7 +30,8 @@ private[antixml] object PathCreator {
   
   /** A path function that selects on the children of the given group. */
   def directChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    applySelector(selector)(directChildren(nodes))
+    if (dispatchSelector(selector, nodes)) applySelector(selector)(directChildren(nodes))     
+    else Nil // nothing to collect
   }
   
   /** A path function that selects on the recursively on all the children of the given group (breadth first). */
@@ -90,6 +91,17 @@ private[antixml] object PathCreator {
     n.zipWithIndex flatMap { nl =>
       val (n, l) = nl
       collectChild(n, l, p)
+    }
+  }
+  
+  
+  
+  /** Returns true if there is a chance that applying the given selector on the group
+   * would yield some results. */
+  private def dispatchSelector(s: Selector[_], g: Group[_]) = {
+    s match {
+      case e: ElemSelector => g matches e.elementName
+      case _ => true // no info about the selector, should proceed
     }
   }
 

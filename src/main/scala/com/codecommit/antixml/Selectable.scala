@@ -137,8 +137,6 @@ trait Selectable[+A <: Node] {
     fromPathFunc(toGroup, allChildren(selector))
   }
   
- def matches(selector: Selector[_]): Boolean = true
-  
   def toGroup: Group[A]
   
   def toZipper: DeepZipper[A] = toGroup.toZipper

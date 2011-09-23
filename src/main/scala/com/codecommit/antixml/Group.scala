@@ -311,8 +311,8 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
       ourFilter ++ childFilter
   }
 
-  override def matches(selector: Selector[_]) =
-    selector.elementName map bloomFilter.contains getOrElse true
+  /** If true this group may contain an element with the given name as one of its children (recursively). */
+  def matches(elementName: String) = bloomFilter contains elementName
 }
 
 /**
