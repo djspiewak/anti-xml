@@ -32,9 +32,20 @@ package antixml
 import java.io.Writer
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStream
 import java.io.OutputStreamWriter
  
 class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
+
+  /** Serializes an XML document, whose root is given.
+   *
+   * Outputs the XML declaration if this XMLSerializer was created with
+   * outputDeclaration = true.
+   *
+   * Note: it is up to the caller of this function to ensure that the
+   * character encoding used by the Writer (if any) matches the encoding of this
+   * XMLSerializer
+   */
   def serializeDocument(elem: Elem, w: Writer) {
     if (outputDeclaration) {
       w.append("<?xml version=\"1.0\" encoding=\"")
@@ -44,8 +55,19 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
     serialize(elem, w)
   }
 
+  /** Serializes an XML document, whose root is given.
+   *
+   * Outputs the XML declaration if this XMLSerializer was created with
+   * outputDeclaration = true. 
+   *
+   * Uses the character encoding of this XMLSerializer (default is UTF-8).
+   */
+  def serializeDocument(elem: Elem, o: OutputStream) {
+    serializeDocument(elem, new OutputStreamWriter(o, encoding))
+  }
+
   def serializeDocument(elem: Elem, outputFile: File) {
-    serializeDocument(elem, new OutputStreamWriter(new FileOutputStream(outputFile), encoding))
+    serializeDocument(elem, new FileOutputStream(outputFile))
   }
   
   def serialize(elem: Elem, w: Writer) {
