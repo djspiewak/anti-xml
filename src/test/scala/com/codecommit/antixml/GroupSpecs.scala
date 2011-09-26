@@ -152,31 +152,53 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       func(xml) mustEqual xml
     }
   }
+
+  val BadChars = "([\u0000-\u0008]|[\u000B-\u000C]|[\u000E-\u001F]|[\uD800-\uDFFF]|[\uFFFF])"r
   
   "canonicalization" should {
     "merge two adjacent text nodes" in check { (left: String, right: String) =>
-      Group(Text(left), Text(right)).canonicalize mustEqual Group(Text(left + right))
-      Group(CDATA(left), CDATA(right)).canonicalize mustEqual Group(CDATA(left + right))
+      if (BadChars.findFirstIn(left+right).isEmpty) {
+        Group(Text(left), Text(right)).canonicalize mustEqual Group(Text(left + right))
+        Group(CDATA(left), CDATA(right)).canonicalize mustEqual Group(CDATA(left + right))
+      } else {
+        Text(left+right) must throwAn[IllegalArgumentException]
+      }
     }
     
     "merge two adjacent text nodes at end of Group" in check { (left: String, right: String) =>
-      Group(elem("foo"), elem("bar", Text("test")), Text(left), Text(right)).canonicalize mustEqual Group(elem("foo"), elem("bar", Text("test")), Text(left + right))
-      Group(elem("foo"), elem("bar", Text("test")), CDATA(left), CDATA(right)).canonicalize mustEqual Group(elem("foo"), elem("bar", Text("test")), CDATA(left + right))
+      if (BadChars.findFirstIn(left+right).isEmpty) {
+        Group(elem("foo"), elem("bar", Text("test")), Text(left), Text(right)).canonicalize mustEqual Group(elem("foo"), elem("bar", Text("test")), Text(left + right))
+        Group(elem("foo"), elem("bar", Text("test")), CDATA(left), CDATA(right)).canonicalize mustEqual Group(elem("foo"), elem("bar", Text("test")), CDATA(left + right))
+      } else {
+        Text(left+right) must throwAn[IllegalArgumentException]
+      }
     }
     
     "merge two adjacent text nodes at beginning of Group" in check { (left: String, right: String) =>
-      Group(Text(left), Text(right), elem("foo"), elem("bar", Text("test"))).canonicalize mustEqual Group(Text(left + right), elem("foo"), elem("bar", Text("test")))
-      Group(CDATA(left), CDATA(right), elem("foo"), elem("bar", Text("test"))).canonicalize mustEqual Group(CDATA(left + right), elem("foo"), elem("bar", Text("test")))
+      if (BadChars.findFirstIn(left+right).isEmpty) {
+        Group(Text(left), Text(right), elem("foo"), elem("bar", Text("test"))).canonicalize mustEqual Group(Text(left + right), elem("foo"), elem("bar", Text("test")))
+        Group(CDATA(left), CDATA(right), elem("foo"), elem("bar", Text("test"))).canonicalize mustEqual Group(CDATA(left + right), elem("foo"), elem("bar", Text("test")))
+      } else {
+        Text(left+right) must throwAn[IllegalArgumentException]
+      }
     }
     
     "merge two adjacent text nodes at depth" in check { (left: String, right: String) =>
-      Group(elem("foo", elem("bar", Text(left), Text(right)))).canonicalize mustEqual Group(elem("foo", elem("bar", Text(left + right))))
-      Group(elem("foo", elem("bar", CDATA(left), CDATA(right)))).canonicalize mustEqual Group(elem("foo", elem("bar", CDATA(left + right))))
+      if (BadChars.findFirstIn(left+right).isEmpty) {
+        Group(elem("foo", elem("bar", Text(left), Text(right)))).canonicalize mustEqual Group(elem("foo", elem("bar", Text(left + right))))
+        Group(elem("foo", elem("bar", CDATA(left), CDATA(right)))).canonicalize mustEqual Group(elem("foo", elem("bar", CDATA(left + right))))
+      } else {
+        Text(left+right) must throwAn[IllegalArgumentException]
+      }
     }
     
     "not merge adjacent text and cdata nodes" in check { (left: String, right: String) =>
-      Group(CDATA(left), Text(right)).canonicalize mustEqual Group(CDATA(left), Text(right))
-      Group(Text(left), CDATA(right)).canonicalize mustEqual Group(Text(left), CDATA(right))
+      if (BadChars.findFirstIn(left+right).isEmpty) {
+        Group(CDATA(left), Text(right)).canonicalize mustEqual Group(CDATA(left), Text(right))
+        Group(Text(left), CDATA(right)).canonicalize mustEqual Group(Text(left), CDATA(right))
+      } else {
+        Text(left+right) must throwAn[IllegalArgumentException]
+      }
     }
     
     "always preserve serialized equality" in check { g: Group[Node] =>
