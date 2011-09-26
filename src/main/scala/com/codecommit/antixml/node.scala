@@ -135,6 +135,8 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
     sw.toString
   }
   
+  override val hashCode = runtime.ScalaRunTime._hashCode(this)
+  
   def toGroup = Group(this)
 }
 
