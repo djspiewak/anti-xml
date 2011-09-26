@@ -42,17 +42,6 @@ trait OptimizingSelector[+A] extends Selector[A] {
   def canMatchIn(group: Group[Node]): Boolean
 }
 
-/** A selector that selects an element by name. */
-private[antixml] class ElemSelector(val elementName: String) extends Selector[Elem] {
-  // not using a case class to allow inheritance
-  private val pf: PartialFunction[Node, Elem] = {
-    case e @ Elem(_, `elementName`, _, _, _) => e
-  }
-
-  def apply(node: Node) = pf(node)
-  def isDefinedAt(node: Node) = pf isDefinedAt node
-}
-
 object Selector {
 
   /**
@@ -60,7 +49,17 @@ object Selector {
    * which can then be passed to the appropriate methods on [[com.codecommit.antixml.Group]].
    * For example: `ns \ "name"`
    */
-  implicit def stringToSelector(name: String): Selector[Elem] = new ElemSelector(name)
+  implicit def stringToSelector(name: String): Selector[Elem] =
+    new OptimizingSelector[Elem] {
+      private val pf: PartialFunction[Node, Elem] = {
+        case e @ Elem(_, `name`, _, _, _) => e
+      }
+
+      def apply(node: Node) = pf(node)
+      def isDefinedAt(node: Node) = pf isDefinedAt node
+      def canMatchIn(group: Group[Node]) = group.matches(name)
+    }
+  
 
   /**
    * Implicitly lifts a [[scala.Symbol]] into an instance of [[com.codecommit.antixml.Selector]]

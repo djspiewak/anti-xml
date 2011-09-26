@@ -100,7 +100,6 @@ private[antixml] object PathCreator {
    * would yield some results. */
   private def dispatchSelector(s: Selector[_], g: Group[Node]) = {
     s match {
-      case e: ElemSelector => g matches e.elementName
       case opt: OptimizingSelector[_] => opt.canMatchIn(g)
       case _ => true // no info about the selector, should proceed
     }
