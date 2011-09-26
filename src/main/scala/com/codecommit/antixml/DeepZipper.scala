@@ -300,6 +300,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
    *  of contexts at depth -1 from the original.
    */
   private def mergeDepth(singleDepthContexts: Seq[FullContext], singleDepthTransforms: Map[FullLoc, NodeTransform]) = {
+    // the following can only be used if [[Elem]] has efficient hashing
     val contexts = singleDepthContexts.groupBy(_.parentsList) withDefaultValue Seq()
     val transforms = singleDepthTransforms.groupBy(_._1.parentsList) withDefaultValue Map()
     
