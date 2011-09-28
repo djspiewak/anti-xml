@@ -12,89 +12,97 @@ private[antixml] object PathCreator {
   /** A function that creates paths on group, to be used when constructing zippers. */
   type PathFunction[+A] = Group[Node] => PathVals[A]
   
-  /*
-   * First applying the paths using the overloads without the selector,
-   * then applying the selector.
-   * This way the traversal is not modified during selection.
-   */
-  
   /** A path function that selects on nodes in the given group. */
   def fromNodes[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    applySelector(selector)(fromNodesWithParent(Nil, nodes))
+    collectGroup(nodes, selector, Nil)
   }
-  
+
   /** A path function that selects on the given nodes and recursively on the children (breadth first). */
   def all[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    fromNodes(selector)(nodes) ++ allChildren(selector)(nodes)
+    collectGroupRecursive(List((nodes, Nil)), selector)
   }
   
   /** A path function that selects on the children of the given group. */
   def directChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    if (dispatchSelector(selector, nodes)) applySelector(selector)(directChildren(nodes))     
-    else Nil // nothing to collect
+    collectChildrenOfGroup(nodes, selector)
   }
   
   /** A path function that selects on the recursively on all the children of the given group (breadth first). */
   def allChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    applySelector(selector)(allChildren(nodes))
+    collectGroupRecursive(collectGroupChildren(nodes, Nil, selector), selector)
   }
   
-  /** Lifting the selector so that it can operate on path entries. */
-  private def liftSelector[A](s: Selector[A]): PartialFunction[(WithLoc[Node], ParentsList), (WithLoc[A], ParentsList)] = {
-    case (WithLoc(n, i), p) if s.isDefinedAt(n) => (WithLoc(s(n), i), p)
+  /** Collects items from the given group that match the selector. */
+  private def collectGroup[A](nodes: Group[Node], s: Selector[A], p: ParentsList): PathVals[A] = {
+    dispatchSelector(s, nodes) {
+      val ni = nodes.zipWithIndex
+      for ((n, i) <- ni if s isDefinedAt n) yield (WithLoc(s(n), i), p)
+    }
   }
   
-  /** Applies the selector to the given path. */
-  private def applySelector[A](s: Selector[A])(path: PathVals[Node]): PathVals[A] = {
-    path.collect(liftSelector(s))
+  /** Collects items from the list groups that match the selector. */
+  private def collectGroups[A](groups: Seq[(Group[Node], ParentsList)], s: Selector[A]): PathVals[A] = {
+    groups flatMap {gp =>
+      val (g, p) = gp
+      collectGroup(g, s, p)
+    }
   }
   
-  /** Converting a group of nodes to the corresponding node locations. */
-  private def nodesToLocs[A <: Node](nodes: Group[Node]) = {
-    nodes.zipWithIndex.map(Function.tupled(WithLoc[Node]))
-  }
-  
-  /** Creating a path from this group of nodes. */
-  private def fromNodesWithParent(p: ParentsList, n: Group[Node]) = {
-    nodesToLocs(n) map ((_, p))
-  }
-  
-  private def directChildren(nodes: Group[Node]): PathVals[Node] = collectChild(nodes, Nil)
-  
-  private def allChildren(nodes: Group[Node]): PathVals[Node] = {
-    allChildren(directChildren(nodes))
-  }
-  
-  /** Recursively taking all the children of a given path. */
-  private def allChildren(p: PathVals[Node]): PathVals[Node] = {
-    if (p.isEmpty) Nil
-    else {
-      val children =
-      p.flatMap{ nlp =>
-        val (WithLoc(n, l), p) = nlp
-        collectChild(n, l, p)
+  /** Applies the group selector collection function on the children of the given group. */
+  private def collectChildrenOfGroupWith[A]
+	  (nodes: Group[Node], s: Selector[A], p: ParentsList)
+	  (toVals: (Group[Node], Selector[A], ParentsList) => PathVals[A]): PathVals[A] = {
+    dispatchSelector(s, nodes) {
+      val ni = nodes.zipWithIndex
+      ni flatMap {
+        case (e: Elem, i) => toVals(e.children, s, ParentLoc(e, i) :: p)
+        case _ => Nil
       }
-      p ++ allChildren(children)
     }
   }
   
-  /** Collecting the children of a single node. */
-  private def collectChild(n: Node, l: Location, p: ParentsList): PathVals[Node] = {
-    n match {
-      case e: Elem => fromNodesWithParent(ParentLoc(e, l) :: p, e.children)
-      case _ => Nil
+  /** Collects items from the children of the given group that match the selector. */
+  private def collectChildrenOfGroup[A](nodes: Group[Node], s: Selector[A]): PathVals[A] = {
+    collectChildrenOfGroupWith(nodes, s, Nil) (collectGroup _)
+  }
+  
+  /** Recursively collects items from the given group that match the selector. */
+  private def collectGroupRecursive[A](groups: Seq[(Group[Node], ParentsList)], s: Selector[A]): PathVals[A] = {
+    if (groups.isEmpty) Nil
+    else {
+      val allChildren =
+        groups flatMap { gp =>
+          val (g, p) = gp
+          collectGroupChildren(g, p, s)
+        }
+      collectGroups(groups, s) ++ collectGroupRecursive(allChildren, s)
     }
   }
   
-  /** Collecting the children of the given nodes. */
-  private def collectChild(n: Group[Node], p: ParentsList): PathVals[Node] = {
-    n.zipWithIndex flatMap { nl =>
-      val (n, l) = nl
-      collectChild(n, l, p)
+  /** Gathering all the children of the group that may match the selector. */
+  private def collectGroupChildren(g: Group[Node], p: ParentsList, s: Selector[_]): Seq[(Group[Node], ParentsList)] = {
+    dispatchSelector[Seq[(Group[Node], ParentsList)]](s, g)(Nil) {
+      val gi = g.zipWithIndex
+      gi flatMap {
+        case (e: Elem, i) => Some((e.children, ParentLoc(e, i) :: p))
+        case _ => None
+      }
     }
   }
   
-  
+  /** If dispatching on the selector yields true, executing the given code block, otherwise returning 
+   * the default value.*/
+  private def dispatchSelector[A](s: Selector[_], g: Group[Node])(default: A)(vals: => A): A = {
+    if (dispatchSelector(s, g)) vals
+    else default
+  }
+
+  /** If dispatching on the selector yields true, executing the given code block, otherwise returning
+   *  an empty list.
+   */
+  private def dispatchSelector[A](s: Selector[A], g: Group[Node])(vals: => PathVals[A]): PathVals[A] = {
+    dispatchSelector[PathVals[A]](s, g)(Nil)(vals)
+  }
   
   /** Returns true if there is a chance that applying the given selector on the group
    * would yield some results. */
@@ -117,7 +125,5 @@ private[antixml] object PathCreator {
     val (locs, contents) = contexts.unzip
     // this can only be used if [[Elem]] has efficient hashing
     require((locs).toSet.size == locs.size, "Cannot have duplicate locations in path") // enforcing no duplicates policy 
-    
-    
   }
 }
