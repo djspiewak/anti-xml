@@ -116,14 +116,9 @@ private[antixml] object PathCreator {
     
     /** The location contexts and the corresponding contents. */
     val (locs, contents) = contexts.unzip
-    require(removeParents(locs).toSet.size == locs.size, "Cannot have duplicate locations in path") // enforcing no duplicates policy 
+    // this can only be used if [[Elem]] has efficient hashing
+    require((locs).toSet.size == locs.size, "Cannot have duplicate locations in path") // enforcing no duplicates policy 
     
-    /** A wrapper for location which omits [[Elem]] data from the parents list. 
-     *  Hashing on this is faster than of on [[LocationContext]]. */
-    private case class LocContextNoParents(loc: Location, parents: Seq[Location])
-    private def removeParents(locs: Seq[LocationContext]) = {
-      locs map (l => LocContextNoParents(l.loc, l.parentsList.map(_.loc)))
-    }
     
   }
 }
