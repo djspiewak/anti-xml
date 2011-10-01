@@ -1,119 +1,237 @@
-/*
- * Copyright (c) 2011, Daniel Spiewak
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- * 
- * - Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer. 
- * - Redistributions in binary form must reproduce the above copyright notice, this
- *   list of conditions and the following disclaimer in the documentation and/or
- *   other materials provided with the distribution.
- * - Neither the name of "Anti-XML" nor the names of its contributors may
- *   be used to endorse or promote products derived from this software without
- *   specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
 package com.codecommit.antixml
 
 import org.specs2.mutable._
 import org.specs2.ScalaCheck
-import org.specs2.matcher.MustExpectable._
 import org.scalacheck._
-
-import scala.collection.immutable.Map
+import XML._
+import com.codecommit.antixml.Zipper._
 import scala.io.Source
 
-class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
-  import Prop._
-  
-  lazy val numProcessors = Runtime.getRuntime.availableProcessors()
-  implicit val params = set(workers -> numProcessors, maxSize -> 15)      // doesn't need to be that large
-  
+class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenerators {
+
+  implicit val params = set(maxSize -> 10, minTestsOk -> 20)
   val bookstore = resource("bookstore.xml")
   val onlyBell = Group(<bookstore><book><title>For Whom the Bell Tolls</title><author>Hemmingway</author></book></bookstore>.convert)
   val onlyPS = Group(<bookstore><book><title>Programming Scala</title><author>Dean Wampler</author><author>Alex Payne</author></book></bookstore>.convert)
   
-  "Zipper#stripZipper" should {
-    "effectively strip zipper context" in {
-      val books = bookstore \ "book"
-      books.stripZipper.isInstanceOf[Zipper[Node]] mustEqual false
+  // TODO This is by no means exhaustive, just showing off what's possible.
+
+  "Deep Zipper selection" should {
+    // I'm lazy so the bookstore is hardcoded here.
+	// From some reason parsing indented literals gives errors when comparing results, using a single line string.
+    
+    val bookstore = fromString {
+      "<bookstore>" +
+        "<book>" +
+          "<title>For Whom the Bell Tolls</title>" +
+          "<author>Hemmingway</author>" +
+        "</book>" +
+        "<book>" +
+          "<title>I, Robot</title>" +
+          "<author>Isaac Asimov</author>" +
+        "</book>" +
+        "<book>" +
+          "<title>Programming Scala</title>" +
+          "<author>Dean Wampler</author>" +
+          "<author>Alex Payne</author>" +
+        "</book>" +
+      "</bookstore>" 
     }
-  }
-  
-  "Zipper#slice" should {
-    "work correctly in the presence of equal siblings" in {
-      val xml = <a><b /><c1 /><b /><c2 /></a>.convert
       
-      val sliced = (xml \ *).slice(1,3)
-      sliced mustEqual <a><c1 /><b /></a>.convert.children
-      sliced.unselect(0) mustEqual <a><c1 /><b /></a>.convert
+    val bookGroup = Group(bookstore)
+
+    "not modify the the content on clean unselection" in {
+      (bookstore \ 'book unselect) mustEqual bookGroup
+      (bookstore \\ 'book unselect) mustEqual bookGroup
+      (bookstore \ 'book \\ 'title).unselect.unselect mustEqual bookGroup
+    }
+
+    "modify on any level" in {
+      val authors = bookstore \\ 'author
+      val newAuthor = <author>Tolkien</author>.convert
+      val newBooks =
+        authors.
+          updated(0, newAuthor).
+          updated(1, newAuthor).
+          updated(2, newAuthor).
+          updated(3, newAuthor).
+        unselect
+
+      val res = fromString {
+        "<bookstore>" +
+          "<book>" +
+          "<title>For Whom the Bell Tolls</title>" +
+          "<author>Tolkien</author>" +
+          "</book>" +
+          "<book>" +
+          "<title>I, Robot</title>" +
+          "<author>Tolkien</author>" +
+          "</book>" +
+          "<book>" +
+          "<title>Programming Scala</title>" +
+          "<author>Tolkien</author>" +
+          "<author>Tolkien</author>" +
+          "</book>" +
+          "</bookstore>"
+      }  
+      
+      newBooks mustEqual Group(res)
     }
     
-    "work when there's no zipper context" in {
-      val xml = <a><b /><c1 /><b /><c2 /></a>.convert
+    "perform consecutive selection/modification" in {
+      val titles = bookstore \\ 'book \ 'title 
+      val newBooks =
+        titles.
+          updated(0, <title>LOTR</title>.convert).
+          updated(1, <title>Hitchhikers Guide</title>.convert).
+          unselect.unselect
+          
+      val res = fromString {
+        "<bookstore>" +
+          "<book>" +
+          "<title>LOTR</title>" +
+          "<author>Hemmingway</author>" +
+          "</book>" +
+          "<book>" +
+          "<title>Hitchhikers Guide</title>" +
+          "<author>Isaac Asimov</author>" +
+          "</book>" +
+          "<book>" +
+          "<title>Programming Scala</title>" +
+          "<author>Dean Wampler</author>" +
+          "<author>Alex Payne</author>" +
+          "</book>" +
+          "</bookstore>"
+      }
+
+      newBooks mustEqual Group(res)
       
-      val sliced = (xml.children).toZipper.slice(1,3)
-      sliced mustEqual <a><c1 /><b /></a>.convert.children
-    }    
+    }
+    
+    val all = bookstore \\ * 
+    
+    "resolve merging problems with the merge strategy 1" in {
+      val newBooks = all.updated(0, elem("erased")).updated(1, elem("replaced", Text("foo"))).unselect
+      
+      // notice how children are propagated from below  	
+      val res = fromString(
+        "<bookstore>" +
+          "<erased>" +
+            "<replaced>foo</replaced>" +
+            "<author>Hemmingway</author>" +
+          "</erased>" +
+          "<book>" +
+            "<title>I, Robot</title>" +
+            "<author>Isaac Asimov</author>" +
+          "</book>" +
+          "<book>" +
+            "<title>Programming Scala</title>" +
+            "<author>Dean Wampler</author>" +
+            "<author>Alex Payne</author>" +
+          "</book>" +
+        "</bookstore>")
+
+      newBooks mustEqual Group(res)
+    }
+    
+    "resolve merging problems with the merge strategy 2" in {
+      val newBooks =
+        all.
+          updated(1, elem("replaced", Text("foo"))).
+          updated(0, elem("erased")).
+          unselect
+
+      // this time the children are ignored, because the last change is at the root
+      val res = fromString(
+        "<bookstore>" +
+          "<erased/>" +
+          "<book>" +
+            "<title>I, Robot</title>" +
+            "<author>Isaac Asimov</author>" +
+          "</book>" +
+          "<book>" +
+            "<title>Programming Scala</title>" +
+            "<author>Dean Wampler</author>" +
+            "<author>Alex Payne</author>" +
+          "</book>" +
+        "</bookstore>")
+
+      newBooks mustEqual Group(res)
+    	
+    }
+
+    "just randomly modifying stuff" in {
+      val newBooks =
+        all.
+          updated(0, elem("boo")).
+          updated(1, elem("boo")).
+          updated(2, elem("boo")).
+          updated(3, elem("boo")).
+          updated(4, elem("boo")).
+          updated(5, elem("boo")).
+          updated(6, elem("boo")).
+          updated(7, elem("boo")).
+          updated(8, elem("boo")).
+          updated(9, elem("boo")).
+          updated(10, elem("boo")).
+          unselect
+
+      val res = fromString(
+        "<bookstore>" +
+           "<boo><boo><boo/></boo><boo><boo/></boo></boo>" +
+           "<boo><boo><boo/></boo><boo><boo/></boo></boo>" +
+           "<boo/>" +
+        "</bookstore>")
+        
+      newBooks mustEqual Group(res)
+          
+    }
   }
-  
-  "zipper updates within '\\' results" should {
+
+  "Zipper updates within '\\' results" should {
     "rebuild from empty result set" in {
       val xml = Group(<parent><child/><child/></parent>.convert)
       (xml \ 'foo).unselect mustEqual xml
       (bookstore \ 'book \ 'foo).unselect mustEqual (bookstore \ 'book)
       (bookstore \ 'book \ 'foo).unselect.unselect mustEqual Group(bookstore)
     }
-    
+
     "rebuild updated at one level" in {
       val books = bookstore \ "book"
-      val book0 = books(0).copy(attrs=Attributes("updated" -> "yes"))
-      val book2 = books(2).copy(attrs=Attributes("updated" -> "yes"))
-      
-      val bookstore2: Group[Node] = books.updated(0, book0).updated(2, book2).unselect    // ensure we have NodeSeq
-      
-      // find afresh without using \
+      val book0 = books(0).copy(attrs = Attributes("updated" -> "yes"))
+      val book2 = books(2).copy(attrs = Attributes("updated" -> "yes"))
+
+      val bookstore2: Group[Node] = books.updated(0, book0).updated(2, book2).unselect // ensure we have NodeSeq
+
+      // find afresh without using >
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes()
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
     }
-    
+
     "rebuild updated at two levels" in {
       val authors = bookstore \ "book" \ "author"
-      val author0 = authors(0).copy(attrs=Attributes("updated" -> "yes"))
-      val author2 = authors(2).copy(attrs=Attributes("updated" -> "yes"))
-      val author3 = authors(3).copy(attrs=Attributes("updated" -> "yes"))
+      val author0 = authors(0).copy(attrs = Attributes("updated" -> "yes"))
+      val author2 = authors(2).copy(attrs = Attributes("updated" -> "yes"))
+      val author3 = authors(3).copy(attrs = Attributes("updated" -> "yes"))
       
       val bookstore2: Group[Node] = authors.updated(0, author0).updated(2, author2).updated(3, author3).unselect.unselect
-      
-      // find afresh without using \
+
+      // find afresh without using >
       bookstore2.head.asInstanceOf[Elem].name mustEqual "bookstore"
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].name mustEqual "book"
-      
+
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children must haveSize(2)
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
-      
+
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children must haveSize(2)
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes()
-      
+
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children must haveSize(3)
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
     }
-    
+
     "rebuild after a map at the first level" in {
       val books = bookstore \ "book"
       val books2 = books map { _.copy(attrs=Attributes("updated" -> "yes")) }
@@ -121,13 +239,13 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       val bookstore2: Group[Node] = books2.unselect
       bookstore2.head.asInstanceOf[Elem].children must haveSize(3)
       
-      // find afresh without using \                                                    
+      // find afresh without using >                                                    
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(2).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
     }
     
-    "rebuild after a drop at the first level" in {
+     "rebuild after a drop at the first level" in {
       val books = bookstore \ "book"
       val books2 = books drop 2
       val bookstore2: Group[Node] = books2.unselect
@@ -174,7 +292,7 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       val bookstore2: Group[Node] = books2.unselect
       bookstore2.head.asInstanceOf[Elem].children must haveSize(2)
       
-      // find afresh without using \
+      // find afresh without using >
       bookstore2.head.asInstanceOf[Elem].children(0).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
       bookstore2.head.asInstanceOf[Elem].children(1).asInstanceOf[Elem].attrs mustEqual Attributes("updated" -> "yes")
       
@@ -258,7 +376,7 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
       books2(1) mustEqual <book><title>I, Robot</title><author>Isaac Asimov</author></book>.convert
       books2(2) mustEqual <book><author>Dean Wampler</author><author>Alex Payne</author></book>.convert
     }
-    
+
     "rebuild following filter at the second level" in {
       val titles = bookstore \ 'book \ 'title
       val bookstore2 = (titles filter (titles(1) !=)).unselect.unselect
@@ -284,41 +402,172 @@ class ZipperSpecs extends Specification with ScalaCheck with XMLGenerators {
         }
       }      
     }
-    
+
     "preserve flatMap order" in {
-      val original = <top><a /></top>.convert
-      val expanded = original \ 'a flatMap {
-        case e: Elem => for(i <- 0 until 10) yield e.copy(name=e.name+i)
+      val original = <top><a/></top>.convert
+      val expanded = (original \ 'a) flatMap {
+        case e: Elem => for (i <- 0 until 10) yield e.copy(name = e.name + i)
       }
       val modified = expanded.unselect
 
       modified must haveSize(1)
-      modified(0) mustEqual <top><a0 /><a1 /><a2 /><a3 /><a4 /><a5 /><a6 /><a7 /><a8 /><a9 /></top>.convert      
+      modified(0) mustEqual <top><a0/><a1/><a2/><a3/><a4/><a5/><a6/><a7/><a8/><a9/></top>.convert
     }
-  }
-  
-  "utility methods on Zipper" >> {
-    implicit val arbInt = Arbitrary(Gen.choose(0, 10))
-    
-    "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
-      val func = (0 until n).foldLeft(identity: Zipper[Node] => Zipper[Node]) { (g, _) =>
-        g andThen { _ collect { case e => e } }
+
+    "utility methods on Zipper" >> {
+      implicit val arbInt = Arbitrary(Gen.choose(0, 10))
+
+      "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
+        val func = (0 until n).foldLeft(identity: Zipper[Node] => Zipper[Node]) { (g, _) =>
+          g andThen { _ collect { case e => e } }
+        }
+
+        func(xml.toZipper) mustEqual xml
+      }
+
+      "identity filter should return self" in check { xml: Group[Node] =>
+        val result = xml.toZipper filter Function.const(true)
+        result mustEqual xml
+      }
+
+      "identity filter and unselect should return self" in check { xml: Group[Node] =>
+        val sub = xml \ *
+        (sub filter Function.const(true) unselect) mustEqual xml
       }
       
-      func(xml.toZipper) mustEqual xml
+      "slice should work correctly in the presence of equal siblings" in {
+        val xml = Group(<a><b /><c1 /><b /><c2 /></a>.convert)
+        
+        val sliced = (xml \ *).slice(1, 3)
+        sliced mustEqual <a><c1 /><b /></a>.convert.children
+        sliced.unselect.head mustEqual <a><c1 /><b /></a>.convert
+      }
     }
-    
-    "identity filter should return self" in check { xml: Group[Node] =>
-      val result = xml.toZipper filter Function.const(true)
-      result mustEqual xml
+  }
+
+  "Shallow selection on a Zipper" should {
+    "find an immediate descendant" in {
+      val ns = fromString("<parent><parent/></parent>")
+      ns \ "parent" mustEqual Group(elem("parent"))
     }
-    
-    "identity filter and unselect should return self" in check { xml: Group[Node] =>
-      val sub = xml \ *
-      (sub filter Function.const(true) unselect) mustEqual xml
+
+    "be referentially transparent" in {
+      val ns = fromString("<parent><parent/></parent>")
+      ns \ "parent" mustEqual Group(elem("parent"))
+      ns \ "parent" mustEqual Group(elem("parent"))
+    }
+
+    "find a subset of nodes" in {
+      val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>")
+      val result = Group(elem("a"), elem("a"), elem("a"))
+      ns \ "a" mustEqual result
+    }
+  }
+
+  "Deep selection on Zipper" should {
+    "return something of type Zipper on element select" in {
+      val ns = <foo/>.convert.toZipper
+      validate[Zipper[Elem]](ns \\ 'bar)
+    }
+
+    "find an immediate descendant" in {
+      val ns = fromString("<parent><parent/></parent>").toZipper
+      ns \\ "parent" mustEqual Group(elem("parent"))
+    }
+
+    "find a subset of nodes" in {
+      val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>").toZipper
+      val result = Group(elem("a"), elem("a"), elem("a"))
+      ns \\ "a" mustEqual result
+    }
+
+    "find and linearize a deep subset of nodes" in {
+      val ns = fromString("<parent>" +
+        "Some text" +
+        "<sub1><target>sub1</target></sub1>" +
+        "<target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target>" +
+        "<phoney><target>phoney</target></phoney>" + 
+        "More text" +
+        "<target>outside</target>" +
+        "</parent>").toZipper
+      
+      val result = fromString("<parent>" +
+        "<target>sub1</target>" +
+        "<target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target>" +
+        "<target>top1</target>" +
+        "<target>top2</target>" +
+        "<target>top3-outer</target>" +
+        "<target>phoney</target>" +
+        "<target>outside</target>" +
+        "</parent>")
+      ns \\ "target" mustEqual result.children
     }
   }
   
+  "Short-circuit deep selection on Zipper" should {
+  
+    "find an immediate descendant" in {
+      val ns = fromString("<parent><parent/></parent>").toZipper
+      ns \\! "parent" mustEqual Group(elem("parent"))
+    }
+    
+    "find a subset of nodes" in {
+      val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>").toZipper
+      val result = Group(elem("a"), elem("a"), elem("a"))
+      ns \\! "a" mustEqual result
+    }
+    
+    "skip descendants of matching nodes in" in {
+      val ns = fromString("<parent>" +
+        "Some text" +
+        "<sub1><target>sub1</target></sub1>" +
+        "<target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target>" +
+        "<phoney><target>phoney</target></phoney>" + 
+        "More text" +
+        "<target>outside</target>" +
+        "</parent>").toZipper
+  
+      val result = fromString("<parent>" +
+        "<target>sub1</target>" +
+        "<target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target>" +
+        "<target>phoney</target>" +
+        "<target>outside</target>" +
+        "</parent>")
+      ns \\! "target" mustEqual result.children
+    }
+        
+  }
+   
+  "select on a Zipper" should {
+
+    "find a top level node" in {
+      val ns = fromString("<parent><parent/></parent>").toZipper
+      (ns select "parent") mustEqual ns
+    }
+    
+    "find a subset of nodes" in {
+      val ns = fromString("<TOP><a><x1/></a><b><y1/></b><a><x2/></a><b><y2/></b></TOP>").children.toZipper
+      val result = fromString("<TOP><a><x1/></a><a><x2/></a></TOP>").children
+      ns select "a" mustEqual result
+    }
+    
+    "only match the top level" in {
+      val ns = fromString("<TOP><a /><b><a /></b><a><a /></a></TOP>").children.toZipper
+      val result = fromString("<TOP><a /><a><a /></a></TOP>").children
+      ns select "a" mustEqual result      
+    }
+    
+  }
+     
+
+  def validate[Expected] = new {
+    def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull
+  }
+
   def resource(filename: String) =
-    XML fromSource (Source fromURL (getClass getResource ("/" + filename)))   // oooh, lispy!
+    XML fromSource (Source fromURL (getClass getResource ("/" + filename)))
+
+  def elem(name: String) = Elem(None, name, Attributes(), Map(), Group())
+  def elem(name: String, children: Node*) = Elem(None, name, Attributes(), Map(), Group(children: _*))
+
 }

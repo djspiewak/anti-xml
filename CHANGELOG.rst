@@ -2,9 +2,21 @@
 CHANGELOG
 =========
 
+0.4
+===
+
 0.3
 ===
 
+* New selection methods
+
+  * ``\\!`` – Performs a deep selection, but stops the recursion once a match is
+    reached (thus, if a parent and its child both match, only the parent will be
+    returned).  The results are guaranteed to have a zipper with an non-conflicting
+    ``unselect`` on all operations
+  * ``select`` – Performs a selection at the *current* level, without descent
+  
+* Deep selection (``\\``) is now depth-first, rather than breadth-first
 * Zipper now works for both ``\`` and ``\\`` methods
 * New utility methods supported by Zipper
 
@@ -13,8 +25,6 @@ CHANGELOG
   * ``splitAt``
   * ``take``
   
-* Deep-select now returns a ``Group`` rather than a ``Zipper`` with an invalid
-  context
 * Implicit conversions from ``String`` and ``Symbol`` to ``Selector`` are now
   hidden in the ``Selector`` companion object
 * Explicit converters now use ``convert`` instead of ``anti``
@@ -28,10 +38,9 @@ CHANGELOG
     results have been dropped
   * ``Zipper#unselect`` on empty selection results no functions appropriately
   * `Issue 12`_ – Utility Operations on Group Return an Invalid Zipper
-
-    * Utility methods on ``Group`` now return ``Group`` when possible, rather
-	  than ``Zipper``.  This also changes the ``CanBuildFromWithZipper`` API
-	  by splitting it entirely from ``CanBuildFrom``.
+  * Utility methods on ``Group`` now return ``Group`` when possible, rather
+    than ``Zipper``.  This also changes the ``CanBuildFromWithZipper`` API
+    by splitting it entirely from ``CanBuildFrom``.
 
 
 .. _Issue #40: https://github.com/djspiewak/anti-xml/issues/40

@@ -46,23 +46,6 @@ package com.codecommit
  * </ul>
  */
 package object antixml {
-  /**
-   * `(from, to, rebuild, internal map)`.
-   *
-   * Represents the mapping from an element's child group to the corresponding Nodes in a Zipper.
-   * 
-   * `from` and `to` denote the slice of the target Zipper corresponding to the child group.
-   *
-   * `internal map` yields the number of target Nodes for a given child node's index.
-   *
-   * We require the correspondence to be order preserving and to cover the target slice.  Given this fact,
-   * the above items completely determine the correspondence.
-   *
-   * `rebuild` is called to reconstruct the element for the `unzip` operation.  It is passed the slice 
-   * of the target group along with the `internal map`.  
-   * 
-   */
-  private[antixml] type ZContext = (Int, Int, (Group[Node], Map[Int, Int]) => Node, Map[Int, Int])
   
   /**
    * Pimps the `anti` method onto any object for which there exists a conversion

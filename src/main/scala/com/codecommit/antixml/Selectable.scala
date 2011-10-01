@@ -29,10 +29,14 @@
 package com.codecommit
 package antixml
 
+import com.codecommit.antixml.util.VectorCase
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{Vector, VectorBuilder}
 
+import CanBuildFromWithZipper.ElemsWithContext
+
 trait Selectable[+A <: Node] {
+  import PathCreator.{allChildren, directChildren, PathFunction, PathVal}
   
   /**
    * Performs a shallow-select on the XML tree according to the specified selector
@@ -98,77 +102,8 @@ trait Selectable[+A <: Node] {
    * @see [[com.codecommit.antixml.Zipper]]
    * @usecase def \(selector: Selector[Node]): Zipper[Node]
    */
-  def \[B, That](selector: Selector[B])(implicit cbf: CanBuildFromWithZipper[Group[_], B, That]): That = {
-    implicit val cbf2 = cbf.lift[That]
-    
-    if (matches(selector)) {
-      // note: this is mutable and horrible for performance reasons (>2x boost doing it this way) 
-      
-      val catBuilder = new VectorBuilder[B]
-      val chunkBuilder = new VectorBuilder[Int]
-      val rebuildBuilder = new VectorBuilder[(Group[Node], Map[Int, Int]) => Node]
-      val childMapBuilder = new VectorBuilder[Map[Int, Int]]
-      
-      for (node <- toGroup) {
-        node match {
-          case e @ Elem(_, _, _, _, children) if children.matches(selector) => {
-            var childMap = Map[Int, Int]()
-            var currentChunk = 0
-            
-            var i = 0
-            for (child <- children) {
-              if (selector isDefinedAt child) {
-                catBuilder += selector(child)
-                childMap += (i -> 1)
-                currentChunk += 1
-              }
-              i += 1
-            }
-            
-            chunkBuilder += currentChunk
-            childMapBuilder += childMap
-            
-            def rebuild(children2: Group[Node], indexToSize: Map[Int, Int]) = {
-              val (revisedChildren,offset) = children.zipWithIndex.foldLeft((Group[Node](),0)) {
-                case ((acc,offset), (_, i)) if indexToSize contains i => {
-                  val chIndices = Range(offset,offset+indexToSize(i))
-                  (chIndices.foldLeft(acc) { _ :+ children2(_) } , chIndices.end) 
-                }
-                case ((acc,offset), (e, _)) => (acc :+ e, offset)
-              }
-              
-              e.copy(children=revisedChildren)
-            }
-            
-            rebuildBuilder += (rebuild _)
-          }
-          
-          case _ => {
-            chunkBuilder += 0
-            childMapBuilder += Map()
-            rebuildBuilder += { (_, _) => error("invoked rebuild for non-match") }
-          }
-        }
-      }
-      
-      val cat = catBuilder.result
-      
-      lazy val (_, map) = {
-        (chunkBuilder.result zip rebuildBuilder.result zip childMapBuilder.result).foldLeft((0, Vector[Option[ZContext]]())) {
-          case ((i, acc), ((length, f), childMap)) if length != 0 =>
-            (i + length, acc :+ Some((i, i + length, f, childMap)))
-          
-          case ((i, acc), _) => (i, acc :+ None)
-        }
-      }
-      
-      val builder = cbf(toZipper, map)
-      builder ++= cat
-      builder.result
-    } else {
-      val zipper = toZipper
-      cbf(zipper, zipper.toVector map Function.const(None)).result
-    }
+  def \[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
+    fromPathFunc(directChildren(selector), cbfwz)
   }
   
   /**
@@ -176,51 +111,86 @@ trait Selectable[+A <: Node] {
    * function.  Deep selection is defined according to the following recursion:
    *
    * {{{
-   * val recursive = nodes flatMap {
-   *   case Elem(_, _, _, children) => children \\ selector
-   *   case _ => Group()
-   * }
-   * 
-   * (this \ selector) ++ recursive
+   * def deep(g: Group[Node]):That =
+   *   g flatMap {n => Group(n).collect(selector) ++ deep(n.children)}
+   *
+   * nodes flatMap {n => deep(n.children)}
    * }}}
    *
-   * In English, this means that deep selection is defined simply as the recursive
-   * application of shallow selection (`\`), all the way from the root down to the
-   * leaves.  Note that the recursion does not short circuit when a result is
-   * found.  Thus, if a parent node matches the selector as well as one of its
-   * children, then both the parent ''and'' the child will be returned, with the
-   * parent preceeding the child in the results.
+   * In English, this means that deep selection is defined simply as a depth-first
+   * search through the tree, all the way from the root down to the leaves.  Note that 
+   * the recursion does not short circuit when a result is found.  Thus, if a parent 
+   * node matches the selector as well as one of its children, then both the parent ''and'' 
+   * the child will be returned, with the parent preceeding the child in the results.
    *
    * Just as with shallow selection, the very outermost level of the group is not
    * considered in the selection.  Thus, deep selection is not ''exactly'' the
    * same as the XPath `//` operator, since `//` will consider the outermost level,
    * while Anti-XML's deep selection `\\` will not.
-   *
-   * '''Note:''' For certain selectors (such as an element name selector defined
-   * using a `String` or `Symbol`), the result of this method will be a zipper,
-   * similar to the results from the shallow-select operator (`\`).  This zipper
-   * will ''not'' be valid!  Zipper context synthesis for deep selection is
-   * currently unimplemented.  Thus, any attempt to use the `unselect` method on
-   * the resulting zipper will likely throw an exception.  At the very least, it
-   * won't return a useful result.  The implementation of this feature is ongoing.
    * 
-   * @usecase def \\(selector: Selector[Node]): Group[Node]
+   * @usecase def \\(selector: Selector[Node]): Zipper[Node]
    */
-  def \\[B, That](selector: Selector[B])(implicit cbf: CanBuildFrom[Group[_], B, That], coerce: That => Traversable[B]): That = {
-    implicit val cbfwz = CanBuildFromWithZipper.identityCanBuildFrom(cbf, coerce)
-    
-    if (matches(selector)) {
-      val recursive = toGroup collect {
-        case Elem(_, _, _, _, children) => children \\ selector
-        case _ => cbf().result
-      }
-      cbfwz.appendAll(this \ selector, recursive)
-    } else {
-      cbf().result
-    }
+  def \\[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
+    fromPathFunc(allChildren(selector), cbfwz)
   }
   
- def matches(selector: Selector[_]): Boolean = true
+  /**
+   * Performs a short-circuiting deep-select on the XML tree according to the specified selector.
+   * Short-circuit deep selection is defined according to the following recursion:
+   *
+   * {{{
+   * def deep(g: Group[Node]):That =
+   *   g flatMap {n => 
+   *     if (selector.isDefinedAt(n)) Group(n).collect(selector) 
+   *     else deep(n.children)
+   *   }
+   * 
+   * nodes flatMap {n => deep(n.children)}
+   * }}}
+   *
+   * Like `\\`, this performs a depth-first search through the tree.  However, any time 
+   * the selector matches a node, it's children are skipped over rather than being searched.
+   * Thus, the result is guaranteed to never contain both a node and one of its descendants.
+   *
+   * Just as with shallow selection, the very outermost level of the group is not
+   * considered in the selection.
+   *
+   * @usecase def \\!(selector: Selector[Node]): Zipper[Node]
+   */
+  def \\![B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[_ <: Node], B, That]): That = {
+    import Zipper._
+    import PathCreator._
+    fromPathFunc(allMaximalChildren(selector), cbfwz)
+  }
+  
+  /**
+   * Performs a selection on the top-level nodes of this group.  The nodes returned by this method
+   * are exactly the same as the nodes returned by:
+   *
+   * {{{
+   * nodes.collect(selector)
+   * }}}
+   *
+   * However, this method differs from `collect` in that it can return a [[com.codecommit.antixml.Zipper]]
+   * with full `unselect` functionality.  Thus, it is possible to `select` a subset of a group,
+   * operate on that subset, and then call `unselect` to pull those operations back to the original group.
+   *
+   * @usecase def select(selector: Selector[Node]): Zipper[Node]
+   */
+  def select[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[_ <: Node], B, That]): That = {
+    import Zipper._
+    import PathCreator._
+    fromPathFunc(fromNodes(selector),cbfwz)
+  }
+
+  private def fromPathFunc[B,That](pf: PathFunction[B], cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
+    val grp = toGroup
+    val bld = cbfwz(Some(toZipper), grp)
+    for( PathVal(value, path) <- pf(grp) ) {
+      bld += ElemsWithContext[B](path, 0, VectorCase(value))
+    }
+    bld.result()
+  }
   
   def toGroup: Group[A]
   
