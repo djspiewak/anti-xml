@@ -26,6 +26,12 @@ private[antixml] trait OrderPreservingMap[A,+B] extends Map[A,B] with MapLike[A,
   override def empty:OrderPreservingMap[A,B] = OrderPreservingMap.empty
 
   override def + [B1 >: B] (kv: (A, B1)): OrderPreservingMap[A, B1]
+  
+  override def + [B1 >: B] (kv1: (A, B1), kv2: (A, B1), kvs: (A, B1) *): OrderPreservingMap[A, B1] =
+    self + kv1 + kv2 ++ kvs
+
+  override def updated [B1 >: B] (key: A, value: B1): OrderPreservingMap[A, B1] = self + ((key,value))
+
 }
 
 /**
