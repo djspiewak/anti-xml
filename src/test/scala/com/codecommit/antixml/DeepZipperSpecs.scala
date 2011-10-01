@@ -111,7 +111,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
     val all = bookstore \\ * 
     
     "resolve merging problems with the merge strategy 1" in {
-      val newBooks = all.updated(0, elem("erased")).updated(3, elem("replaced", Text("foo"))).unselect
+      val newBooks = all.updated(0, elem("erased")).updated(1, elem("replaced", Text("foo"))).unselect
       
       // notice how children are propagated from below  	
       val res = fromString(
@@ -137,7 +137,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
     "resolve merging problems with the merge strategy 2" in {
       val newBooks =
         all.
-          updated(3, elem("replaced", Text("foo"))).
+          updated(1, elem("replaced", Text("foo"))).
           updated(0, elem("erased")).
           unselect
 
@@ -178,23 +178,11 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
 
       val res = fromString(
         "<bookstore>" +
-          "<boo>" +
-          "<boo>" +
-          "<boo />" +
-          "</boo>" +
-          "<boo />" +
-          "</boo>" +
-          "<boo>" +
-          "<boo />" +
-          "<boo />" +
-          "</boo>" +
-          "<boo>" +
-          "<boo />" +
-          "<boo />" +
-          "<boo />" +
-          "</boo>" +
+           "<boo><boo><boo/></boo><boo><boo/></boo></boo>" +
+           "<boo><boo><boo/></boo><boo><boo/></boo></boo>" +
+           "<boo/>" +
         "</bookstore>")
-
+        
       newBooks mustEqual Group(res)
           
     }
@@ -479,27 +467,99 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
 
   "Deep selection on DeepZipper" should {
     "return something of type DeepZipper on element select" in {
-      val ns = <foo/>.convert
+      val ns = <foo/>.convert.toZipper
       validate[DeepZipper[Elem]](ns \\ 'bar)
     }
 
     "find an immediate descendant" in {
-      val ns = fromString("<parent><parent/></parent>")
+      val ns = fromString("<parent><parent/></parent>").toZipper
       ns \\ "parent" mustEqual Group(elem("parent"))
     }
 
     "find a subset of nodes" in {
-      val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>")
+      val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>").toZipper
       val result = Group(elem("a"), elem("a"), elem("a"))
       ns \\ "a" mustEqual result
     }
 
     "find and linearize a deep subset of nodes" in {
-      val ns = fromString("<parent>Some text<sub1><target>sub1</target></sub1><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><phoney><target>phoney</target></phoney>More text<target>outside</target></parent>")
-      val result = fromString("<parent><target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target><target>outside</target><target>sub1</target><target>top3-outer</target><target>phoney</target><target>top1</target><target>top2</target></parent>")
+      val ns = fromString("<parent>" +
+        "Some text" +
+        "<sub1><target>sub1</target></sub1>" +
+        "<target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target>" +
+        "<phoney><target>phoney</target></phoney>" + 
+        "More text" +
+        "<target>outside</target>" +
+        "</parent>").toZipper
+      
+      val result = fromString("<parent>" +
+        "<target>sub1</target>" +
+        "<target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target>" +
+        "<target>top1</target>" +
+        "<target>top2</target>" +
+        "<target>top3-outer</target>" +
+        "<target>phoney</target>" +
+        "<target>outside</target>" +
+        "</parent>")
       ns \\ "target" mustEqual result.children
     }
   }
+  
+  "Short-circuit deep selection on DeepZipper" should {
+  
+    "find an immediate descendant" in {
+      val ns = fromString("<parent><parent/></parent>").toZipper
+      ns \\! "parent" mustEqual Group(elem("parent"))
+    }
+    
+    "find a subset of nodes" in {
+      val ns = fromString("<parent>Some<a/>text<b/>to\nreally<c/>confuse<a/><b/><d/>things<e/><a/><f/></parent>").toZipper
+      val result = Group(elem("a"), elem("a"), elem("a"))
+      ns \\! "a" mustEqual result
+    }
+    
+    "skip descendants of matching nodes in" in {
+      val ns = fromString("<parent>" +
+        "Some text" +
+        "<sub1><target>sub1</target></sub1>" +
+        "<target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target>" +
+        "<phoney><target>phoney</target></phoney>" + 
+        "More text" +
+        "<target>outside</target>" +
+        "</parent>").toZipper
+  
+      val result = fromString("<parent>" +
+        "<target>sub1</target>" +
+        "<target>top<sub1><target>top1</target><target>top2</target></sub1><target>top3-outer</target></target>" +
+        "<target>phoney</target>" +
+        "<target>outside</target>" +
+        "</parent>")
+      ns \\! "target" mustEqual result.children
+    }
+        
+  }
+   
+  "select on a DeepZipper" should {
+
+    "find a top level node" in {
+      val ns = fromString("<parent><parent/></parent>").toZipper
+      (ns select "parent") mustEqual ns
+    }
+    
+    "find a subset of nodes" in {
+      val ns = fromString("<TOP><a><x1/></a><b><y1/></b><a><x2/></a><b><y2/></b></TOP>").children.toZipper
+      val result = fromString("<TOP><a><x1/></a><a><x2/></a></TOP>").children
+      ns select "a" mustEqual result
+    }
+    
+    "only match the top level" in {
+      val ns = fromString("<TOP><a /><b><a /></b><a><a /></a></TOP>").children.toZipper
+      val result = fromString("<TOP><a /><a><a /></a></TOP>").children
+      ns select "a" mustEqual result      
+    }
+    
+  }
+     
 
   def validate[Expected] = new {
     def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull

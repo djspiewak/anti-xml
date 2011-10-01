@@ -17,9 +17,17 @@ private[antixml] object PathCreator {
     collectGroup(nodes, selector, Nil)
   }
 
-  /** A path function that selects on the given nodes and recursively on the children (breadth first). */
+  /** A path function that selects on the given nodes and recursively on the children (depth first). */
   def all[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    collectGroupRecursive(List((nodes, Nil)), selector)
+    collectGroupRecursive(nodes, Nil, selector)
+  }
+  
+  /**
+   * A path function that selects on the given nodes and recursively on the children, returning those
+   * matching nodes that are not themselves descendants of matching nodes. (depth first). 
+   */
+  def allMaximal[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
+    collectMaximalRecursive(nodes, Nil, selector)
   }
   
   /** A path function that selects on the children of the given group. */
@@ -27,9 +35,14 @@ private[antixml] object PathCreator {
     collectChildrenOfGroup(nodes, selector)
   }
   
-  /** A path function that selects on the recursively on all the children of the given group (breadth first). */
+  /** A path function that selects on the recursively on all the children of the given group (depth first). */
   def allChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    collectGroupRecursive(collectGroupChildren(nodes, Nil, selector), selector)
+    collectGroupChildren(nodes, Nil, selector) flatMap {case (g,p) => collectGroupRecursive(g,p,selector)}
+  }
+  
+  /** A path function that returns all the matching children that are not descendants of matching children (depth first). */
+  def allMaximalChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
+    collectGroupChildren(nodes, Nil, selector) flatMap {case (g,p) => collectMaximalRecursive(g,p,selector)}
   }
   
   /** Collects items from the given group that match the selector. */
@@ -37,14 +50,6 @@ private[antixml] object PathCreator {
     dispatchSelector(s, nodes) {
       val ni = nodes.zipWithIndex
       for ((n, i) <- ni if s isDefinedAt n) yield (WithLoc(s(n), i), p)
-    }
-  }
-  
-  /** Collects items from the list groups that match the selector. */
-  private def collectGroups[A](groups: Seq[(Group[Node], ParentsList)], s: Selector[A]): PathVals[A] = {
-    groups flatMap {gp =>
-      val (g, p) = gp
-      collectGroup(g, s, p)
     }
   }
   
@@ -66,17 +71,44 @@ private[antixml] object PathCreator {
     collectChildrenOfGroupWith(nodes, s, Nil) (collectGroup _)
   }
   
-  /** Recursively collects items from the given group that match the selector. */
-  private def collectGroupRecursive[A](groups: Seq[(Group[Node], ParentsList)], s: Selector[A]): PathVals[A] = {
-    if (groups.isEmpty) Nil
-    else {
-      val allChildren =
-        groups flatMap { gp =>
-          val (g, p) = gp
-          collectGroupChildren(g, p, s)
-        }
-      collectGroups(groups, s) ++ collectGroupRecursive(allChildren, s)
+  /** Recursively collects the specified node if matches the selector, followed by its matching descendants (depth first) */ 
+  private def collectNodeRecursive[A](n: Node, l: Location, p: ParentsList,s: Selector[A]): PathVals[A] = {
+    val rest = n match {
+      case e:Elem => collectGroupRecursive(e.children, ParentLoc(e, l) :: p, s)
+      case _ => Nil
     }
+    if (s.isDefinedAt(n)) (WithLoc(s(n), l), p) +: rest
+    else rest
+  }
+  
+  /** Recursively collects items from the given group that match the selector. */
+  private def collectGroupRecursive[A](group: Group[Node], parents: ParentsList, s: Selector[A]): PathVals[A] = {
+    if (group.isEmpty) Nil
+    else 
+      dispatchSelector(s, group) {
+        group.zipWithIndex flatMap {case (n,i) => collectNodeRecursive(n, i, parents, s)}
+      }
+  }
+  
+  /** 
+   * Collects the specified node if matches the selector, otherwise collects its matching descendants that are 
+   * not themselves descendants of matching nodes (depth first).
+   */ 
+  private def collectMaximalRecursive[A](n: Node, l: Location, p: ParentsList,s: Selector[A]): PathVals[A] = {
+    if (s.isDefinedAt(n)) (WithLoc(s(n), l), p) :: Nil
+    else n match {
+      case e:Elem => collectMaximalRecursive(e.children, ParentLoc(e, l) :: p, s)
+      case _ => Nil
+    }
+  }
+  
+  /** Recursively collects items from the given group that match the selector and are not descendants of matching items. */
+  private def collectMaximalRecursive[A](group: Group[Node], parents: ParentsList, s: Selector[A]): PathVals[A] = {
+    if (group.isEmpty) Nil
+    else 
+      dispatchSelector(s, group) {
+        group.zipWithIndex flatMap {case (n,i) => collectMaximalRecursive(n, i, parents, s)}
+      }
   }
   
   /** Gathering all the children of the group that may match the selector. */
