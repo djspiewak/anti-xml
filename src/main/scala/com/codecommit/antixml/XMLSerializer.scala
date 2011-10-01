@@ -63,7 +63,9 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
    * Uses the character encoding of this XMLSerializer (default is UTF-8).
    */
   def serializeDocument(elem: Elem, o: OutputStream) {
-    serializeDocument(elem, new OutputStreamWriter(o, encoding))
+    val writer = new OutputStreamWriter(o, encoding)
+    serializeDocument(elem, writer)
+    writer.flush()
   }
 
   def serializeDocument(elem: Elem, outputFile: File) {
