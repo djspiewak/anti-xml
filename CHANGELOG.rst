@@ -35,10 +35,9 @@ CHANGELOG
     results have been dropped
   * ``Zipper#unselect`` on empty selection results no functions appropriately
   * `Issue 12`_ – Utility Operations on Group Return an Invalid Zipper
-
-    * Utility methods on ``Group`` now return ``Group`` when possible, rather
-	  than ``Zipper``.  This also changes the ``CanBuildFromWithZipper`` API
-	  by splitting it entirely from ``CanBuildFrom``.
+  * Utility methods on ``Group`` now return ``Group`` when possible, rather
+    than ``Zipper``.  This also changes the ``CanBuildFromWithZipper`` API
+    by splitting it entirely from ``CanBuildFrom``.
 
 
 .. _Issue #40: https://github.com/djspiewak/anti-xml/issues/40
