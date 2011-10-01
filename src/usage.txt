@@ -5,8 +5,8 @@ Usage
 =====
 
 The Maven artifact descriptor for the latest *stable* version of
-Anti-XML is as follows: ``com.codecommit:anti-xml_2.8.1:0.2``.  We also regularly
-push ``-SNAPSHOT`` releases to the Scala-Tools_ "snapshots" repository, for all
+Anti-XML is as follows: ``com.codecommit:anti-xml_2.8.1:0.3``.  We also regularly
+push ``-SNAPSHOT`` releases to the `Scala-Tools`_ "snapshots" repository, for all
 five of you who like to live dangerously.  You should be able to use this
 descriptor to easily add Anti-XML as a dependency to any project with a
 Maven-compatible build system (Maven, Buildr, SBT, Gradle, Ivy, etc). The stable
@@ -16,18 +16,18 @@ build systems.
 
 **SBT**::
   
-    val antiXML = "com.codecommit" %% "anti-xml" % "0.2"
+    val antiXML = "com.codecommit" %% "anti-xml" % "0.3"
   
 **Buildr**::
   
-    compile.with "com.codecommit:anti-xml_#{Scala.version}:jar:0.2"
+    compile.with "com.codecommit:anti-xml_#{Scala.version}:jar:0.3"
   
 **Maven2**::
   
     <dependency>
       <groupId>com.codecommit</groupId>
-      <artifactId>anti-xml_2.8.1</artifactId>
-      <version>0.2</version>
+      <artifactId>anti-xml_${scala.version}</artifactId>
+      <version>0.3</version>
     </dependency>
     
   
@@ -39,14 +39,6 @@ Anti-XML is cross-built_ for the following Scala versions:
 * **2.9.1**
 * **2.9.0-1**
 * **2.9.0**
-* **2.8.1**
-
-While it is theoretically possible to add support for 2.8.0, we have no plans to
-do so at this time.  The reason being that Specs2_ – the testing framework used
-by Anti-XML – has not been cross-built for 2.8.0.  Additionally, ScalaCheck_ has
-not updated its 2.8.0 cross-build in several months.  All that combined with the
-fact that 2.8.1 is a nearly-completely backwards compatible update with 2.8.0 has
-led to the conclusion that cross-building for 2.8.0 just isn't worth the effort.
 
 .. _Scala-Tools: http://scala-tools.org
 .. _cross-built: http://code.google.com/p/simple-build-tool/wiki/CrossBuild
