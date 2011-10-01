@@ -7,7 +7,7 @@ import XML._
 import com.codecommit.antixml.Zipper._
 import scala.io.Source
 
-class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenerators {
+class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenerators {
 
   implicit val params = set(maxSize -> 10, minTestsOk -> 20)
   val bookstore = resource("bookstore.xml")
@@ -196,7 +196,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
    *  
    *  Text selector currently don't work on the zipper.
    */
-  "DeepZipper#slice" should {
+  "Zipper#slice" should {
     "work correctly in the presence of equal siblings" in {
       val xml = Group(<a><b /><c1 /><b /><c2 /></a>.convert)
       
@@ -207,7 +207,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
     
   }
 
-  "DeepZipper updates within '\\' results" should {
+  "Zipper updates within '\\' results" should {
     "rebuild from empty result set" in {
       val xml = Group(<parent><child/><child/></parent>.convert)
       (xml \ 'foo).unselect mustEqual xml
@@ -433,7 +433,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
       modified(0) mustEqual <top><a0/><a1/><a2/><a3/><a4/><a5/><a6/><a7/><a8/><a9/></top>.convert
     }
 
-    "utility methods on DeepZipper" >> {
+    "utility methods on Zipper" >> {
       implicit val arbInt = Arbitrary(Gen.choose(0, 10))
 
       "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
@@ -456,7 +456,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
     }
   }
 
-  "Shallow selection on a DeepZipper" should {
+  "Shallow selection on a Zipper" should {
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>")
       ns \ "parent" mustEqual Group(elem("parent"))
@@ -475,7 +475,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
     }
   }
 
-  "Deep selection on DeepZipper" should {
+  "Deep selection on Zipper" should {
     "return something of type Zipper on element select" in {
       val ns = <foo/>.convert.toZipper
       validate[Zipper[Elem]](ns \\ 'bar)
@@ -515,7 +515,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
     }
   }
   
-  "Short-circuit deep selection on DeepZipper" should {
+  "Short-circuit deep selection on Zipper" should {
   
     "find an immediate descendant" in {
       val ns = fromString("<parent><parent/></parent>").toZipper
@@ -549,7 +549,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
         
   }
    
-  "select on a DeepZipper" should {
+  "select on a Zipper" should {
 
     "find a top level node" in {
       val ns = fromString("<parent><parent/></parent>").toZipper
