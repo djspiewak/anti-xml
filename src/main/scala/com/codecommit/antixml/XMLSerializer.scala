@@ -67,7 +67,12 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
   }
 
   def serializeDocument(elem: Elem, outputFile: File) {
-    serializeDocument(elem, new FileOutputStream(outputFile))
+    val fos = new FileOutputStream(outputFile)
+    try {
+      serializeDocument(elem, fos)
+    } finally {
+      fos.close()
+    }
   }
   
   def serialize(elem: Elem, w: Writer) {
