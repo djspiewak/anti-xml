@@ -67,14 +67,36 @@ sealed trait Node
 
 private[antixml] object Node {
   // TODO we should probably find a way to propagate custom entities from DTDs
+  /* http://www.w3.org/TR/xml/#NT-CharData */
   def escapeText(text: String) = text flatMap {
-    case '"' => "&quot;"
     case '&' => "&amp;"
-    case '\'' => "&apos;"
     case '<' => "&lt;"
-    case '>' => "&gt;"
+    case '>' => "&gt;" // text may not contain ]]>, this is a way to avoid that
     case c => List(c)
   }
+
+  /* http://www.w3.org/TR/xml/#NT-AttValue */
+  def quoteAttribute(value: String) = 
+    if (value.contains("\"")) {
+      "'" + (value flatMap {
+        case '&' => "&amp;"
+        case '<' => "&lt;"
+        case '\'' => "&apos;"
+        case c => List(c)
+      }) + "'"
+    } else {
+      "\"" + (value flatMap {
+        case '&' => "&amp;"
+        case '<' => "&lt;"
+        case '"' => "&quot;"
+        case c => List(c)
+      }) + "\""
+    }
+
+  /* http://www.w3.org/TR/xml/#NT-Char */
+  // TODO we are missing codepoints \u10000-\u10FFFF (i.e. those above 16 bits) here
+  val CharRegex = "(\u0009|\u000A|\u000D|[\u0020-\uD7FF]|[\uE000-\uFFFD])*"r
+
 }
 
 /**
@@ -166,6 +188,11 @@ object Elem extends ((Option[String], String, Attributes, Map[String, String], G
  * does ''not'' escape characters on output, use [[com.codecommit.antixml.CDATA]].
  */
 case class Text(text: String) extends Node {
+  import Node.CharRegex
+
+  if (CharRegex.unapplySeq(text).isEmpty) 
+    throw new IllegalArgumentException("Illegal character in text '" + text + "'")
+
   override def toString = Node.escapeText(text)
 }
 
@@ -188,8 +215,14 @@ case class Text(text: String) extends Node {
  * performs escaping, use [[com.codecommit.antixml.Text]]
  */
 case class CDATA(text: String) extends Node {
+  import Node.CharRegex
+
   if (text.contains("]]>"))
     throw new IllegalArgumentException("CDATA nodes can't contain ']]>'")
+
+  if (CharRegex.unapplySeq(text).isEmpty) 
+    throw new IllegalArgumentException("Illegal character in CDATA '" + text + "'")
+
   override def toString = "<![CDATA[" + text + "]]>"
 }
 
@@ -207,5 +240,10 @@ case class CDATA(text: String) extends Node {
  * }}}
  */
 case class EntityRef(entity: String) extends Node {
+  import Node.CharRegex
+
+  if (CharRegex.unapplySeq(entity).isEmpty)
+    throw new IllegalArgumentException("Illegal character in EntityRef '" + entity + "'")
+
   override def toString = "&" + entity + ";"
 }
