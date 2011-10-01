@@ -87,13 +87,11 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
     }
   }
 
-  override def slice(from: Int, until: Int): Zipper[A] = {
-    val zwi = Map[A, Int](zipWithIndex: _*)
-    collect {
-      case e if zwi(e) >= from && zwi(e) < until => e
-    }
+  override def slice(from: Int, until: Int): Zipper[A] = flatMapWithIndex {
+    case (e, i) if i >= from && i < until => VectorCase(e)
+    case (e, _) => VectorCase()
   }
-  
+   
   override def drop(n: Int) = slice(n, size)
   
   override def take(n: Int) = slice(0, n)
