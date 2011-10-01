@@ -153,7 +153,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
   /** Returns true iff the specified path is one of the contexts maintained by the zipper. */
   private[antixml] def containsPath(p: Path) = pathIndex.contains(p)
   
-  /** Returns true iff the specified path is the parent of one of the contexts maintained by the zipper. */
+  /** Returns true iff the specified path is the ancestor of one of the contexts maintained by the zipper. */
   private[antixml] def isBeneathPath(p: Path) = {
     //This would be easier if OrderedMap had a variant of the `from` method that was exclusive.
     val ifp = pathIndex.keySet.from(p)
@@ -284,6 +284,9 @@ object DeepZipper {
     override def length = sz
   }
   
+  /**
+   * The primary builder class used to construct DeepZippers. 
+   */
   private class WithDeepZipperBuilder[A <: Node](parent: Option[DeepZipper[Node]]) extends Builder[ElemsWithContext[A],DeepZipper[A]] { self =>
     private val innerBuilder = VectorCase.newBuilder[(Path, Time, A)]
     private var pathIndex = SortedMap.empty[Path,(IndexedSeq[Int], Time)]
