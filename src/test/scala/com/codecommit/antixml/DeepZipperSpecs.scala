@@ -200,9 +200,9 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
     "work correctly in the presence of equal siblings" in {
       val xml = Group(<a><b /><c1 /><b /><c2 /></a>.convert)
       
-      val sliced = (xml > *).slice(1,3)
+      val sliced = (xml \ *).slice(1,3)
       sliced mustEqual <a><c1 /><b /></a>.convert.children
-      sliced.unselect(0) mustEqual <a><c1 /><b /></a>.convert
+      sliced.unselect.head mustEqual <a><c1 /><b /></a>.convert
     }
     
   }
