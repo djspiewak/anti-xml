@@ -31,8 +31,15 @@ package com.codecommit.antixml
 import scala.collection.Traversable
 import scala.collection.immutable.Seq
 
-trait Selector[+A] extends PartialFunction[Node, A] {
-  val elementName: Option[String] = None
+trait Selector[+A] extends PartialFunction[Node, A]
+
+trait OptimizingSelector[+A] extends Selector[A] {
+  /***
+   * Provides a hint as to whether the selector can any children or their
+   * descendants in the specified group.  Note that this is mearly a hint,
+   * `isDefinedAt` is the authoritative determinant of whether a selector matches.
+   */
+  def canMatchIn(group: Group[Node]): Boolean
 }
 
 object Selector {
@@ -43,7 +50,16 @@ object Selector {
    * For example: `ns \ "name"`
    */
   implicit def stringToSelector(name: String): Selector[Elem] =
-    Selector({ case e @ Elem(_, `name`, _, _,  _) => e }, Some(name))
+    new OptimizingSelector[Elem] {
+      private val pf: PartialFunction[Node, Elem] = {
+        case e @ Elem(_, `name`, _, _, _) => e
+      }
+
+      def apply(node: Node) = pf(node)
+      def isDefinedAt(node: Node) = pf isDefinedAt node
+      def canMatchIn(group: Group[Node]) = group.matches(name)
+    }
+  
 
   /**
    * Implicitly lifts a [[scala.Symbol]] into an instance of [[com.codecommit.antixml.Selector]]
@@ -55,12 +71,10 @@ object Selector {
     stringToSelector(name)
   }
   
-  def apply[A](pf: PartialFunction[Node, A], name: Option[String] = None) =
+  def apply[A](pf: PartialFunction[Node, A]) = {
     new Selector[A] {
-      override val elementName = name
-
       def apply(node: Node) = pf(node)
-
       def isDefinedAt(node: Node) = pf isDefinedAt node
     }
+  }
 }
