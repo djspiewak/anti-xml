@@ -82,7 +82,7 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
             ""
           } else {
             val delta = attrs map {
-              case (key, value) => key.toString + "=\"" + Node.escapeText(value) + '"'
+              case (key, value) => key.toString + "=" + Node.quoteAttribute(value)
             } mkString " "
             
             " " + delta
@@ -94,7 +94,7 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
           } else {
             val delta = scopeChange map {
               case (key, value) =>
-                (if (key == "") "xmlns" else "xmlns:" + key) + "=\"" + Node.escapeText(value) + '"'
+                (if (key == "") "xmlns" else "xmlns:" + key) + "=" + Node.quoteAttribute(value)
             } mkString " "
             
             " " + delta

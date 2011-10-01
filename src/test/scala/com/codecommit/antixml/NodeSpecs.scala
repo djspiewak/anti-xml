@@ -49,11 +49,11 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
     
     "escape reserved characters in attribute values" in {
       "character" || "elem.toString"         |>
-      "\""        !! "<foo bar=\"&quot;\"/>" |
+      "\""        !! "<foo bar='\"'/>"       |
       "&"         !! "<foo bar=\"&amp;\"/>"  |
-      "'"         !! "<foo bar=\"&apos;\"/>" |
-      "<"         !! "<foo bar=\"&lt;\"/>"   |
-      ">"         !! "<foo bar=\"&gt;\"/>"   | { (c, r) => Elem(None, "foo", Attributes("bar" -> c), Map(), Group()).toString mustEqual r }
+      "'"         !! "<foo bar=\"'\"/>"      |
+      "'\"'"      !! "<foo bar='&apos;\"&apos;'/>" |
+      "<"         !! "<foo bar=\"&lt;\"/>"   | { (c, r) => Elem(None, "foo", Attributes("bar" -> c), Map(), Group()).toString mustEqual r }
     }
     
     "allow legal name identifiers" in {
@@ -146,7 +146,7 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
   
   "text nodes" should {
     "escape reserved characters when serialized" in {
-      Text("Lorem \" ipsum & dolor ' sit < amet > blargh").toString mustEqual "Lorem &quot; ipsum &amp; dolor &apos; sit &lt; amet &gt; blargh"
+      Text("Lorem \" ipsum & dolor ' sit < amet > blargh").toString mustEqual "Lorem \" ipsum &amp; dolor ' sit &lt; amet &gt; blargh"
     }
   }
   

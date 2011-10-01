@@ -86,6 +86,13 @@ import com.codecommit.antixml.util.OrderPreservingMap
  * @see [[com.codecommit.antixml.QName]]
  */
 class Attributes(delegate: Map[QName, String]) extends Map[QName, String] with MapLike[QName, String, Attributes] {
+  import Node.CharRegex
+
+  for ((name, value) <- delegate) {
+    if (CharRegex.unapplySeq(value).isEmpty) 
+      throw new IllegalArgumentException("Illegal character in attribute value '" + value + "'")
+  }
+
   override def empty = new Attributes(Map())
   
   // totally shadowed by the overload; compiler won't even touch it without ascribing a supertype
