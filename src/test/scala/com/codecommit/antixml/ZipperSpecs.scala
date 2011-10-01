@@ -188,25 +188,6 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
     }
   }
 
-  /* 
-   * Copied the selection tests below from GroupSpecs and ZipperSpecs, modified them slightly to work with the Zipper
-   * Using the following rules:
-   *  \ is > on zipper 
-   *  \\ is ~ on zipper
-   *  
-   *  Text selector currently don't work on the zipper.
-   */
-  "Zipper#slice" should {
-    "work correctly in the presence of equal siblings" in {
-      val xml = Group(<a><b /><c1 /><b /><c2 /></a>.convert)
-      
-      val sliced = (xml \ *).slice(1,3)
-      sliced mustEqual <a><c1 /><b /></a>.convert.children
-      sliced.unselect.head mustEqual <a><c1 /><b /></a>.convert
-    }
-    
-  }
-
   "Zipper updates within '\\' results" should {
     "rebuild from empty result set" in {
       val xml = Group(<parent><child/><child/></parent>.convert)
@@ -396,31 +377,31 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
       books2(2) mustEqual <book><author>Dean Wampler</author><author>Alex Payne</author></book>.convert
     }
 
-        "rebuild following filter at the second level" in {
-          val titles = bookstore \ 'book \ 'title
-          val bookstore2 = (titles filter (titles(1) !=)).unselect.unselect
-          
-          bookstore2.head must beLike {
-            case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty =>
-              children must haveSize(3)
-          }
-          
-          val titles2 = bookstore2 \ 'book \ 'title
-          titles2 must haveSize(2)
-          (titles2 \ text) mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
+    "rebuild following filter at the second level" in {
+      val titles = bookstore \ 'book \ 'title
+      val bookstore2 = (titles filter (titles(1) !=)).unselect.unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty =>
+          children must haveSize(3)
+      }
+      
+      val titles2 = bookstore2 \ 'book \ 'title
+      titles2 must haveSize(2)
+      (titles2 \ text) mustEqual Vector("For Whom the Bell Tolls", "Programming Scala")
+    }
+    
+    "rebuild following 2 filters at the first level" in {
+      val books = bookstore \ 'book
+      val bookstore2 = (books filter (books(1) !=) filter (books(0) !=)).unselect
+      
+      bookstore2.head must beLike {
+        case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
+          children must haveSize(1)
+          children \ 'title \ text mustEqual Vector("Programming Scala")
         }
-
-        "rebuild following 2 filters at the first level" in {
-          val books = bookstore \ 'book
-          val bookstore2 = (books filter (books(1) !=) filter (books(0) !=)).unselect
-          
-          bookstore2.head must beLike {
-            case Elem(None, "bookstore", attrs, scopes, children) if attrs.isEmpty && scopes.isEmpty => {
-              children must haveSize(1)
-              children \ 'title \ text mustEqual Vector("Programming Scala")
-            }
-          }      
-        }
+      }      
+    }
 
     "preserve flatMap order" in {
       val original = <top><a/></top>.convert
@@ -452,6 +433,14 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
       "identity filter and unselect should return self" in check { xml: Group[Node] =>
         val sub = xml \ *
         (sub filter Function.const(true) unselect) mustEqual xml
+      }
+      
+      "slice should work correctly in the presence of equal siblings" in {
+        val xml = Group(<a><b /><c1 /><b /><c2 /></a>.convert)
+        
+        val sliced = (xml \ *).slice(1, 3)
+        sliced mustEqual <a><c1 /><b /></a>.convert.children
+        sliced.unselect.head mustEqual <a><c1 /><b /></a>.convert
       }
     }
   }
