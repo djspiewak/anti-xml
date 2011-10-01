@@ -2,7 +2,7 @@ name := "anti-xml"
 
 organization := "com.codecommit"
 
-version := "0.3"
+version := "0.4-SNAPSHOT"
 
 crossScalaVersions := Seq("2.9.1", "2.9.0-1", "2.9.0")
 
