@@ -111,20 +111,17 @@ trait Selectable[+A <: Node] {
    * function.  Deep selection is defined according to the following recursion:
    *
    * {{{
-   * val recursive = nodes flatMap {
-   *   case Elem(_, _, _, children) => children \\ selector
-   *   case _ => Group()
-   * }
-   * 
-   * (this \ selector) ++ recursive
+   * def deep(g: Group[Node]):That =
+   *   g flatMap {n => Group(n).collect(selector) ++ deep(n.children)}
+   *
+   * nodes flatMap {n => deep(n.children)}
    * }}}
    *
-   * In English, this means that deep selection is defined simply as the recursive
-   * application of shallow selection (`\`), all the way from the root down to the
-   * leaves.  Note that the recursion does not short circuit when a result is
-   * found.  Thus, if a parent node matches the selector as well as one of its
-   * children, then both the parent ''and'' the child will be returned, with the
-   * parent preceeding the child in the results.
+   * In English, this means that deep selection is defined simply as a depth-first
+   * search through the tree, all the way from the root down to the leaves.  Note that 
+   * the recursion does not short circuit when a result is found.  Thus, if a parent 
+   * node matches the selector as well as one of its children, then both the parent ''and'' 
+   * the child will be returned, with the parent preceeding the child in the results.
    *
    * Just as with shallow selection, the very outermost level of the group is not
    * considered in the selection.  Thus, deep selection is not ''exactly'' the
@@ -137,6 +134,55 @@ trait Selectable[+A <: Node] {
     fromPathFunc(allChildren(selector), cbfwz)
   }
   
+  /**
+   * Performs a short-circuiting deep-select on the XML tree according to the specified selector.
+   * Short-circuit deep selection is defined according to the following recursion:
+   *
+   * {{{
+   * def deep(g: Group[Node]):That =
+   *   g flatMap {n => 
+   *     if (selector.isDefinedAt(n)) Group(n).collect(selector) 
+   *     else deep(n.children)
+   *   }
+   * 
+   * nodes flatMap {n => deep(n.children)}
+   * }}}
+   *
+   * Like `\\`, this performs a depth-first search through the tree.  However, any time 
+   * the selector matches a node, it's children are skipped over rather than being searched.
+   * Thus, the result is guaranteed to never contain both a node and one of its descendants.
+   *
+   * Just as with shallow selection, the very outermost level of the group is not
+   * considered in the selection.
+   *
+   * @usecase def \\!(selector: Selector[Node]): DeepZipper[Node]
+   */
+  def \\![B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithDeepZipper[Group[_ <: Node], B, That]): That = {
+    import DeepZipper._
+    import PathCreator._
+    fromPathFunc(allMaximalChildren(selector), cbfwz)
+  }
+  
+  /**
+   * Performs a selection on the top-level nodes of this group.  The nodes returned by this method
+   * are exactly the same as the nodes returned by:
+   *
+   * {{{
+   * nodes.collect(selector)
+   * }}}
+   *
+   * However, this method differs from `collect` in that it can return a [[com.codecommit.antixml.DeepZipper]]
+   * with full `unselect` functionality.  Thus, it is possible to `select` a subset of a group,
+   * operate on that subset, and then call `unselect` to pull those operations back to the original group.
+   *
+   * @usecase def select(selector: Selector[Node]): DeepZipper[Node]
+   */
+  def select[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithDeepZipper[Group[_ <: Node], B, That]): That = {
+    import DeepZipper._
+    import PathCreator._
+    fromPathFunc(fromNodes(selector),cbfwz)
+  }
+
   private def fromPathFunc[B,That](pf: PathFunction[B], cbfwz: CanBuildFromWithDeepZipper[Group[A], B, That]): That = {
     val grp = toGroup
     val bld = cbfwz(Some(toZipper), grp)
@@ -145,7 +191,6 @@ trait Selectable[+A <: Node] {
     }
     bld.result()
   }
-  
   
   def toGroup: Group[A]
   

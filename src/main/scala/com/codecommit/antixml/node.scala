@@ -47,8 +47,8 @@ import java.io.Writer
  *
  * For those that don't find Haskell to be the clearest explanation of what's
  * going on in this type, here is a more natural-language version.  The `Node`
- * trait is sealed and has exactly five subclasses, each implementing a different
- * type of XML node.  These five classes are as follows:
+ * trait is sealed and has exactly four subclasses, each implementing a different
+ * type of XML node.  These four classes are as follows:
  *
  * <ul>
  * <li>[[com.codecommit.antixml.ProcInstr]] – A processing instruction consisting
@@ -63,11 +63,14 @@ import java.io.Writer
  * <li>[[com.codecommit.antixml.EntityRef]] – An entity reference (e.g. `&amp;`)</li>
  * </ul>
  */
-sealed trait Node {
-  /** Returns the children of this node. If the node is an [[com.codecommit.antixml.Elem]], then this method returns the element's children, 
-   * otherwise it returns return an empty [[com.codecommit.antixml.Group]] */
+ sealed trait Node {
+  /** 
+   * Returns the children of this node. If the node is an [[com.codecommit.antixml.Elem]], 
+   * then this method returns the element's children.  Otherwise, it returns return an empty
+   * [[com.codecommit.antixml.Group]].
+   */
   def children = Group.empty[Node]
-}
+ }
 
 private[antixml] object Node {
   // TODO we should probably find a way to propagate custom entities from DTDs
@@ -79,9 +82,8 @@ private[antixml] object Node {
     case '>' => "&gt;"
     case c => List(c)
   }
-  
 }
- 
+
 /**
  * A processing instruction consisting of a `target` and some `data`.  For example:
  *
@@ -122,7 +124,7 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
     if (NameRegex.unapplySeq(p).isEmpty) {
       throw new IllegalArgumentException("Illegal element prefix, '" + p + "'")
     }
-  } 
+  }
   
   if (NameRegex.unapplySeq(name).isEmpty) {
     throw new IllegalArgumentException("Illegal element name, '" + name + "'")

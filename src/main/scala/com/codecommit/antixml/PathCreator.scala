@@ -38,7 +38,15 @@ private[antixml] object PathCreator {
 
   /** A path function that selects on the given nodes and recursively on the children (breadth first). */
   def all[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    collectGroupRecursive(List((nodes, Nil)), selector)
+    collectGroupRecursive(nodes, Nil, selector)
+  }
+
+  /**
+   * A path function that selects on the given nodes and recursively on the children, returning those
+   * matching nodes that are not themselves descendants of matching nodes. (depth first). 
+   */
+  def allMaximal[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
+    collectMaximalRecursive(nodes, Nil, selector)
   }
   
   /** A path function that selects on the children of the given group. */
@@ -48,7 +56,12 @@ private[antixml] object PathCreator {
   
   /** A path function that selects on the recursively on all the children of the given group (breadth first). */
   def allChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
-    collectGroupRecursive(collectGroupChildren(nodes, Nil, selector), selector)
+    collectGroupChildren(nodes, Nil, selector) flatMap {case (g,p) => collectGroupRecursive(g,p,selector)}
+  }
+
+  /** A path function that returns all the matching children that are not descendants of matching children (depth first). */
+  def allMaximalChildren[A](selector: Selector[A])(nodes: Group[Node]): PathVals[A] = {
+    collectGroupChildren(nodes, Nil, selector) flatMap {case (g,p) => collectMaximalRecursive(g,p,selector)}
   }
   
   /** Collects items from the given group that match the selector. */
@@ -79,24 +92,45 @@ private[antixml] object PathCreator {
       }
     }
   }
-  
-  /** Collects items from the children of the given group that match the selector. */
+    /** Collects items from the children of the given group that match the selector. */
   private def collectChildrenOfGroup[A](nodes: Group[Node], s: Selector[A]): PathVals[A] = {
     collectChildrenOfGroupWith(nodes, s, Nil) (collectGroup _)
   }
   
-  /** Recursively collects items from the given group that match the selector. */
-  private def collectGroupRecursive[A](groups: Seq[(Group[Node], BottomUp)], s: Selector[A]): PathVals[A] = {
-    if (groups.isEmpty) Nil
-    else {
-      val allChildren =
-        groups flatMap { gp =>
-          val (g, p) = gp
-          collectGroupChildren(g, p, s)
-        }
-      collectGroups(groups, s) ++ collectGroupRecursive(allChildren, s)
-    }
+  /** Recursively collects the specified node if matches the selector, followed by its matching descendants (depth first) */ 
+  private def collectNodeRecursive[A](n: Node, p: BottomUp, s: Selector[A]): PathVals[A] = {
+    val rest = collectGroupRecursive(n.children, p, s)
+    if (s.isDefinedAt(n)) PathVal(s(n), reverse(p)) +: rest
+    else rest
   }
+  
+  /** Recursively collects items from the given group that match the selector. */
+  private def collectGroupRecursive[A](group: Group[Node], p: BottomUp, s: Selector[A]): PathVals[A] = {
+    if (group.isEmpty) Nil
+    else 
+      dispatchSelector(s, group) {
+        group.zipWithIndex flatMap {case (n,i) => collectNodeRecursive(n, i :: p, s)}
+      }
+  }
+  
+  /** 
+   * Collects the specified node if matches the selector, otherwise collects its matching descendants that are 
+   * not themselves descendants of matching nodes (depth first).
+   */ 
+  private def collectMaximalRecursive[A](n: Node, p: BottomUp, s: Selector[A]): PathVals[A] = {
+    if (s.isDefinedAt(n)) PathVal(s(n), reverse(p)) :: Nil
+    else collectMaximalRecursive(n.children,p,s)
+  }
+  
+  /** Recursively collects items from the given group that match the selector and are not descendants of matching items. */
+  private def collectMaximalRecursive[A](group: Group[Node], p: BottomUp, s: Selector[A]): PathVals[A] = {
+    if (group.isEmpty) Nil
+    else 
+      dispatchSelector(s, group) {
+        group.zipWithIndex flatMap {case (n,i) => collectMaximalRecursive(n, i :: p, s)}
+      }
+  }
+  
   
   /** Gathering all the children of the group that may match the selector. */
   private def collectGroupChildren(g: Group[Node], p: BottomUp, s: Selector[_]): Seq[(Group[Node], BottomUp)] = {
