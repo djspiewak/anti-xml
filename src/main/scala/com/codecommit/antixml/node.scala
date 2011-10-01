@@ -29,6 +29,7 @@
 package com.codecommit.antixml
 
 import java.io.Writer
+
 /**
  * Root of the `Node` ADT, representing the different types of supported XML
  * nodes which may appear in an XML fragment.  The ADT itself has the following
@@ -66,6 +67,11 @@ import java.io.Writer
 sealed trait Node
 
 private[antixml] object Node {
+
+  /* http://www.w3.org/TR/xml/#NT-Char */
+  // TODO we are missing codepoints \u10000-\u10FFFF (i.e. those above 16 bits) here
+  val CharRegex = "(\u0009|\u000A|\u000D|[\u0020-\uD7FF]|[\uE000-\uFFFD])*"r
+  
   // TODO we should probably find a way to propagate custom entities from DTDs
   /* http://www.w3.org/TR/xml/#NT-CharData */
   def escapeText(text: String) = text flatMap {
@@ -76,7 +82,7 @@ private[antixml] object Node {
   }
 
   /* http://www.w3.org/TR/xml/#NT-AttValue */
-  def quoteAttribute(value: String) = 
+  def quoteAttribute(value: String) = {
     if (value.contains("\"")) {
       "'" + (value flatMap {
         case '&' => "&amp;"
@@ -92,11 +98,7 @@ private[antixml] object Node {
         case c => List(c)
       }) + "\""
     }
-
-  /* http://www.w3.org/TR/xml/#NT-Char */
-  // TODO we are missing codepoints \u10000-\u10FFFF (i.e. those above 16 bits) here
-  val CharRegex = "(\u0009|\u000A|\u000D|[\u0020-\uD7FF]|[\uE000-\uFFFD])*"r
-
+  }
 }
 
 /**
