@@ -4,7 +4,7 @@ import org.specs2.mutable._
 import org.specs2.ScalaCheck
 import org.scalacheck._
 import XML._
-import com.codecommit.antixml.DeepZipper._
+import com.codecommit.antixml.Zipper._
 import scala.io.Source
 
 class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenerators {
@@ -189,7 +189,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
   }
 
   /* 
-   * Copied the selection tests below from GroupSpecs and ZipperSpecs, modified them slightly to work with the DeepZipper
+   * Copied the selection tests below from GroupSpecs and ZipperSpecs, modified them slightly to work with the Zipper
    * Using the following rules:
    *  \ is > on zipper 
    *  \\ is ~ on zipper
@@ -427,7 +427,7 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
       implicit val arbInt = Arbitrary(Gen.choose(0, 10))
 
       "identity collect should return self" in check { (xml: Group[Node], n: Int) =>
-        val func = (0 until n).foldLeft(identity: DeepZipper[Node] => DeepZipper[Node]) { (g, _) =>
+        val func = (0 until n).foldLeft(identity: Zipper[Node] => Zipper[Node]) { (g, _) =>
           g andThen { _ collect { case e => e } }
         }
 
@@ -466,9 +466,9 @@ class DeepZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGe
   }
 
   "Deep selection on DeepZipper" should {
-    "return something of type DeepZipper on element select" in {
+    "return something of type Zipper on element select" in {
       val ns = <foo/>.convert.toZipper
-      validate[DeepZipper[Elem]](ns \\ 'bar)
+      validate[Zipper[Elem]](ns \\ 'bar)
     }
 
     "find an immediate descendant" in {

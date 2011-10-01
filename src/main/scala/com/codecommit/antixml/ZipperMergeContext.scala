@@ -18,7 +18,7 @@ import scala.collection.immutable.IndexedSeq
  * will be the time that the node was removed. 
  * @param indirectUpdate the "indirect" replacement and associated update time.  The indirect replacement is just the
  * original node with its children replaced by a recursive application of the unselection algorithm, as defined in the 
- * [[com.codecommit.antixml.DeepZipper]] unselection algorithm.  
+ * [[com.codecommit.antixml.Zipper]] unselection algorithm.  
  */
 case class ZipperMergeContext(original: Node, directUpdate: IndexedSeq[(Node,Int)], 
     lastDirectUpdate: Int, indirectUpdate: (Node,Int))

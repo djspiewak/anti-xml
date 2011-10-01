@@ -5,7 +5,7 @@ import scala.collection.immutable.IndexedSeq
 
 /**
  * Defines the merge function used to resolve conflicting updates to a node during zipper unselection.
- * See the description of the unselection algorithm in [[com.codecommit.antixml.DeepZipper]] for more
+ * See the description of the unselection algorithm in [[com.codecommit.antixml.Zipper]] for more
  * details.
  * 
  * The companion object contains some predefined strategies, including the default implicit strategy,
@@ -23,7 +23,7 @@ object ZipperMergeStrategy {
    * Returns a [[com.codecommit.antixml.ZipperMergeStrategy]] obtained by uniformly applying the specified function to each
    * `directUpdate` node in the merge context and concatenating the results.  The function takes the merge context,
    * a directUpdate node and its associated update time as arguments and returns a sequence of replacement nodes.
-   * @see [[[com.codecommit.antixml.DeepZipper]] 
+   * @see [[[com.codecommit.antixml.Zipper]] 
    */
   def uniformlyApply(f: (ZipperMergeContext, Node,Int) => Seq[Node]): ZipperMergeStrategy = new ZipperMergeStrategy() {
     override def apply(context: ZipperMergeContext) = context.directUpdate.flatMap(n => f(context, n._1,n._2))
@@ -35,7 +35,7 @@ object ZipperMergeStrategy {
    * 
    * In other words, if a zipper contains both a node and one of its descendants, then updates to the node
    * are unconditionally ignored and the result of the merge will be based solely on its descendants.
-   * @see [[[com.codecommit.antixml.DeepZipper]] 
+   * @see [[[com.codecommit.antixml.Zipper]] 
    */
   object AlwaysPreferChildren extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = VectorCase(context.indirectUpdate._1)
@@ -48,7 +48,7 @@ object ZipperMergeStrategy {
    * This strategy is mainly listed for the sake of completeness.  In practice, it is preferable to use 
    * a selection operator such as `\\!` which prevents conflicting children from entering the zipper in
    * the first place.
-   * @see [[[com.codecommit.antixml.DeepZipper]] 
+   * @see [[[com.codecommit.antixml.Zipper]] 
    */
   object AlwaysPreferParents extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = context.directUpdate.map(_._1)
@@ -67,7 +67,7 @@ object ZipperMergeStrategy {
    * 
    * See also the `RequireLocal` strategy, which behaves similarly except
    * that it throws an error if it detects changes to an element's `children` property.
-   * @see [[[com.codecommit.antixml.DeepZipper]] 
+   * @see [[[com.codecommit.antixml.Zipper]] 
    */
   object AlwaysLocal extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = context.directUpdate map {
@@ -82,7 +82,7 @@ object ZipperMergeStrategy {
    * 
    * The price of this added safety is that the strategy depends on testing for Group equality and thus is potentially less performant
    * than `RequireLocal`.
-   * @see [[[com.codecommit.antixml.DeepZipper]] 
+   * @see [[[com.codecommit.antixml.Zipper]] 
    */
   object RequireLocal extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = context.directUpdate map {
@@ -94,7 +94,7 @@ object ZipperMergeStrategy {
   /**
    * A strategy that simply throws an exception if it is ever invoked.  In other words, the strategy prevents unselection in Zippers
    * that contain conflicts.
-   * @see [[[com.codecommit.antixml.DeepZipper]] 
+   * @see [[[com.codecommit.antixml.Zipper]] 
    */
   object RequireConflictFree extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext): Nothing =
@@ -118,7 +118,7 @@ object ZipperMergeStrategy {
    * If a node has been multiplied via a `flatMap` operation or the like, then the strategy will be uniformly applied to
    * all of the resulting nodes.  If it has been completely elided, then it will be elided in the result as well.
    * 
-   * @see [[[com.codecommit.antixml.DeepZipper]]
+   * @see [[[com.codecommit.antixml.Zipper]]
    */
   implicit object PreferLatest extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = {

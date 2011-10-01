@@ -33,7 +33,7 @@ import com.codecommit.antixml.util.VectorCase
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.{Vector, VectorBuilder}
 
-import CanBuildFromWithDeepZipper.ElemsWithContext
+import CanBuildFromWithZipper.ElemsWithContext
 
 trait Selectable[+A <: Node] {
   import PathCreator.{allChildren, directChildren, PathFunction, PathVal}
@@ -77,8 +77,8 @@ trait Selectable[+A <: Node] {
    * }}}
    *
    * The three selection expressions here produce very different results.  The
-   * first will produce a collection of type [[com.codecommit.antixml.DeepZipper]]`[`[[com.codecommit.antixml.Elem]]`]`,
-   * the second will produce [[com.codecommit.antixml.DeepZipper]]`[`[[com.codecommit.antixml.Node]]`]`,
+   * first will produce a collection of type [[com.codecommit.antixml.Zipper]]`[`[[com.codecommit.antixml.Elem]]`]`,
+   * the second will produce [[com.codecommit.antixml.Zipper]]`[`[[com.codecommit.antixml.Node]]`]`,
    * while the third will produce [[scala.collection.Traversable]]`[`[[scala.String]]`]`.
    * This reflects the fact that the selector produced (by implicit conversion)
    * from a `String` will only filter for nodes of type [[com.codecommit.antixml.Elem]].
@@ -99,10 +99,10 @@ trait Selectable[+A <: Node] {
    * with immutable tree structures: the need to manually rebuild the entire
    * ancestry of the tree after making a change somewhere within.
    * 
-   * @see [[com.codecommit.antixml.DeepZipper]]
-   * @usecase def \(selector: Selector[Node]): DeepZipper[Node]
+   * @see [[com.codecommit.antixml.Zipper]]
+   * @usecase def \(selector: Selector[Node]): Zipper[Node]
    */
-  def \[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithDeepZipper[Group[A], B, That]): That = {
+  def \[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
     fromPathFunc(directChildren(selector), cbfwz)
   }
   
@@ -128,9 +128,9 @@ trait Selectable[+A <: Node] {
    * same as the XPath `//` operator, since `//` will consider the outermost level,
    * while Anti-XML's deep selection `\\` will not.
    * 
-   * @usecase def \\(selector: Selector[Node]): DeepZipper[Node]
+   * @usecase def \\(selector: Selector[Node]): Zipper[Node]
    */
-  def \\[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithDeepZipper[Group[A], B, That]): That = {
+  def \\[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
     fromPathFunc(allChildren(selector), cbfwz)
   }
   
@@ -155,10 +155,10 @@ trait Selectable[+A <: Node] {
    * Just as with shallow selection, the very outermost level of the group is not
    * considered in the selection.
    *
-   * @usecase def \\!(selector: Selector[Node]): DeepZipper[Node]
+   * @usecase def \\!(selector: Selector[Node]): Zipper[Node]
    */
-  def \\![B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithDeepZipper[Group[_ <: Node], B, That]): That = {
-    import DeepZipper._
+  def \\![B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[_ <: Node], B, That]): That = {
+    import Zipper._
     import PathCreator._
     fromPathFunc(allMaximalChildren(selector), cbfwz)
   }
@@ -171,19 +171,19 @@ trait Selectable[+A <: Node] {
    * nodes.collect(selector)
    * }}}
    *
-   * However, this method differs from `collect` in that it can return a [[com.codecommit.antixml.DeepZipper]]
+   * However, this method differs from `collect` in that it can return a [[com.codecommit.antixml.Zipper]]
    * with full `unselect` functionality.  Thus, it is possible to `select` a subset of a group,
    * operate on that subset, and then call `unselect` to pull those operations back to the original group.
    *
-   * @usecase def select(selector: Selector[Node]): DeepZipper[Node]
+   * @usecase def select(selector: Selector[Node]): Zipper[Node]
    */
-  def select[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithDeepZipper[Group[_ <: Node], B, That]): That = {
-    import DeepZipper._
+  def select[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[_ <: Node], B, That]): That = {
+    import Zipper._
     import PathCreator._
     fromPathFunc(fromNodes(selector),cbfwz)
   }
 
-  private def fromPathFunc[B,That](pf: PathFunction[B], cbfwz: CanBuildFromWithDeepZipper[Group[A], B, That]): That = {
+  private def fromPathFunc[B,That](pf: PathFunction[B], cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
     val grp = toGroup
     val bld = cbfwz(Some(toZipper), grp)
     for( PathVal(value, path) <- pf(grp) ) {
@@ -194,5 +194,5 @@ trait Selectable[+A <: Node] {
   
   def toGroup: Group[A]
   
-  def toZipper: DeepZipper[A] = toGroup.toZipper
+  def toZipper: Zipper[A] = toGroup.toZipper
 }

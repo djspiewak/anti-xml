@@ -4,7 +4,7 @@ import scala.collection.GenTraversableOnce
 import scala.collection.mutable.Builder
 import scala.collection.generic.CanBuildFrom
 
-/** A factory for [[com.codecommit.antixml.DeepZipper]] instances.
+/** A factory for [[com.codecommit.antixml.Zipper]] instances.
  * This trait is similar to [[scala.collection.mutable.CanBuildFrom]], however its builders accept instances
  * of `ElemsWithContext[Elem]` rather than `Elem` instances.  In addition, its `apply`
  * methods accept an optional reference to the zipper's parent.
@@ -13,33 +13,33 @@ import scala.collection.generic.CanBuildFrom
  * @tparam Elem The type of nodes to be contained in the result (if any).
  * @tparam To the type of collection being produced.  
  */
-trait CanBuildFromWithDeepZipper[-From, -Elem, To] {
-  import CanBuildFromWithDeepZipper.ElemsWithContext
+trait CanBuildFromWithZipper[-From, -Elem, To] {
+  import CanBuildFromWithZipper.ElemsWithContext
   
     /** Creates a new builder.
      * 
      *  @param parent The parent of the zipper.  If `None`, the zipper will 
      *  still function as an IndexedSeq, but zipper unselection will fail.
      */
-	def apply(parent: Option[DeepZipper[Node]]): Builder[ElemsWithContext[Elem], To]
+	def apply(parent: Option[Zipper[Node]]): Builder[ElemsWithContext[Elem], To]
 	
     /** Creates a new builder.
      *  @param parent The parent of the zipper.  If `None`, the zipper will 
      *  still function as an IndexedSeq, but zipper unselection will fail.
      *  @param from The collection producing the zipper
      */
-  def apply(parent: Option[DeepZipper[Node]], from: From): Builder[ElemsWithContext[Elem], To] = this(parent)
+  def apply(parent: Option[Zipper[Node]], from: From): Builder[ElemsWithContext[Elem], To] = this(parent)
 
 }
 
 /** A marker interface for [[scala.collection.mutable.CanBuildFrom]] instances that can be lifted into
- * [[com.codecommit.antixml.CanBuildFromWithDeepZipper]] instances that operate on [[com.codecommit.antixml.Node]] types. */
-trait CanProduceDeepZipper[-From, A <: Node, To] { this: CanBuildFrom[From, A, _ >: To] =>
-  def lift: CanBuildFromWithDeepZipper[From, A, To]
+ * [[com.codecommit.antixml.CanBuildFromWithZipper]] instances that operate on [[com.codecommit.antixml.Node]] types. */
+trait CanProduceZipper[-From, A <: Node, To] { this: CanBuildFrom[From, A, _ >: To] =>
+  def lift: CanBuildFromWithZipper[From, A, To]
 }
 
-/** Different implicit implementations of [[com.codecommit.antixml.CanBuildFromWithDeepZipper]]. */
-object CanBuildFromWithDeepZipper {
+/** Different implicit implementations of [[com.codecommit.antixml.CanBuildFromWithZipper]]. */
+object CanBuildFromWithZipper {
   
   /**
    * Decorates a sequence of zipper elements with a zipper context and an update time.  This is the
@@ -57,17 +57,17 @@ object CanBuildFromWithDeepZipper {
    */
   case class ElemsWithContext[+Elem](path: Seq[Int], updateTime: Int, elements: GenTraversableOnce[Elem])
   
-  /** Implicitly lifts [[scala.collection.mutable.CanBuildFrom]] instances into instances of [[com.codecommit.antixml.CanBuildFromWithDeepZipper]]. The resulting builders simply ignore
+  /** Implicitly lifts [[scala.collection.mutable.CanBuildFrom]] instances into instances of [[com.codecommit.antixml.CanBuildFromWithZipper]]. The resulting builders simply ignore
     * the extra information in `ElemsWithContext` and produce their collections as usual.
     */
-  implicit def identityCanBuildFrom[From, Elem, To](implicit cbf: CanBuildFrom[From, Elem, To]): CanBuildFromWithDeepZipper[From, Elem, To] = {
-    new CanBuildFromWithDeepZipper[From, Elem, To] {
+  implicit def identityCanBuildFrom[From, Elem, To](implicit cbf: CanBuildFrom[From, Elem, To]): CanBuildFromWithZipper[From, Elem, To] = {
+    new CanBuildFromWithZipper[From, Elem, To] {
       
-      /** Creates a builder that just ignores anything [[com.codecommit.antixml.DeepZipper]] related. */
-      override def apply(parent: Option[DeepZipper[Node]], from: From) = liftBuilder(cbf(from))
+      /** Creates a builder that just ignores anything [[com.codecommit.antixml.Zipper]] related. */
+      override def apply(parent: Option[Zipper[Node]], from: From) = liftBuilder(cbf(from))
       
-      /** Creates a builder that just ignores anything [[com.codecommit.antixml.DeepZipper]] related. */
-      override def apply(parent: Option[DeepZipper[Node]]) = liftBuilder(cbf())
+      /** Creates a builder that just ignores anything [[com.codecommit.antixml.Zipper]] related. */
+      override def apply(parent: Option[Zipper[Node]]) = liftBuilder(cbf())
       
       private def liftBuilder(b: Builder[Elem,To]) = new Builder[ElemsWithContext[Elem], To]() {
         override def += (x: ElemsWithContext[Elem]) = {

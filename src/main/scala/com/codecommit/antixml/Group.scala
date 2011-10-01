@@ -242,7 +242,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
    */
   def updated[B >: A <: Node](index: Int, node: B) = new Group(nodes.updated(index, node))
   
-  override def toZipper: DeepZipper[A] = DeepZipper.brokenZipper(toVectorCase) 
+  override def toZipper: Zipper[A] = Zipper.brokenZipper(toVectorCase) 
   
   /**
    * Produces a [[scala.collection.immutable.Vector]] which contains all of the
@@ -304,21 +304,21 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
  * new `Group`(s) from specified nodes.
  */
 object Group {
-  import DeepZipper.Time
+  import Zipper.Time
   
   /** 
-   * Creates instances of [[com.codecommit.antixml.CanBuildFromWithDeepZipper]] for [[com.codecommit.antixml.Group]] types.  
+   * Creates instances of [[com.codecommit.antixml.CanBuildFromWithZipper]] for [[com.codecommit.antixml.Group]] types.  
    */
-  implicit def canBuildFromWithDeepZipper[A <: Node] = DeepZipper.canBuildFromWithDeepZipper[A]
+  implicit def canBuildFromWithZipper[A <: Node] = Zipper.canBuildFromWithZipper[A]
   
   
-  /** Provides a [[scala.collection.generic.CanBuildFrom]] instance which mixes in [[com.codecommit.antixml.CanProduceDeepZipper]]  */
+  /** Provides a [[scala.collection.generic.CanBuildFrom]] instance which mixes in [[com.codecommit.antixml.CanProduceZipper]]  */
   implicit def canBuildFromDeep[A <: Node]: CanBuildFrom[Traversable[_], A, Group[A]] = {
-    new CanBuildFrom[Traversable[_], A, Group[A]] with CanProduceDeepZipper[Traversable[_], A, DeepZipper[A]] {
+    new CanBuildFrom[Traversable[_], A, Group[A]] with CanProduceZipper[Traversable[_], A, Zipper[A]] {
       def apply(from: Traversable[_]): Builder[A, Group[A]] = apply()
       def apply(): Builder[A, Group[A]] = newBuilder[A]
 
-      def lift = canBuildFromWithDeepZipper
+      def lift = canBuildFromWithZipper
     }
   }
   

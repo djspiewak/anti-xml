@@ -7,8 +7,8 @@ import scala.collection.IndexedSeqLike
 import scala.collection.GenTraversableOnce
 import scala.collection.mutable.Builder
 
-import DeepZipper._
-import CanBuildFromWithDeepZipper.ElemsWithContext
+import Zipper._
+import CanBuildFromWithZipper.ElemsWithContext
 
 /** A zipper which allows deep selection.
  *
@@ -38,7 +38,7 @@ import CanBuildFromWithDeepZipper.ElemsWithContext
  * a ZipperMergeStrategy during unselection. 
  *
  */
-trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[A]] { self =>
+trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { self =>
   
   /** 
    * A value that is greater than the update time of any node or path in the zipper. Subsequent updates must
@@ -56,7 +56,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
    *   - A method such as `++`, is used to "add" nodes to a zipper without replacing existing nodes. 
    *   
    **/
-  def parent: Option[DeepZipper[Node]]
+  def parent: Option[Zipper[Node]]
   
   private def parentOrError = parent getOrElse sys.error("Root has no parent")
 
@@ -72,14 +72,14 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
    */
   protected def pathIndex: SortedMap[Path,(IndexedSeq[Int], Time)]
 
-  override protected[this] def newBuilder = DeepZipper.newBuilder[A]
+  override protected[this] def newBuilder = Zipper.newBuilder[A]
   
-  override def updated[B >: A <: Node](index: Int, node: B): DeepZipper[B] = {
+  override def updated[B >: A <: Node](index: Int, node: B): Zipper[B] = {
     val updatedTime = time + 1
     val (updatedPath,_) = metas(index)
     val (updatePathIndices,_) = pathIndex(updatedPath)
     
-    new Group(super.updated(index, node).toVectorCase) with DeepZipper[B] {
+    new Group(super.updated(index, node).toVectorCase) with Zipper[B] {
       def parent = self.parent
       val time = updatedTime      
       val metas = self.metas.updated(index, (updatedPath, updatedTime))
@@ -87,7 +87,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
     }
   }
 
-  override def slice(from: Int, until: Int): DeepZipper[A] = {
+  override def slice(from: Int, until: Int): Zipper[A] = {
     val zwi = Map[A, Int](zipWithIndex: _*)
     collect {
       case e if zwi(e) >= from && zwi(e) < until => e
@@ -100,22 +100,22 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
   
   override def splitAt(n: Int) = (take(n), drop(n))
   
-  override def filter(f: A => Boolean): DeepZipper[A] = collect {
+  override def filter(f: A => Boolean): Zipper[A] = collect {
     case e if f(e) => e
   }
   
-  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That =
+  override def collect[B, That](pf: PartialFunction[A, B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That =
     flatMap(pf.lift andThen { _.toTraversable })
     
-  override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That = {
+  override def map[B, That](f: A => B)(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = {
     val liftedF = (a: A) => Seq(f(a))
     flatMap(liftedF)(cbf)
   }
 
-  override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That = {
+  override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = {
     cbf match {
       // subtypes of this are the only expected types, hence ignoring type erasure
-      case cbf: CanProduceDeepZipper[DeepZipper[A], B, That] => {
+      case cbf: CanProduceZipper[Zipper[A], B, That] => {
         val liftedF = (x: (A, Int)) => f(x._1)
         flatMapWithIndex(liftedF)(cbf.lift)
       }
@@ -134,7 +134,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
   
   /** A specialized flatMap where the mapping function receives the index of the 
    * current element as an argument. */
-  private def flatMapWithIndex[B, That](f: ((A, Int)) => GenTraversableOnce[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[DeepZipper[A], B, That]): That = {
+  private def flatMapWithIndex[B, That](f: ((A, Int)) => GenTraversableOnce[B])(implicit cbfwdz: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
     val result = toVector.zipWithIndex map {x => (f(x),x._2)}
     
     val builder = cbfwdz(parent, this)
@@ -175,7 +175,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
   }
   
   /** Applies the node updates to the parent and returns the result. */
-  def unselect(implicit mergeStrategy: ZipperMergeStrategy): DeepZipper[Node] = {
+  def unselect(implicit mergeStrategy: ZipperMergeStrategy): Zipper[Node] = {
     //TODO - Should we pull back update times as well as nodes?
     parentOrError flatMapWithIndex {
       case (node,index) => pullBack(node, VectorCase(index), mergeStrategy)._1
@@ -236,9 +236,9 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
   }
 }
 
-object DeepZipper {
+object Zipper {
     
-  import CanBuildFromWithDeepZipper.ElemsWithContext
+  import CanBuildFromWithZipper.ElemsWithContext
   
   /** The units in which time is measured in the zipper. Assumed non negative. */
   private type Time = Int
@@ -251,27 +251,27 @@ object DeepZipper {
       Ordering.Iterable[Int].compare(x,y)
   }
   
-  implicit def canBuildFromWithDeepZipper[A <: Node] = {
-    new CanBuildFromWithDeepZipper[Traversable[_], A, DeepZipper[A]] {      
-      override def apply(parent: Option[DeepZipper[Node]]): Builder[ElemsWithContext[A],DeepZipper[A]] = new WithDeepZipperBuilder[A](parent)
+  implicit def canBuildFromWithZipper[A <: Node] = {
+    new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {      
+      override def apply(parent: Option[Zipper[Node]]): Builder[ElemsWithContext[A],Zipper[A]] = new WithZipperBuilder[A](parent)
     }
   }
   
-  implicit def canBuildFromDeep[A <: Node]: CanBuildFrom[Group[_], A, DeepZipper[A]] = {
-    new CanBuildFrom[Group[_], A, DeepZipper[A]] with CanProduceDeepZipper[Group[_], A, DeepZipper[A]] {
-      def apply(from: Group[_]): Builder[A, DeepZipper[A]] = apply()
-      def apply(): Builder[A, DeepZipper[A]] = DeepZipper.newBuilder[A]
+  implicit def canBuildFromDeep[A <: Node]: CanBuildFrom[Group[_], A, Zipper[A]] = {
+    new CanBuildFrom[Group[_], A, Zipper[A]] with CanProduceZipper[Group[_], A, Zipper[A]] {
+      def apply(from: Group[_]): Builder[A, Zipper[A]] = apply()
+      def apply(): Builder[A, Zipper[A]] = Zipper.newBuilder[A]
 
-      def lift = canBuildFromWithDeepZipper
+      def lift = canBuildFromWithZipper
     }
   }
   
   def newBuilder[A <: Node] = VectorCase.newBuilder[A].mapResult({new Group(_).toZipper})
   
   /** Returns a "broken" zipper which contains the specified nodes but cannot be unselected */
-  private[antixml] def brokenZipper[A <: Node](nodes: VectorCase[A]): DeepZipper[A] = {
+  private[antixml] def brokenZipper[A <: Node](nodes: VectorCase[A]): Zipper[A] = {
     val fakePath = VectorCase(0)
-    new Group[A](nodes) with DeepZipper[A] {
+    new Group[A](nodes) with Zipper[A] {
       override def parent = None      
       override val time = 0
       override val metas = constant((fakePath,0), nodes.length)
@@ -285,9 +285,9 @@ object DeepZipper {
   }
   
   /**
-   * The primary builder class used to construct DeepZippers. 
+   * The primary builder class used to construct Zippers. 
    */
-  private class WithDeepZipperBuilder[A <: Node](parent: Option[DeepZipper[Node]]) extends Builder[ElemsWithContext[A],DeepZipper[A]] { self =>
+  private class WithZipperBuilder[A <: Node](parent: Option[Zipper[Node]]) extends Builder[ElemsWithContext[A],Zipper[A]] { self =>
     private val innerBuilder = VectorCase.newBuilder[(Path, Time, A)]
     private var pathIndex = SortedMap.empty[Path,(IndexedSeq[Int], Time)]
     private var size = 0
@@ -314,9 +314,9 @@ object DeepZipper {
       size = 0
       maxTime = 0
     }
-    override def result(): DeepZipper[A] = {
+    override def result(): Zipper[A] = {
       val res = innerBuilder.result()
-      new Group[A](res map {case (_,_,node) => node}) with DeepZipper[A] {
+      new Group[A](res map {case (_,_,node) => node}) with Zipper[A] {
         override def parent = self.parent      
         override val time = maxTime
         override val metas = res map {case (path,time,_) => (path,time)}
