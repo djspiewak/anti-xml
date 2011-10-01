@@ -1,100 +1,89 @@
 package com.codecommit.antixml
 
-import DeepZipper._
 import scala.collection.generic.CanBuildFrom
 import com.codecommit.antixml.util.VectorCase
+import scala.collection.immutable.{SortedMap, IndexedSeq, Seq}
 import scala.collection.IndexedSeqLike
 import scala.collection.GenTraversableOnce
 import scala.collection.mutable.Builder
 
+import DeepZipper._
+import CanBuildFromWithDeepZipper.ElemsWithContext
+
 /** A zipper which allows deep selection.
  *
- *  Zipper instances may be created through factory methods on the companion.
+ * ==Unselection Algorithm==
+ * 
+ * Let G be a group, and Z be a zipper with G as its parent.  For each node, N, in G (top-level or otherwise), we make
+ * the following definitions:
+ * 
+ *  - N ''lies in'' Z if N was matched by the original selection operation that led to the creation the zipper.
+ *  - N ''lies above'' Z if a descendant of N lies in Z
+ *  - For any N that lies in Z, the ''direct updates'' for N are the sequence of nodes that replaced N via update operations on the zipper.
+ *  - For any N that lies above Z, the ''indirect update'' for N is just N with its children flatMapped with the pullback function (defined below).
+ *  - The ''pullback'' of N consists of a sequence of nodes as defined below:
+ *    - If N does not lie in Z, then the pullback of N is the singleton sequence consisting of the indirect update for N
+ *    - If N lies in Z, but does not lie above Z, then the pullback of N is its direct updates. 
+ *    - If N lies in Z ''and'' lies above Z, then the pullback of N is the result of merging its direct updates and its indirect update,
+ * according to the [[com.codecommit.antixml.ZipperMergeStrategy]] passed as an implicit parameter to `unselect`.
+ *
+ * (Strictly speaking, these definitions should be made on the location of N in G rather than on N itself, but we abuse the
+ * terminology for the sake of brevity)
+ *
+ * With the above definitions, the result of `unselect` can be defined simply as G flatMapped with the pullBack function.
+ * 
+ * The last line in the definition of "pullback" deserves special mention because it defines the only condition under which
+ * the [[com.codecommit.antixml.ZipperMergeStrategy]] is invoked. Given zipper Z and parent G, if there exists an N in G such that N lies both in and above Z, 
+ * then Z is said to be ''conflicted at N''.  A zipper without such an N then Z is said to be ''conflict free'' and will never invoke
+ * a ZipperMergeStrategy during unselection. 
+ *
  */
 trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[A]] { self =>
-
-  /*
-   * All the vectors beneath should have the same length.
-   */
   
-  private type FullContext = DeepZipper.FullContext[Node]
-  
-  /** Transforming a node with its update time into a sequence of nodes with an overall update time. */
-  private type NodeTransform = Node => (Seq[Node], Time)
-
-  /** Keeping track of internal time.
-   *
-   *  Should be initialized to 0 at the initial creation of the zipper.
+  /** 
+   * A value that is greater than the update time of any node or path in the zipper. Subsequent updates must
+   * be tagged with a larger time.
    */
   protected def time: Time
 
-  /** The last update time corresponding to each node in the zipper.
-   *
-   *  Should be initialized to 0 values at the initial creation of the zipper.
-   */
-  protected def updateTimes: Vector[Time]
-
-  protected def parent: Option[DeepZipper[Node]]
+  /** 
+   * Returns the original group that was selected upon when the Zipper was created.  A value of `None` indicates that
+   * the Zipper has no parent and `unselect` cannot be called.  This possibility is an unfortunate consequence of the
+   * fact that some operations must return the static type of Zipper even though they yield no usable context.  
+   * In practice, this situation is usually caused by one of the following operations:
+   * 
+   *   - A non-Zipper group is selected upon and then 'unselect' is used to generate an updated group. 
+   *   - A method such as `++`, is used to "add" nodes to a zipper without replacing existing nodes. 
+   *   
+   **/
+  def parent: Option[DeepZipper[Node]]
   
   private def parentOrError = parent getOrElse sys.error("Root has no parent")
 
-  /** The location of each node in the group in its parent's list of children. */
-  protected def locations: Vector[Location]
+  /** Context information corresponding to each node in the zipper. */
+  protected def metas: IndexedSeq[(Path, Time)]
 
-  /** Each item in the vector is the list of parents of the corresponding
-   *  node in the group.
-   *
-   *  The order of the parents is given in reverse. i.e. the first item in the
-   *  list is the direct parent of the corresponding node in the group,
-   *  and the last one is at the root of the tree.
+  /** 
+   * Information corresponding to each path in the zipper. The map's values consist of the indices of the corresponding nodes, 
+   * along with a master update time for the path.  An empty sequence indicates the path has been elided and should be 
+   * removed upon `unselect`.  In this case, the update time indicates the time of elision.
+   * 
+   * The map is sorted lexicographically by the path primarily to facilitate the `isBeneathPath` method.
    */
-  protected def parentLists: Vector[ParentsList]
-  
-  /** A set of the location that should be empty (removed) in the zipper upon unselection. */
-  protected def emptiesSet: EmptiesSet
-
-  /** The full context list of the zipper. */
-  private lazy val fullContext = {
-    val nodesWithLocs: Vector[NodeLoc[Node]] = (self.toVector zip locations).map(Function.tupled(NodeLoc[A]))
-
-    // constructing a vector of full context objects from the vectorized constituents
-    val nodesWithContext =
-      for (i <- nodesWithLocs.indices; val updateTime = updateTimes(i)) yield {
-        FullContext(nodesWithLocs(i), parentLists(i), updateTime)
-      }
-
-    nodesWithContext
-  }
-  
-  /** Applying the node updates. */
-  lazy val unselect: DeepZipper[Node] = {
-    val (fullContext, transforms) = unselectionData
-    
-    if (fullContext.isEmpty && transforms.isEmpty) parentOrError // no updates
-    else {
-      // grouping the nodes by their depth in the tree
-      val byDepthContexts = fullContext.groupBy(_.parentsList.length) withDefaultValue Vector()
-      val byDepthTransforms = transforms.groupBy(_._1.parentsList.length) withDefaultValue Map()
-
-      val newZipper = mergeContext(byDepthContexts, byDepthTransforms)
-
-      newZipper
-    }
-  }
+  protected def pathIndex: SortedMap[Path,(IndexedSeq[Int], Time)]
 
   override protected[this] def newBuilder = DeepZipper.newBuilder[A]
-
-  override def updated[B >: A <: Node](index: Int, node: B) = {
+  
+  override def updated[B >: A <: Node](index: Int, node: B): DeepZipper[B] = {
+    val updatedTime = time + 1
+    val (updatedPath,_) = metas(index)
+    val (updatePathIndices,_) = pathIndex(updatedPath)
+    
     new Group(super.updated(index, node).toVectorCase) with DeepZipper[B] {
-      val parentLists = self.parentLists
-      val emptiesSet = self.emptiesSet
-      val locations = self.locations
       def parent = self.parent
-      val mergeDuplicates = self.mergeDuplicates
-
-      // setting new time
-      val time = self.time + 1
-      val updateTimes = self.updateTimes.updated(index, this.time)
+      val time = updatedTime      
+      val metas = self.metas.updated(index, (updatedPath, updatedTime))
+      val pathIndex = self.pathIndex.updated(updatedPath,(updatePathIndices, updatedTime))
     }
   }
 
@@ -126,7 +115,7 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
   override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[DeepZipper[A], B, That]): That = {
     cbf match {
       // subtypes of this are the only expected types, hence ignoring type erasure
-      case cbf: CanProduceDeepZipper[DeepZipper[Node], B, That] => {
+      case cbf: CanProduceDeepZipper[DeepZipper[A], B, That] => {
         val liftedF = (x: (A, Int)) => f(x._1)
         flatMapWithIndex(liftedF)(cbf.lift)
       }
@@ -137,471 +126,203 @@ trait DeepZipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, DeepZipper[
 
   override def toZipper = this
   
+  /**
+   * Returns a `Group` containing the same nodes as this Zipper, but without any Zipper context, and in particular,
+   * without any implict references to the zipper's parent.
+   */
   def stripZipper = new Group(toVectorCase)
   
   /** A specialized flatMap where the mapping function receives the index of the 
    * current element as an argument. */
-  private def flatMapWithIndex[B, That](f: ((A, Int)) => GenTraversableOnce[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[DeepZipper[Node], B, That]): That = {
-    val result = toVector.zipWithIndex.map(f)
-    val indices = result.indices
+  private def flatMapWithIndex[B, That](f: ((A, Int)) => GenTraversableOnce[B])(implicit cbfwdz: CanBuildFromWithDeepZipper[DeepZipper[A], B, That]): That = {
+    val result = toVector.zipWithIndex map {x => (f(x),x._2)}
     
-    val emptyContext = Vector[LocationContext]()
-
-    /* This will hold true for locations preserved by flatMapping and false
-       for the ones that were removed. */
-    val initLocMap = Map[FullLoc, Boolean]() withDefaultValue false
-
-    val initData = (initLocMap, emptyContext, time)
-
-    val (locMap, contexts, newTime) =
-      indices.foldLeft(initData) { (x, localIndex) =>
-        val (locMap, contexts, time) = x
-        val res = result(localIndex)
-
-        val parent = parentLists(localIndex)
-
-        /* Assuming here that duplicate locations come only from flatMapping, 
-	       otherwise the results of unselection will be undefined. */
-        val location = locations(localIndex)
-
-        // each flatMapped segment gets its own time, this way the merging order can be properly defined
-        val newTime = time + 1
-        
-        // converting res into context, folding because it doesn't have a "size" method
-        val (newContexts, resSize) =  
-          res.foldLeft((emptyContext, 0)) { (ci, n) =>
-            val (contexts, i) = ci
-
-            val context = LocationContext(location, parent, newTime)
-            (contexts :+ context, i + 1)
-          }
-
-        val loc = FullLoc(parent, location)
-        val resEmpty = resSize == 0
-        // if at least one non empty result is present for this loc, we get a true
-        val locEmpty = locMap(loc) || resEmpty
-        val newLocMap = locMap.updated(loc, locEmpty)
-
-        (newLocMap, contexts ++ newContexts, newTime)
-      }
-
-    // assigning the empties the latest time in this flatMap action
-    val newEmpties = locMap.filter(_._2).keySet.map((_, newTime)) // holding on to locations flatMapped to oblivion
-    val builder = cbfwdz(self.parent, contexts, emptiesSet ++ newEmpties)
-    result foreach (builder ++= _.toList)
+    val builder = cbfwdz(parent, this)
+    for ( (items, index) <- result) {
+      val (path, _) = metas(index)
+      builder += ElemsWithContext[B](path, time+index+1, items)
+    }
+    //Add any paths that had been previously emptied out.  (TODO - Can optimize this)
+    for ( (path,(inds,time)) <- pathIndex) {
+      if (inds.isEmpty)
+        builder += ElemsWithContext[B](path,time,VectorCase.empty)
+    }
     builder.result
   }
+
+  /** Returns true iff the specified path is one of the contexts maintained by the zipper. */
+  private[antixml] def containsPath(p: Path) = pathIndex.contains(p)
   
-  /** Preparing the context of the zipper for unselection.
-   * 
-   *  Given that all duplicate locations in the zipper were created by applications of flatMap:
-   *  * We separate a single entry from each duplicates list which will remain in the full context
-   *  * The leftovers are converted into node transformation functions.
-   *  * The node transforms should be applied at the location to which they were mapped to, to replace the values at these locations (appending the duplicates to the location).
-   *  * In addition to the above transforms, transforms for locations that were removed from the zipper are also provided (to remove the nodes from these locations). 
-   *  
-   *  The unselection data is composed from the non duplicate contexts and the transformation functions. */
-  private def unselectionData: (Vector[FullContext], Map[FullLoc, NodeTransform]) = {
-    val (contexts, transforms) = contextsWithTransforms
-    val allTransforms = transforms ++ emptyTransforms
-    (contexts, allTransforms)
+  /** Returns true iff the specified path is the ancestor of one of the contexts maintained by the zipper. */
+  private[antixml] def isBeneathPath(p: Path) = {
+    //This would be easier if OrderedMap had a variant of the `from` method that was exclusive.
+    val ifp = pathIndex.keySet.from(p)
+    val result = for {
+      h <- ifp.headOption
+      h2 <- if (h != p) Some(h) else ifp.take(2).tail.headOption
+    } yield h2.startsWith(p) && h2.length != p.length
+    result.getOrElse(false)    
   }
 
-  /** The contexts objects from the zipper after removing duplicates.
-   *  The removed duplicates are returned as transforms which append the duplicates to a given node mapped to the appropriate location.*/
-  private def contextsWithTransforms: (Vector[FullContext], Map[FullLoc, NodeTransform]) = {
-    val byLoc = fullContext.groupBy(fc => FullLoc(fc.parentsList, fc.nodeLoc.loc))
-
-    val initContexts = Vector[FullContext]()
-    val initTransforms = Map[FullLoc, NodeTransform]()
-
-    val (contexts, transforms) =
-      byLoc.foldLeft((initContexts, initTransforms)) { (ct, le) =>
-        val (cont, trans) = ct
-        val (loc, entry) = le
-
-        val (h, t) = (entry.head, entry.tail) // entries cannot be empty as they were obtained by groupBy
-
-        val newContexts = cont :+ h
-        val newTransforms =
-          if (t.isEmpty) trans
-          else {
-            val transFunc = (n: Node) => {
-              val nodes = t.map(_.nodeLoc.node)
-              val times = t.map(_.updateTime)
-              (n +: nodes, times.max) // appending extras
-            }
-            trans + ((loc, transFunc))
-          }
-
-        (newContexts, newTransforms)
+  /** 
+   * Returns the direct updates for the specified path.  The result is unspecified  if the path is not contained
+   * in the zipper.  
+   * @return the time of last update to the path followed by a sequence of the direct update nodes and their update times.  
+   **/
+  private def directUpdatesFor(p: Path): (IndexedSeq[(A,Time)], Time) = {
+    val (indices, time) = pathIndex(p)
+    (indices map {x => (self(x), metas(x)._2)}, time)
+  }
+  
+  /** Applies the node updates to the parent and returns the result. */
+  def unselect(implicit mergeStrategy: ZipperMergeStrategy): DeepZipper[Node] = {
+    //TODO - Should we pull back update times as well as nodes?
+    parentOrError flatMapWithIndex {
+      case (node,index) => pullBack(node, VectorCase(index), mergeStrategy)._1
+    }
+  }
+    
+  /**
+   * Returns the pullback of a path. 
+   * @param node the node that is at the specified path in the zipper's parent
+   * @param path the path
+   * @return the pullback nodes along with the path's latest update time.
+   */
+  private def pullBack(node: Node, path: Path, mergeStrategy: ZipperMergeStrategy): (IndexedSeq[Node], Time) = node match {
+    case elem: Elem if isBeneathPath(path) => {
+      val childPullBacks @ (childGroup, childTime) = pullBackChildren(elem.children, path, mergeStrategy)
+      val indirectUpdate = elem.copy(children = childGroup)
+      if (containsPath(path)) {
+        mergeConflicts(elem, directUpdatesFor(path), (indirectUpdate, childTime), mergeStrategy)
+      } else {
+        (VectorCase(indirectUpdate), childTime)
       }
-    
-    (contexts, transforms)
+    }
+    case _ if containsPath(path) => {
+      val (items, time) = directUpdatesFor(path)
+      (items.map(_._1), time)
+    }
+    case _ => (VectorCase(node), 0)
+  }
+
+  /**
+   * Returns the pullback of the children of a path in the zipper's parent tree. 
+   * @param node the node that is at the specified path in the zipper's parent
+   * @param path the path
+   * @return the pullBacks of the path's children, concatenated together, along with the latest update
+   * time of the child paths.
+   */
+  private def pullBackChildren(nodes: IndexedSeq[Node], path: Path, mergeStrategy: ZipperMergeStrategy): (Group[Node], Time) = {
+    val childPullbacks = nodes.zipWithIndex.map {
+      case (node, index) => pullBack(node, path :+ index, mergeStrategy)
+    }
+    (childPullbacks.flatMap[Node,Group[Node]](_._1), childPullbacks.maxBy(_._2)._2)
   }
   
-  /** The node transforms that should be applied at locations that were removed from the zipper. */
-  private def emptyTransforms: Set[(FullLoc, NodeTransform)] = {
-    def toEmpty(time: Time) = (_: Node) => (Seq[Node](), time) // removing the node for an empty location
-    val res = emptiesSet.map { lt =>
-      val (loc, time) = lt
-      (loc, toEmpty(time))
-    }
-    res
-  }
-  
-  private def toOpt[Coll <: Traversable[_]](xs: Coll): Option[Coll] =
-    if (xs.isEmpty) None else Some(xs) 
-  
-  /** The zipper context grouped by depth in the tree. */
-  private type DepthContext = Map[Int, Seq[FullContext]]
-  /** Node transforms grouped by depth in the tree. */
-  private type DepthTransforms = Map[Int, Map[FullLoc, NodeTransform]]
-
-  /** Merging all the nodes that were updated in the zipper to provide the new
-   *  values after unselection.
-   *
-   *  Contexts and transforms cannot be empty simultaneously.
+  /**
+   * Merges updates at a conflicted node in the tree.  See the unselection algorithm, above, for more information. 
+   * @param node the conflicted node
+   * @param directUpdates the direct updates to `node`.
+   * @param indirectUpdate the indirectUpdate to `node`.
+   * @param mergeStrategy the merge strategy
+   * @return the sequence of nodes to replace `node`, along with an overall update time for `node`.
    */
-  private def mergeContext(context: DepthContext, transforms: DepthTransforms): DeepZipper[Node] = {
-    val maxDepth = getMaxDepth(context, transforms)
-    
-    // having only a single depth, the context is fully merged
-    if (maxDepth == 0) mergeRoot(context, transforms) 
-    else {
-      val (deepestContexts, deepestTransforms) =  (context(maxDepth), transforms(maxDepth))
-      val newDepth = maxDepth - 1 // merging a single level
-      val newDepthSeq = (newDepth, context(newDepth) ++ mergeDepth(deepestContexts, deepestTransforms)) // merging with entries at the new depth
-      
-      // removing old depth, setting the new one
-      val newContext = (context - maxDepth) + newDepthSeq 
-      val newTransforms = transforms - maxDepth
-      mergeContext(newContext, newTransforms)
-    }
+  private def mergeConflicts(node: Elem, directUpdates: (IndexedSeq[(Node,Time)], Time) , indirectUpdate: (Node, Time), mergeStrategy: ZipperMergeStrategy): (IndexedSeq[Node], Time) = {
+    val mergeContext = ZipperMergeContext(original=node, lastDirectUpdate = directUpdates._2, directUpdate = directUpdates._1,
+        indirectUpdate = indirectUpdate)
+     
+    val result = mergeStrategy(mergeContext)
+    (VectorCase.fromSeq(result), math.max(directUpdates._2, indirectUpdate._2))
   }
-
-  /** @return the max depth implied by the given context and transforms (cannot be both empty). */
-  private def getMaxDepth(context: DepthContext, transforms: DepthTransforms) = {
-
-    assert(!(context.isEmpty && transforms.isEmpty), "Cannot merge an empty context")
-
-    val optContext = toOpt(context)
-    val optTransforms = toOpt(transforms)
-
-    val maxFunc = (_: Map[Int, _]).maxBy(_._1)._1 // taking the maximal key from a map
-    val contDepth = optContext map maxFunc
-    val transDepth = optTransforms map maxFunc
-    val depths = contDepth ++ transDepth // not empty as per above assertion
-
-    depths.max
-  }
-
-  /** Taking contexts and transforms at a single depth and merging them into a list
-   *  of contexts at depth -1 from the original.
-   */
-  private def mergeDepth(singleDepthContexts: Seq[FullContext], singleDepthTransforms: Map[FullLoc, NodeTransform]) = {
-    // the following can only be used if [[Elem]] has efficient hashing
-    val contexts = singleDepthContexts.groupBy(_.parentsList) withDefaultValue Seq()
-    val transforms = singleDepthTransforms.groupBy(_._1.parentsList) withDefaultValue Map()
-    
-    val allParents = contexts.keySet ++ transforms.keySet
-    
-    allParents.map(p => mergeParent(p, contexts(p), transforms(p)))
-  }
-
-  /** Taking contexts and transforms under a single parent's list and merging them
-   *  into a single context at the same depth as the lowest parent in the parent's list.
-   */
-  private def mergeParent(parents: ParentsList, contexts: Seq[FullContext], transforms: Map[FullLoc, NodeTransform]) = {
-
-    // The parent list is never empty because the merging stops at the lowest depth.
-    assert(!parents.isEmpty, "Cannot merge under an empty parent.")
-
-    val directParentLoc = parents.head
-    val directParent = directParentLoc.elem
-    val grandParents = parents.tail
-
-    val uniques = uniqueLocations(directParent, parents, contexts)
-    val oldChildren = directParent.children
-    
-    val mergedChildren = mergeOriginalWithContext(oldChildren, uniques)
-    
-    
-    val defaultTransform: NodeTransform = n => (Seq(n), 0)
-
-    // incorporating the transform into the merged children
-    val transformed =
-      for {
-        i <- mergedChildren.indices
-        loc = FullLoc(parents, i)
-        transform <- transforms.get(loc) orElse Some(defaultTransform) // keeping original node
-        node = mergedChildren(i)
-      } yield transform(node)
-    
-    val (nodes, times) = transformed.unzip
-    
-    // the maximal update time inferred from the context object
-    val maxTimeByContext = toOpt(uniques) map (_.maxBy(_.updateTime).updateTime)
-    
-    // the update time of the parent is the maximal time inferred from both contexts and transforms
-    val newUpdateTime = (times ++ maxTimeByContext).max // both cannot be empty otherwise we wouldn't be merging 
-    val newChildren = Group.fromSeq(nodes.flatten)
-
-    val newParent = directParent.copy(children = newChildren)
-    val newParentLoc = NodeLoc(newParent, directParentLoc.loc)
-
-    FullContext(newParentLoc, grandParents, newUpdateTime)
-  }
-
-  /** Taking a sequence of contexts under the given direct parent and the given
-   *  parent's list and merging nodes which represent the same location under the parent.
-   *  @return A list contexts which are all unique under the given parent.
-   */
-  private def uniqueLocations(directParent: Elem, parents: ParentsList, contexts: Seq[FullContext]) = {
-
-    val byLocation = contexts.groupBy(_.nodeLoc.loc) // grouping by nodes by the location in the parent
-    val locationUnique = byLocation.map { entry =>
-      val (loc, context) = entry
-      val origNode = directParent.children(loc) // the node before updates on the zipper
-      val modNodes = context.map(c => (c.nodeLoc.node, c.updateTime))
-
-      val (newNode, updateTime) = mergeDuplicates(origNode, modNodes)
-      FullContext(NodeLoc(newNode, loc), parents, updateTime)
-    }
-    locationUnique
-  }
-
-  /** Merging a depth context at the root level into the original parent. */
-  private def mergeRoot(rootContext: DepthContext, rootTransforms: DepthTransforms): DeepZipper[Node] = {
-    // the identity function for the different mappings
-    val idTransformMap = (n: Node) => Seq(n)
-    val idContextMap = (n: Node) => n
-
-    // mapping functions obtained from contexts	
-    val contextMaps = contextMapFuncs(rootContext: DepthContext) withDefaultValue idContextMap
-    // mapping functions obtained from transforms
-    val transformMaps = transformMapFuncs(rootTransforms) withDefaultValue idTransformMap
-
-    // this function will merge all the zipper's changes into the parent
-    val flatMapFunc = (ni: (Node, Location)) => {
-      val (n, i) = ni
-      val contextMap = contextMaps(i)
-      val transformMap = transformMaps(i)
-      val fullMap = contextMap andThen transformMap
-
-      fullMap(n)
-    }
-
-    parentOrError.flatMapWithIndex(flatMapFunc)
-  }
-  
-  /** Creating the mapping functions that should be applied at the root level implied by the transform functions. */
-  private def transformMapFuncs(rootTransforms: DepthTransforms) = {
-    def liftTransform(tr: NodeTransform) = (n: Node) => tr(n)._1 // removing the time stamp from the transform
-    val mapFuncs = // merging all transform under the same root location and lifting transforms
-      rootTransforms.foldLeft(Map[Location, Node => Seq[Node]]()) { (byLoc, e) =>
-        val (_, fullLocMap) = e
-        val newByLoc =
-          fullLocMap.foldLeft(byLoc) { (transformMap, lt) =>
-            val (FullLoc(_, loc), tr) = lt
-            transformMap.updated(loc, liftTransform(tr))
-          }
-        newByLoc
-      }
-    
-    mapFuncs
-  }
-  
-  /** Creating the mapping functions that should be applied at the root level implied by the context objects. */
-  private def contextMapFuncs(rootContext: DepthContext) = {
-    val flat = rootContext.values.flatten
-    val contextByLoc = flat.groupBy(_.nodeLoc.loc)
-    val uniques = mergeRootDuplicates(contextByLoc).toSeq
-    
-    val mergedSeqByLoc = uniques.groupBy(_.loc)
-    
-    // we are at the root, each location has a single context derived entry 
-    val mergedByLoc = mergedSeqByLoc.mapValues(_.head) // can't fail because of groupBy
-    // mapping each location to the nodes acquired from merging
-    val mergedTransforms = mergedByLoc.mapValues { n =>
-      (_: Node) => n.node
-    }
-    
-    mergedTransforms
-  }
-
-  /** Applying the merging strategy to full contexts at duplicate locations at the root level. */
-  private def mergeRootDuplicates(root: Map[Location, Iterable[FullContext]]) = {
-    val uniques = // merging duplicates
-      root.map { lc =>
-        val (l, c) = lc
-        val orig = parentOrError(l)
-        val alternatives = c.map(fc => (fc.nodeLoc.node, fc.updateTime)).toSeq
-        val (merged, _) = mergeDuplicates(orig, alternatives)
-        NodeLoc(merged, l)
-      }
-    uniques
-  }
-
-  /** Merges an iterable of context objects into the original group representing them. */
-  private def mergeOriginalWithContext(originals: Group[Node], contexts: Iterable[FullContext]) = {
-    mergeWithOriginal(originals, contexts.map(_.nodeLoc))
-  }
-
-  /** Merges an iterable of node locations into the original group representing them. */
-  private def mergeWithOriginal[B >: A <: Node](originals: Group[Node], nodeLocs: Iterable[NodeLoc[B]]) = {
-    val newNodes = nodeLocs.foldLeft(originals) { (oldNodes, nl) =>
-      val NodeLoc(node, loc) = nl
-      oldNodes.updated(loc, node)
-    }
-
-    newNodes
-  }
-
-  /** The merge strategy for the duplicate nodes in the zipper.
-   *
-   *  TODO consider passing it as an implicit to the unselect function, or maybe
-   *  just simple currying
-   */
-  protected val mergeDuplicates: NodeMergeStrategy
 }
 
-/** A factory for [[DeepZipper]] instances.
- *  Zippers may be created directly from groups through [[DeepZipper.groupToZipper]] or
- *  through selection using a [[PathFunction]] with [[DeepZipper.fromPath]]/[[DeepZipper.fromPathFunc]]
- *
- *  By importing the implicits in this object any [[Selectable]] can be pimped with
- *  shallow/deep selection methods, which directly take selectors as input.
- *  TODO examples
- */
 object DeepZipper {
-  import PathCreator._
-
-  /** The number represents the number of the node in its parent's children list.
-   *  In case the node is root, the number is its position in the group to which it belongs.
-   */
-  private[antixml] type Location = Int
-  
-  /** A set of locations nested in parents lists that are empty locations in a zipper 
-   * coupled with their last update time. */
-  private[antixml] type EmptiesSet = Set[(FullLoc, Time)]
-
-  /** Represents a list of a node's parents, where the first item is the direct
-   *  parent of the node, and the last is the root of the tree.
-   */
-  private[antixml] type ParentsList = List[ParentLoc]
-
-  /** The units in which time is measured in the zipper. Assumed non negative. */
-  private[antixml] type Time = Int
     
-  /** A merging function which takes a node, which represents the node before any modifications
-   *  and a sequence of nodes with their corresponding update times,
-   *  which are versions of the same node after some modifications.
-   *
-   *  The function decides how to merge the nodes to produce a single node with corresponding time stamp.
-   *
-   *  It should be taken into account that nodes may be modified directly by the user
-   *  or through mergings from deeper levels.
-   */
-  private[antixml] type NodeMergeStrategy = (Node, Seq[(Node, Time)]) => (Node, Time)
+  import CanBuildFromWithDeepZipper.ElemsWithContext
+  
+  /** The units in which time is measured in the zipper. Assumed non negative. */
+  private type Time = Int
+  
+  /** A top-down path used to represent a location in the Group tree.*/
+  private type Path = VectorCase[Int]
+  
+  private implicit object PathOrdering extends Ordering[Path] {
+    override def compare(x: Path, y: Path) =
+      Ordering.Iterable[Int].compare(x,y)
+  }
   
   implicit def canBuildFromWithDeepZipper[A <: Node] = {
-    new CanBuildFromWithDeepZipper[DeepZipper[_ <: Node], A, DeepZipper[A]] {
-      def builder(parent: Option[DeepZipper[_ <: Node]], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = {
-        Vector.newBuilder[A] mapResult { res =>
-          val nodeContexts = (contexts zip res) map { cn => 
-            val (context, node) = cn
-            import context._
-            val nodeLoc = NodeLoc(node, loc)
-            FullContext(nodeLoc, parentsList, updateTime)
-          }
-          fromContexts(parent, nodeContexts, emptiesSet)
-        }
-      }
-      
-      def apply(parent: Option[DeepZipper[_ <: Node]], contexts: Vector[LocationContext], emptiesSet: EmptiesSet) = {
-        builder(parent, contexts, emptiesSet)
-      }
+    new CanBuildFromWithDeepZipper[Traversable[_], A, DeepZipper[A]] {      
+      override def apply(parent: Option[DeepZipper[Node]]): Builder[ElemsWithContext[A],DeepZipper[A]] = new WithDeepZipperBuilder[A](parent)
     }
   }
   
-  implicit def canBuildFromDeep[A <: Node]: CanBuildFrom[DeepZipper[_ <: Node], A, DeepZipper[A]] = {
-    new CanBuildFrom[DeepZipper[_ <: Node], A, DeepZipper[A]] with CanProduceDeepZipper[DeepZipper[_ <: Node], A, DeepZipper[A]] {
-      def apply(from: DeepZipper[_ <: Node]): Builder[A, DeepZipper[A]] = apply()
+  implicit def canBuildFromDeep[A <: Node]: CanBuildFrom[Group[_], A, DeepZipper[A]] = {
+    new CanBuildFrom[Group[_], A, DeepZipper[A]] with CanProduceDeepZipper[Group[_], A, DeepZipper[A]] {
+      def apply(from: Group[_]): Builder[A, DeepZipper[A]] = apply()
       def apply(): Builder[A, DeepZipper[A]] = DeepZipper.newBuilder[A]
 
       def lift = canBuildFromWithDeepZipper
     }
   }
   
-  def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { vec =>
-    new Group(vec).toZipper
-  }
-
-  /** Converts a contexts into zipper instances.
-   * @param parentGroup The parent of the newly created zipper.
-   * @param contexts The contents of the zipper.
-   * @param empties The set of empty locations in the zipper. */
-  private[antixml] def fromContexts[A <: Node](parentGroup: Option[Group[Node]], contexts: Vector[FullContext[A]], empties: EmptiesSet): DeepZipper[A] = {
-    val vals = VectorCase.fromSeq(contexts map (_.nodeLoc.node))
-    val locs = contexts map (_.nodeLoc.loc)
-    val parents = contexts map (_.parentsList)
-    val newUpdateTimes = contexts map (_.updateTime)
-
-    new Group[A](vals) with DeepZipper[A] {
-      val parentLists = parents
-      val emptiesSet = empties
-      val locations = locs
-      def parent = parentGroup map { _.toZipper }
-      val mergeDuplicates = parent map (_.mergeDuplicates) getOrElse BasicNodeMergeStrategy
-
-      val time = if (newUpdateTimes.isEmpty) 0 else newUpdateTimes.max
-      val updateTimes = newUpdateTimes
+  def newBuilder[A <: Node] = VectorCase.newBuilder[A].mapResult({new Group(_).toZipper})
+  
+  /** Returns a "broken" zipper which contains the specified nodes but cannot be unselected */
+  private[antixml] def brokenZipper[A <: Node](nodes: VectorCase[A]): DeepZipper[A] = {
+    val fakePath = VectorCase(0)
+    new Group[A](nodes) with DeepZipper[A] {
+      override def parent = None      
+      override val time = 0
+      override val metas = constant((fakePath,0), nodes.length)
+      override val pathIndex = SortedMap( fakePath -> (0 until nodes.length, 0))
     }
   }
   
-  /** Converts a path with parent into a zipper.
-   *  @param parentGroup The parent from which the path was created.
-   *  @param path Cannot contain duplicate locations.
+  private def constant[A](a: A, sz: Int) = new IndexedSeq[A] {
+    override def apply(i: Int) = a
+    override def length = sz
+  }
+  
+  /**
+   * The primary builder class used to construct DeepZippers. 
    */
-  private[antixml] def fromPath[A, That](parent: Group[Node], path: Path[A])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], A, That]): That = {
-	 import path._
-	 
-	// this is valid only if the path has no duplicate locations
+  private class WithDeepZipperBuilder[A <: Node](parent: Option[DeepZipper[Node]]) extends Builder[ElemsWithContext[A],DeepZipper[A]] { self =>
+    private val innerBuilder = VectorCase.newBuilder[(Path, Time, A)]
+    private var pathIndex = SortedMap.empty[Path,(IndexedSeq[Int], Time)]
+    private var size = 0
+    private var maxTime = 0
     
-    val builder = cbfwdz(Some(parent), Vector(locs: _*), Set())
-    builder ++= contents
-    
-    builder.result
+    override def += (ewc: ElemsWithContext[A]) = {      
+      val ElemsWithContext(pseq, time, ns) = ewc
+      val path = VectorCase.fromSeq(pseq)
+
+      val items = ns.seq.toSeq.map(x => (path, time, x))(VectorCase.canBuildFrom)
+      innerBuilder ++= items
+      
+      val (oldIndices, oldTime) = pathIndex.getOrElse(path, (VectorCase.empty,0))
+      val (newIndices, newTime) = (math.max(oldTime, time), oldIndices ++ (size until (size + items.length)))
+      pathIndex = pathIndex.updated(path, (newTime,newIndices))
+      
+      size += items.length
+      maxTime = math.max(maxTime, time)
+      this            
+    }
+    override def clear() {
+      innerBuilder.clear()
+      pathIndex = SortedMap.empty
+      size = 0
+      maxTime = 0
+    }
+    override def result(): DeepZipper[A] = {
+      val res = innerBuilder.result()
+      new Group[A](res map {case (_,_,node) => node}) with DeepZipper[A] {
+        override def parent = self.parent      
+        override val time = maxTime
+        override val metas = res map {case (path,time,_) => (path,time)}
+        override val pathIndex = self.pathIndex
+      }
+    }
   }
   
-  /** Converts the nodes gathered from applying the path function to the given group into a `That`. */
-  private[antixml] def fromPathFunc[A, That](parent: Group[Node], path: PathFunction[A])(implicit cbfwdz: CanBuildFromWithDeepZipper[Group[Node], A, That]): That = {
-    fromPath(parent, new Path(path(parent)))
-  }
-
-  /** A location of a node within its parent. */
-  private[antixml] case class NodeLoc[+A <: Node](node: A, loc: Location) 
-  
-  /** Parents can only be [[Elem]]s. */
-  private[antixml] case class ParentLoc(elem: Elem, loc: Location)
-  
-  /** Containing any data. */
-  private[antixml] case class WithLoc[+A](content: A, loc: Location)
-  
-  /** A location of a node under its list of parents. */
-  private[antixml] case class FullLoc(parentsList: ParentsList, loc: Location)
-
-  /** A wrapper for the full context of a [[DeepZipper]] location. */
-  private[antixml] case class FullContext[+A <: Node](
-    nodeLoc: NodeLoc[A], 
-    parentsList: ParentsList,
-    updateTime: Time)
-
-  /** A [[DeepZipper]] context for a location, fully describes its surrounding without specifying the content. */
-  private[antixml] case class LocationContext(
-    /** The location of the context beneath its parent. */
-    loc: Location,
-    parentsList: ParentsList,
-    updateTime: Time)
 }
