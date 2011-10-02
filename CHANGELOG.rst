@@ -5,6 +5,14 @@ CHANGELOG
 0.4
 ===
 
+* **Bug Fixes**
+
+  * `Issue #76`_ – Stack Overflow when loading files
+  
+  
+.. _Issue #67: https://github.com/djspiewak/anti-xml/issues/67
+
+
 0.3
 ===
 
