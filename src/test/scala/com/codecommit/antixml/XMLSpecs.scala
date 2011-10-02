@@ -76,6 +76,11 @@ class XMLSpecs extends Specification {
       val str = "<test><sub1><subsub1><subsubsub1/><subsubsub2/></subsub1></sub1><sub2/><sub3><subsub1/></sub3></test>"
       fromSource(Source fromString str) mustEqual fromString(str)
     }
+    
+    "load large files without difficulty" in {
+      val is = getClass.getResourceAsStream("/discogs_20110201_labels.xml")
+      fromSource(Source fromInputStream is) must not(throwA[StackOverflowError])
+    }
   }
   
   def elem(name: QName, children: Node*) = Elem(name.prefix, name.name, Attributes(), Map(), Group(children: _*))
