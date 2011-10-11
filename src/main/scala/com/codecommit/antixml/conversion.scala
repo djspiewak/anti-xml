@@ -145,7 +145,7 @@ private[antixml] sealed trait SecondPrecedenceConvertables extends ThirdPreceden
       case e: xml.Elem => ElemConvertable(e)
       case a: xml.Atom[String] => TextConvertable(a)
       case r: xml.EntityRef => EntityRefConvertable(r)
-      case g: xml.Group => error("xml.Group should never have been a Node; there is no sane conversion")
+      case g: xml.Group => sys.error("xml.Group should never have been a Node; there is no sane conversion")
     }
   }
 }
