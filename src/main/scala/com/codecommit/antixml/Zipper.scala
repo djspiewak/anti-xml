@@ -55,7 +55,7 @@ import CanBuildFromWithZipper.ElemsWithContext
  * parent by replacing its holes with the nodes from the Zipper, as determined by the replacement map.
  * A formal definition of `unselect` can be found below.
  * 
- * Certain "modify" operations on a `Zipper` will propogate the zipper context to the result.
+ * Certain "modify" operations on a `Zipper` will propagate the zipper context to the result.
  * The new Zipper's `unselect` method can then be viewed as applying
  * these modifications back to the parent tree.  Currently, the following methods 
  * support this propagation of the zipper context:
@@ -67,7 +67,7 @@ import CanBuildFromWithZipper.ElemsWithContext
  * the replacement map to the new Zipper.  The parent and holes of the new Zipper are always the same
  * as those of the original.
  *
- * Of course, propogation is only possible if the result can legally be a `Zipper`.  Replacing a `Node`
+ * Of course, propagation is only possible if the result can legally be a `Zipper`.  Replacing a `Node`
  * with a `String`, for example, will result in an undecorated `IndexedSeq` because the result violates
  * Zipper's type bounds.
  *
@@ -94,8 +94,8 @@ import CanBuildFromWithZipper.ElemsWithContext
  * conflicted holes.  In particular, if modifications to a conflicted element are limited to its top-level properties 
  * (`name`, `attributes`, etc.), then the default strategy will apply those changes while preserving any modifications 
  * made to those descendant nodes also present in the Zipper.  However, if the `children` property of a conflicted element
- * is directly modified, then the default strategy's behavior is formally unspecified.  Currently it uses a hueristic 
- * algortihm to resolve conflicts, but its details may change in a future release.
+ * is directly modified, then the default strategy's behavior is formally unspecified.  Currently it uses a heuristic 
+ * algorithm to resolve conflicts, but its details may change in a future release.
  *
  * Of the [[com.codecommit.antixml.Selectable]] operators, only `\\` is capable of producing conflicts.  
  * The `select`, `\`, and `\\!` operators always produce conflict-free Zippers.

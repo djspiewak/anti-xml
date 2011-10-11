@@ -42,7 +42,7 @@ import scala.collection.immutable.IndexedSeq
  * that explicitly replaced `original` via modifications made to the Zipper.
  * @param lastDirectUpdate &nbsp;the largest update time of any direct update to the hole.  If `directUpdates` is empty, this
  * will indicate the time that the node was removed. 
- * @param indirectUpdate &nbsp;the indirect update for the hole and its associated update time.  This node's decendants contains
+ * @param indirectUpdate &nbsp;the indirect update for the hole and its associated update time.  This node's descendants contains
  * the results of all the updates made to the descendant holes causing the conflict. It's top-level attributes are the 
  * same as those of `original`
  * @see [[com.codecommit.antixml.Zipper]], [[com.codecommit.antixml.ZipperMergeStrategy]]
