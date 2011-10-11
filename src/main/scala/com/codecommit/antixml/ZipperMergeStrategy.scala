@@ -32,15 +32,16 @@ import util.VectorCase
 import scala.collection.immutable.IndexedSeq
 
 /**
- * Defines the merge function used to resolve conflicting updates to a node during zipper unselection.
- * See the description of the unselection algorithm in [[com.codecommit.antixml.Zipper]] for more
- * details.
+ * Defines the merge function used to resolve the behavior of `Zipper.unselect` at conflicted holes..
+ * See [[com.codecommit.antixml.Zipper]] for more details.
  * 
  * The companion object contains some predefined strategies, including the default implicit strategy,
- * `ZipperMergeStrategy.AlwaysLocal`.
+ * `PreferLatest`.
+ *
+ * @see [[com.codecommit.antixml.Zipper]], [[com.codecommit.antixml.ZipperMergeContext]]
  */
 trait ZipperMergeStrategy {
-  /** Returns the sequence of Nodes that should replace the original node for the specified merge context. */
+  /** Returns the sequence of Nodes that should be inserted into the hole for the specified merge context. */
   def apply(context: ZipperMergeContext): Seq[Node]
 }
 
@@ -51,7 +52,7 @@ object ZipperMergeStrategy {
    * Returns a [[com.codecommit.antixml.ZipperMergeStrategy]] obtained by uniformly applying the specified function to each
    * `directUpdate` node in the merge context and concatenating the results.  The function takes the merge context,
    * a directUpdate node and its associated update time as arguments and returns a sequence of replacement nodes.
-   * @see [[[com.codecommit.antixml.Zipper]] 
+   * @see [[com.codecommit.antixml.Zipper]] 
    */
   def uniformlyApply(f: (ZipperMergeContext, Node,Int) => Seq[Node]): ZipperMergeStrategy = new ZipperMergeStrategy() {
     override def apply(context: ZipperMergeContext) = context.directUpdate.flatMap(n => f(context, n._1,n._2))
@@ -63,7 +64,7 @@ object ZipperMergeStrategy {
    * 
    * In other words, if a zipper contains both a node and one of its descendants, then updates to the node
    * are unconditionally ignored and the result of the merge will be based solely on its descendants.
-   * @see [[[com.codecommit.antixml.Zipper]] 
+   * @see [[com.codecommit.antixml.Zipper]] 
    */
   object AlwaysPreferChildren extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = VectorCase(context.indirectUpdate._1)
@@ -76,7 +77,7 @@ object ZipperMergeStrategy {
    * This strategy is mainly listed for the sake of completeness.  In practice, it is preferable to use 
    * a selection operator such as `\\!` which prevents conflicting children from entering the zipper in
    * the first place.
-   * @see [[[com.codecommit.antixml.Zipper]] 
+   * @see [[com.codecommit.antixml.Zipper]] 
    */
   object AlwaysPreferParents extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = context.directUpdate.map(_._1)
@@ -86,16 +87,17 @@ object ZipperMergeStrategy {
    * This strategy unconditionally replaces the "top-level" properties of a node with its direct update
    * but replaces the children of the node with the children of the its indirect update.
    * 
-   * Loosely speaking, this strategy causes `unselect` to only pull back updates to an element's `name`, `prefix`, 
-   * `scope`, and `attributes`.  Updates to children property of an element are simply ignored.  Instead, the 
-   * node's children are either replaced by the result of lower level updates or are left unchanged if this is a non-conflicting node.
+   * Loosely speaking, this strategy causes `unselect` to only pull back updates to the `name`, `prefix`, 
+   * `scope`, and `attributes` of a conflicted element.  Updates to the `children` property of such an element 
+   * are silently ignored.  Instead, the element's children are determined by whatever updates occurred
+   * to the descendant nodes in zipper.
    * 
    * If a node has been multiplied via a `flatMap` operation or the like, then the strategy will be uniformly applied to
    * all of the resulting nodes.  If it has been completely elided, then it will be elided in the result as well.
    * 
    * See also the `RequireLocal` strategy, which behaves similarly except
-   * that it throws an error if it detects changes to an element's `children` property.
-   * @see [[[com.codecommit.antixml.Zipper]] 
+   * that it throws an error if it detects changes to a conflicted element's `children` property.
+   * @see [[com.codecommit.antixml.Zipper]] 
    */
   object AlwaysLocal extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = context.directUpdate map {
@@ -105,12 +107,14 @@ object ZipperMergeStrategy {
   }
   
   /**
-   * This strategy is similar to `RequireLocal` except that it throws an
-   * error if it detects a change to the element's `children` property that would otherwise be ignored.
+   * This strategy is similar to `AlwaysLocal` except that it throws an
+   * error if it detects a change to a conflicted element's `children` property (as opposed
+   * to ignoring the change, as `AlwaysLocal` would).
    * 
-   * The price of this added safety is that the strategy depends on testing for Group equality and thus is potentially less performant
-   * than `RequireLocal`.
-   * @see [[[com.codecommit.antixml.Zipper]] 
+   * The price of this added safety check is that the strategy makes a Group equality check and thus is
+   * potentially less performant than `AlwaysLocal`.
+   *
+   * @see [[com.codecommit.antixml.Zipper]] 
    */
   object RequireLocal extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = context.directUpdate map {
@@ -122,7 +126,7 @@ object ZipperMergeStrategy {
   /**
    * A strategy that simply throws an exception if it is ever invoked.  In other words, the strategy prevents unselection in Zippers
    * that contain conflicts.
-   * @see [[[com.codecommit.antixml.Zipper]] 
+   * @see [[com.codecommit.antixml.Zipper]] 
    */
   object RequireConflictFree extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext): Nothing =
@@ -133,20 +137,19 @@ object ZipperMergeStrategy {
   }
 
   /**
-   * A strategy that prefers later updates to earlier ones.  Note that this strategy is marked as implicit and will be chosen as
-   * the default strategy in the absence of any external implicits of higher priority.
+   * A strategy that prefers later updates to earlier ones.
    * 
    * The strategy is similar to `AlwaysLocal` in that the top-level properties of the
-   * original node are unconditionally replaced by their direct updates.  The difference is in the treatment of the nodes children;
-   * The children of the node are replaced with the children of either its indirect update or its direct update depending on which
-   * update was more recent and on whether the children of each update differ from the children of the original.
+   * original node are unconditionally replaced by their direct updates.  The difference is in the treatment of the children;
+   * They are taken from either the indirect update or the direct update depending on which one
+   * was more recent and on whether the children of each update differ from the children of the original node.
    * 
    * The intent of the strategy is to approximate the notion of preferring the most recent update in case of conflict.  
    * 
    * If a node has been multiplied via a `flatMap` operation or the like, then the strategy will be uniformly applied to
    * all of the resulting nodes.  If it has been completely elided, then it will be elided in the result as well.
    * 
-   * @see [[[com.codecommit.antixml.Zipper]]
+   * @see [[com.codecommit.antixml.Zipper]]
    */
   implicit object PreferLatest extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = {

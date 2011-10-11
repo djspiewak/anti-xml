@@ -32,14 +32,38 @@ import scala.collection.GenTraversableOnce
 import scala.collection.mutable.Builder
 import scala.collection.generic.CanBuildFrom
 
-/** A factory for [[com.codecommit.antixml.Zipper]] instances.
- * This trait is similar to [[scala.collection.mutable.CanBuildFrom]], however its builders accept instances
- * of `ElemsWithContext[Elem]` rather than `Elem` instances.  In addition, its `apply`
- * methods accept an optional reference to the zipper's parent.
+/** A factory for [[com.codecommit.antixml.Zipper]] instances. 
+ *
+ * WARNING: This is a "low-level" trait that was primarily designed for internal
+ * use of the antixml package.  It is tied to the `Zipper` implementation and
+ * could change significantly in a future release.
+ *
+ * This trait is similar to 
+ * [[http://www.scala-lang.org/api/current/scala/collection/generic/CanBuildFrom.html CanBuildFrom]], 
+ * except that it allows a zipper context to be specified in addition to the usual sequence of items.
+ * See the [[com.codecommit.antixml.Zipper]] trait for the definition of "zipper context".
+ *
+ * The [[http://www.scala-lang.org/api/current/scala/collection/mutable/Builder.html Builder]] produced 
+ * by this class accepts objects of type
+ * [[com.codecommit.antixml.CanBuildFromWithZipper.ElemsWithContext]]. These objects
+ * contain the following information:
+ *  - A sequence of items (nodes) to be added to the zipper.
+ *  - A path specifying the hole associated with the above items.
+ *  - An update counter, which indicates the relative order in which the zipper's items were last
+ * updated.  This information is used by some [[com.codecommit.antixml.ZipperMergeStrategy]] 
+ * implementations when resolving conflicts.
+ * 
+ * Note that an `ElemsWithContext` may contain an empty sequence, in which case its path (hole)
+ * is added to zipper context without being associated to any items. Also note that it is legal for 
+ * the same path (hole) to be added to the Builder multiple times.  The resulting Zipper 
+ * will associate ''all'' of the corresponding items to that hole. 
+ *
+ * The parent of the zipper context is specified to the `apply` method of this trait.
  *
  * @tparam From The type of collection that is producing the zipper.
  * @tparam Elem The type of nodes to be contained in the result (if any).
  * @tparam To the type of collection being produced.  
+ * @see [[com.codecommit.antixml.Zipper]]
  */
 trait CanBuildFromWithZipper[-From, -Elem, To] {
   import CanBuildFromWithZipper.ElemsWithContext
@@ -70,18 +94,17 @@ trait CanProduceZipper[-From, A <: Node, To] { this: CanBuildFrom[From, A, _ >: 
 object CanBuildFromWithZipper {
   
   /**
-   * Decorates a sequence of zipper elements with a zipper context and an update time.  This is the
-   * basic unit of information used to construct zippers.  
+   * Decorates a sequence of zipper elements with a path and an update time.  This is the
+   * basic unit of information used to construct zippers.  See  [[com.codecommit.antixml.CanBuildFromWithZipper]]
+   * for more information.
    *
    * @tparam Elem the type of node that will be contained in the zipper.
-   * @param path Identifies a location in the zipper's parent.  The path order is from top to bottom
-   * (the first item specifies the index of a top-level node within the parent).  When building a zipper,
-   * it is legal for multiple ElemsWithContexts to specify the same path;  In such cases, all of the
-   * corresponding Elems will be added to the zipper and they will all be associated with that path.
+   * @param path Identifies a location (known as a "hole") in the zipper's parent.  The order of the
+   * path is from top to bottom (the first item specifies the index of a top-level node in the parent Group).
    * @param updateTime the update time associated with these elements.  One context is considered to have
    * been updated later than another if its updateTime is greater.
-   * @param elements the actual elements to be added to the zipper.  Note that this sequence may be
-   * empty.  This would happen, for example, if `flatMap` operation removed all items for a given path. 
+   * @param elements the actual elements to be added to the zipper.  
+   * @see [[com.codecommit.antixml.CanBuildFromWithZipper]]
    */
   case class ElemsWithContext[+Elem](path: Seq[Int], updateTime: Int, elements: GenTraversableOnce[Elem])
   

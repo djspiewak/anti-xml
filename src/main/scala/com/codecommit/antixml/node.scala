@@ -67,7 +67,7 @@ import java.io.Writer
  sealed trait Node {
   /** 
    * Returns the children of this node. If the node is an [[com.codecommit.antixml.Elem]], 
-   * then this method returns the element's children.  Otherwise, it returns return an empty
+   * then this method returns the element's children.  Otherwise, it returns an empty
    * [[com.codecommit.antixml.Group]].
    */
   def children = Group.empty[Node]
