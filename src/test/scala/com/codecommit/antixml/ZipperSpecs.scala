@@ -586,7 +586,90 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
     }
     
   }
-     
+  
+  "withFilter" should {
+    val anyElem = Selector[Elem]( {case e: Elem => e} )
+    
+    "support forEach" in {
+      val elems = (bookstore \\ anyElem).withFilter(e => e.name != "book")
+      var count = 0
+      elems.foreach { e =>
+        count = count + 1
+        e.name must beOneOf("title", "author")
+      }
+      count mustEqual 7
+    }
+    
+    "support forEach with multiple filters" in {
+      val elems = (bookstore \\ anyElem).withFilter(e => e.name != "book").withFilter(e => e.name != "title")
+      var count = 0
+      elems.foreach { e =>
+        count = count + 1
+        e.name mustEqual("author")
+      }
+      count mustEqual 4
+    }
+    
+    "support map" in {
+      val elems = (bookstore \\ anyElem).withFilter(e => e.name != "book").map({e => e.copy(name=e.name.toUpperCase)})
+      elems.foreach { e =>
+        e.name must beOneOf("TITLE", "AUTHOR")
+      }
+      elems.length mustEqual 7
+    }
+
+    "support map with multiple filters" in {
+      val elems = (bookstore \\ anyElem).withFilter(e => e.name != "book")
+          .withFilter(e => e.name != "title")
+          .map({e => e.copy(name=e.name.toUpperCase)})
+      elems.foreach { e =>
+        e.name mustEqual("AUTHOR")
+      }
+      elems.length mustEqual 4
+    }
+
+    "support flatMap" in {
+      val elems = (bookstore \\ anyElem)
+          .withFilter(e => e.name != "book")
+          .flatMap(e => e :: e :: Nil)
+      elems.foreach { e =>
+        e.name must beOneOf("title", "author")
+      }
+      elems.length mustEqual 14
+    }
+    
+    "support flatMap with multiple filters" in {
+      val elems = (bookstore \\ anyElem)
+          .withFilter(e => e.name != "book")
+          .withFilter(e => e.name != "title")
+          .flatMap(e => e :: e :: Nil)
+      elems.foreach { e =>
+        e.name mustEqual("author")
+      }
+      elems.length mustEqual 8
+    }
+
+    "preserve zipper context after map" in {
+      val elems = (bookstore \\ anyElem).withFilter(e => e.name != "author").map({e => e.copy(name=e.name.toUpperCase)})
+      val result = elems.unselect
+      (result \ 'BOOK).length mustEqual 3
+      (result \ 'book).length mustEqual 0
+      (result \ 'BOOK \ 'TITLE).length mustEqual 3
+      (result \ 'BOOK \ 'title).length mustEqual 0
+      (result \ 'BOOK \ 'AUTHOR).length mustEqual 0
+      (result \ 'BOOK \ 'author).length mustEqual 0
+    }
+    
+    "preserve zipper context after flatMap" in {
+      val elems = (bookstore \ anyElem \ anyElem).withFilter(e => e.name != "author").flatMap(e => e :: e :: Nil)
+      val result = elems.unselect.unselect
+      (result \ 'book).length mustEqual 3
+      (result \ 'book \ 'title).length mustEqual 6
+      (result \ 'book \ 'author).length mustEqual 0
+    }
+
+  }
+  
 
   def validate[Expected] = new {
     def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull

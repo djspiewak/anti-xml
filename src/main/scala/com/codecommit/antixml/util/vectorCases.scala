@@ -125,8 +125,8 @@ private[antixml] case object Vector0 extends VectorCase[Nothing] {
   def +:[B](b: B) = Vector1(b)
   def :+[B](b: B) = Vector1(b)
   
-  def apply(index: Int) = error("Apply on empty vector")
-  def updated[B](index: Int, b: B) = error("Updated on empty vector")
+  def apply(index: Int) = sys.error("Apply on empty vector")
+  def updated[B](index: Int, b: B) = sys.error("Updated on empty vector")
   
   def ++[B](that: VectorCase[B]) = that
   

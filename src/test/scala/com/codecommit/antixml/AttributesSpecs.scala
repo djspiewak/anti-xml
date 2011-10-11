@@ -50,17 +50,50 @@ class AttributesSpecs extends Specification with ScalaCheck with XMLGenerators {
     
     "support addition of qname attrs" in check { (attrs: Attributes, name: QName, value: String) =>
       val attrsSafe = attrs - name
-      val attrs2 = attrsSafe + (name -> value)
+      val attrs2:Attributes = attrsSafe + (name -> value)
       attrs2 must havePairs(attrsSafe.toSeq: _*)
       attrs2 must havePair(name -> value)
     }
-    
-    "support addition of string attrs" in check { (attrs: Attributes, name: String, value: String) =>
+
+    "support addition of string attrs" in check { (attrs: Attributes, x: QName, value: String) =>
+      val name = x.name
       val attrsSafe = attrs - name
-      val attrs2 = attrsSafe + (name -> value)
+      val attrs2:Attributes = attrsSafe + (name -> value)
       attrs2 must havePairs(attrsSafe.toSeq: _*)
       attrs2 must havePair(QName(None, name) -> value)
     }
+
+    "support multiple addition of qname attrs" in check { (attrs: Attributes, n1: QName, v1: String, n2: QName, v2: String, n3: QName, v3: String) =>
+      val attrsSafe = attrs - n1 - n2 - n3
+      val attrs2:Attributes = attrsSafe + (n1 -> v1, n2 -> v2, n3 -> v3)
+      val baseline = Map(attrs.toSeq:_*) + (n1 -> v1, n2 -> v2, n3 -> v3) 
+      attrs2 must havePairs(baseline.toSeq: _*)
+    }
+
+    "support multiple addition of qname attrs" in check { (attrs: Attributes, x1: QName, v1: String, x2: QName, v2: String, x3: QName, v3: String) =>
+      val (n1,n2,n3) = (x1.name,x2.name,x2.name)
+      val attrsSafe = attrs - n1 - n2 - n3
+      val attrs2:Attributes = attrsSafe + (n1 -> v1, n2 -> v2, n3 -> v3)
+      val baseline = Map(attrs.toSeq:_*) + (QName(None,n1) -> v1, QName(None,n2) -> v2, QName(None,n3) -> v3) 
+      attrs2 must havePairs(baseline.toSeq: _*)
+    }
+
+    "support update of qname attrs" in check { (attrs: Attributes, name: QName, value: String) =>
+      val attrsSafe = attrs - name
+      val attrs2:Attributes = attrsSafe.updated(name,value)
+      attrs2 must havePairs(attrsSafe.toSeq: _*)
+      attrs2 must havePair(name -> value)
+    }
+
+    "support update of string attrs" in check { (attrs: Attributes, x: QName, value: String) =>
+      val name = x.name
+      val attrsSafe = attrs - name
+      val attrs2:Attributes = attrsSafe.updated(name,value)
+      attrs2 must havePairs(attrsSafe.toSeq: _*)
+      attrs2 must havePair(QName(None, name) -> value)
+    }
+    
+    
     
     "produce most specific Map with non-String value" in check { attrs: Attributes =>
       val value = new AnyRef
