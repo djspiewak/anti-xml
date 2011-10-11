@@ -77,7 +77,7 @@ private[antixml] object Node {
 
   /* http://www.w3.org/TR/xml/#NT-Char */
   // TODO we are missing codepoints \u10000-\u10FFFF (i.e. those above 16 bits) here
-  val CharRegex = "(\u0009|\u000A|\u000D|[\u0020-\uD7FF]|[\uE000-\uFFFD])*"r
+  val CharRegex = "[\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD]*"r
   
   // TODO we should probably find a way to propagate custom entities from DTDs
   /* http://www.w3.org/TR/xml/#NT-CharData */
