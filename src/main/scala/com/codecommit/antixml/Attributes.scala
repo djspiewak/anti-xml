@@ -29,7 +29,7 @@
 package com.codecommit.antixml
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.immutable.{HashMap, Map, MapLike}
+import scala.collection.immutable.{Map, MapLike}
 import scala.collection.mutable.Builder
 import com.codecommit.antixml.util.OrderPreservingMap
 
@@ -93,6 +93,9 @@ class Attributes private (delegate: OrderPreservingMap[QName, String]) extends M
       throw new IllegalArgumentException("Illegal character in attribute value '" + value + "'")
   }
 
+  @deprecated("Use the factory methods on the Attributes companion instead","0.4")
+  def this(entries: Map[QName, String]) = this(OrderPreservingMap(entries.toSeq:_*))
+  
   override def empty = Attributes.empty
   
   // totally shadowed by the overload; compiler won't even touch it without ascribing a supertype
@@ -200,7 +203,7 @@ object Attributes {
   
   def newBuilder = OrderPreservingMap.newBuilder[QName, String] mapResult { m: OrderPreservingMap[QName, String] => new Attributes(m) }
   
-  val empty = new Attributes(OrderPreservingMap())
+  val empty = new Attributes(OrderPreservingMap.empty[QName,String])
   
   def apply(attrs: (QName, String)*) = if (attrs.isEmpty) empty else new Attributes(OrderPreservingMap(attrs: _*))
 }
