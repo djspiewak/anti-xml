@@ -28,11 +28,10 @@
 
 package com.codecommit.antixml
 
-import scala.collection.generic.CanBuildFrom
 import com.codecommit.antixml.util.VectorCase
+import scala.collection.{IndexedSeqLike, GenTraversableOnce}
+import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 import scala.collection.immutable.{SortedMap, IndexedSeq, Seq}
-import scala.collection.IndexedSeqLike
-import scala.collection.GenTraversableOnce
 import scala.collection.mutable.Builder
 
 import Zipper._
@@ -148,6 +147,22 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
       
       case _ => super.flatMap(f)(cbf)
     }
+  }
+  
+  override def withFilter(f: A => Boolean) = new WithFilter(List(f))
+  
+  class WithFilter(filters: List[A => Boolean]) extends FilterMonadic[A, Zipper[A]] {
+    private[this] def sat(a: A) = filters forall { _(a) }
+    
+    def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Zipper[A], B, That]) =
+      self flatMap {a => if (sat(a)) Seq(f(a)) else Nil } 
+    
+    def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit bf: CanBuildFrom[Zipper[A], B, That]) =
+      self flatMap {a => if (sat(a)) f(a) else Nil}
+    
+    def foreach[B](f: A => B) = self foreach {a => if (sat(a)) f(a)}
+    
+    def withFilter(p: A => Boolean) = new WithFilter(p :: filters)
   }
 
   override def toZipper = this
