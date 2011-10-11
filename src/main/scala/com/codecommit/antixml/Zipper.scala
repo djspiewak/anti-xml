@@ -38,32 +38,87 @@ import scala.collection.mutable.Builder
 import Zipper._
 import CanBuildFromWithZipper.ElemsWithContext
 
-/** A zipper which allows deep selection.
+/** 
+ * Provides an `unselect` operation which copies this Group's nodes back to the XML tree from which
+ * it was derived.See the [[http://anti-xml.org/zippers.html Anti-XML Overview]] for a 
+ * high-level description of this functionality.  
  *
- * ==Unselection Algorithm==
+ * The `Zipper` trait augments a [[com.codecommit.antixml.Group]] with additional immutable state used 
+ * to support the `unselect` method.  This state is known as the "zipper context" and is defined by:
+ *  - A reference to another `Group`, known as the ''parent'' of the Zipper.
+ *  - A set of (possibly deep) locations within the parent, known  
+ *  as the ''holes'' of the Zipper.
+ *  - A mapping from the top-level indices of the Zipper to its holes, known as
+ *  the Zipper's ''replacement map'' 
  * 
- * Let G be a group, and Z be a zipper with G as its parent.  For each node, N, in G (top-level or otherwise), we make
+ * Loosely speaking, the `unselect` method produces an updated version of the 
+ * parent by replacing its holes with the nodes from the Zipper, as determined by the replacement map.
+ * A formal definition of `unselect` can be found below.
+ * 
+ * Certain "modify" operations on a `Zipper` will propagate the zipper context to the result.
+ * The new Zipper's `unselect` method can then be viewed as applying
+ * these modifications back to the parent tree.  Currently, the following methods 
+ * support this propagation of the zipper context:
+ *   - `updated`, `map`, `flatMap`, `filter`, `collect`, `slice`, `drop`, `take`, `splitAt`, and
+ * `unselect` (the latter viewed as a modification of the parent `Zipper`). 
+ *
+ * These operations all provide a natural identification of indices in the new Zipper with
+ * the indices they were derived from in the original.  This identification is used to lift
+ * the replacement map to the new Zipper.  The parent and holes of the new Zipper are always the same
+ * as those of the original.
+ *
+ * Of course, propagation is only possible if the result can legally be a `Zipper`.  Replacing a `Node`
+ * with a `String`, for example, will result in an undecorated `IndexedSeq` because the result violates
+ * Zipper's type bounds.
+ *
+ * ==== Node Multiplication and Elision ====
+ *
+ * A Zipper's replacement map need neither be injective nor surjective.  
+ * Injectivity can fail due to the action of `flatMap`, which replaces a node with a sequence of nodes, 
+ * all of which are associated with the original node's hole. In such cases, `unselect` will replace the hole with the 
+ * entire sequence of nodes mapping to it.  Surjectivity can fail due to any operation that "removes" items 
+ * from the `Zipper`.  If a hole is not associated with any Zipper nodes, then `unselect` will remove that position
+ * from the resulting tree.
+ *
+ * ==== Conflicting Holes ====
+ *
+ * For a given Zipper, a hole, H, is said to be ''conflicted'' if the Zipper contains another hole,
+ * H,,c,, , contained in the subtree at H.  In this case, the Zipper is said to be
+ * ''conflicted at'' H.  A Zipper that does not contain conflicted holes is said to be ''conflict free''. 
+ * Conflicted holes arise when a selection operator yields both a node and one or more of its descendants.
+ * They are of concern because there is no canonical way to specify the behavior of `unselect` at a 
+ * conflicted hole.  Instead, a [[com.codecommit.antixml.ZipperMergeStrategy]], implicitly provided
+ * to `unselect`, is used to resolve the conflict.
+ *
+ * A default ZipperMergeStrategy has been provided that should suffice for the most common use cases involving
+ * conflicted holes.  In particular, if modifications to a conflicted element are limited to its top-level properties 
+ * (`name`, `attributes`, etc.), then the default strategy will apply those changes while preserving any modifications 
+ * made to those descendant nodes also present in the Zipper.  However, if the `children` property of a conflicted element
+ * is directly modified, then the default strategy's behavior is formally unspecified.  Currently it uses a heuristic 
+ * algorithm to resolve conflicts, but its details may change in a future release.
+ *
+ * Of the [[com.codecommit.antixml.Selectable]] operators, only `\\` is capable of producing conflicts.  
+ * The `select`, `\`, and `\\!` operators always produce conflict-free Zippers.
+ *
+ * ====Unselection Algorithm====
+ * 
+ * Let G be a group, and Z be a zipper with G as its parent.  For each location, L, in G (top-level or otherwise), we make
  * the following definitions:
  * 
- *  - N ''lies in'' Z if N was matched by the original selection operation that led to the creation the zipper.
- *  - N ''lies above'' Z if a descendant of N lies in Z
- *  - For any N that lies in Z, the ''direct updates'' for N are the sequence of nodes that replaced N via update operations on the zipper.
- *  - For any N that lies above Z, the ''indirect update'' for N is just N with its children flatMapped with the pullback function (defined below).
- *  - The ''pullback'' of N consists of a sequence of nodes as defined below:
- *    - If N does not lie in Z, then the pullback of N is the singleton sequence consisting of the indirect update for N
- *    - If N lies in Z, but does not lie above Z, then the pullback of N is its direct updates. 
- *    - If N lies in Z ''and'' lies above Z, then the pullback of N is the result of merging its direct updates and its indirect update,
- * according to the [[com.codecommit.antixml.ZipperMergeStrategy]] passed as an implicit parameter to `unselect`.
+ *  - G(L) is the node in G at location L.
+ *  - `children`(L) is the sequence of locations that are immediately below L in G. 
+ *  - L is a ''hole'' if it is in Z's "holes" set.
+ *  - L is ''above a hole'' if some descendant of L is a hole.
+ *  - If L is a hole, the ''direct updates'' for L is the sequence of nodes given by the inverse of Z's replacement map,
+ *  in the order defined by Z.
+ *  - For any L, The ''indirect update'' for L is just G(L) with its children replaced by `children`(L)`.flatMap(pullback)`.
+ *  - For any L, `pullback`(L) is the sequence of nodes given by the following recursive definition:
+ *    - If L is not a hole, then `pullback`(L) is the singleton sequence consisting of the indirect update for L
+ *    - If L is a hole, but is not above a hole, then `pullback`(L) is the direct updates for L.
+ *    - Otherwise, L is conflicted and `pullback`(L) is the result of merging its direct updates and its
+ *    indirect update according to the [[com.codecommit.antixml.ZipperMergeStrategy]] provided to `unselect`.
  *
- * (Strictly speaking, these definitions should be made on the location of N in G rather than on N itself, but we abuse the
- * terminology for the sake of brevity)
- *
- * With the above definitions, the result of `unselect` can be defined simply as G flatMapped with the pullBack function.
- * 
- * The last line in the definition of "pullback" deserves special mention because it defines the only condition under which
- * the [[com.codecommit.antixml.ZipperMergeStrategy]] is invoked. Given zipper Z and parent G, if there exists an N in G such that N lies both in and above Z, 
- * then Z is said to be ''conflicted at N''.  A zipper without such an N then Z is said to be ''conflict free'' and will never invoke
- * a ZipperMergeStrategy during unselection. 
+ * Let T be the sequence of top-level locations in G.  Then `Z.unselect` is defined as `T.flatMap(pullback)`.
  *
  */
 trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { self =>

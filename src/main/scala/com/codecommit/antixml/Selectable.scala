@@ -36,7 +36,7 @@ import scala.collection.immutable.{Vector, VectorBuilder}
 import CanBuildFromWithZipper.ElemsWithContext
 
 trait Selectable[+A <: Node] {
-  import PathCreator.{allChildren, directChildren, PathFunction, PathVal}
+  import PathCreator.{allChildren, directChildren, fromNodes, allMaximalChildren, PathFunction, PathVal}
   
   /**
    * Performs a shallow-select on the XML tree according to the specified selector
@@ -151,6 +151,8 @@ trait Selectable[+A <: Node] {
    * Like `\\`, this performs a depth-first search through the tree.  However, any time 
    * the selector matches a node, it's children are skipped over rather than being searched.
    * Thus, the result is guaranteed to never contain both a node and one of its descendants.
+   * In terms of the [com.codecommit.antixml.Zipper] trait, the result is guaranteed to be
+   * conflict-free.
    *
    * Just as with shallow selection, the very outermost level of the group is not
    * considered in the selection.
@@ -158,8 +160,6 @@ trait Selectable[+A <: Node] {
    * @usecase def \\!(selector: Selector[Node]): Zipper[Node]
    */
   def \\![B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[_ <: Node], B, That]): That = {
-    import Zipper._
-    import PathCreator._
     fromPathFunc(allMaximalChildren(selector), cbfwz)
   }
   
@@ -178,11 +178,19 @@ trait Selectable[+A <: Node] {
    * @usecase def select(selector: Selector[Node]): Zipper[Node]
    */
   def select[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[_ <: Node], B, That]): That = {
-    import Zipper._
-    import PathCreator._
     fromPathFunc(fromNodes(selector),cbfwz)
   }
 
+  /**
+   * Utility method to apply a path function to the group and bundle up the results in a Zipper.
+   *
+   * NOTE: If this method, or something like it, were to be made public then the issue of duplicates
+   * would need to be addressed.  As it stands, Zipper always handles duplicates by concatenating the
+   * corresponding nodes during `unselect`.  That's the right thing to do when duplicates arise from
+   * flatMapping another Zipper, but it may not be the expected behavior from the viewpoint of selection.
+   *
+   * In the current implementation, this method is never called with duplicates, so the question never arises.
+   */
   private def fromPathFunc[B,That](pf: PathFunction[B], cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
     val grp = toGroup
     val bld = cbfwz(Some(toZipper), grp)
