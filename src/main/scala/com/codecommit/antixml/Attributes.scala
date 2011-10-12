@@ -29,7 +29,7 @@
 package com.codecommit.antixml
 
 import scala.collection.generic.CanBuildFrom
-import scala.collection.immutable.{HashMap, Map, MapLike}
+import scala.collection.immutable.{Map, MapLike}
 import scala.collection.mutable.Builder
 import com.codecommit.antixml.util.OrderPreservingMap
 
@@ -85,7 +85,7 @@ import com.codecommit.antixml.util.OrderPreservingMap
  * 
  * @see [[com.codecommit.antixml.QName]]
  */
-class Attributes(delegate: Map[QName, String]) extends Map[QName, String] with MapLike[QName, String, Attributes] {
+class Attributes private (delegate: OrderPreservingMap[QName, String]) extends Map[QName, String] with MapLike[QName, String, Attributes] {
   import Node.CharRegex
 
   for ((name, value) <- delegate) {
@@ -93,10 +93,13 @@ class Attributes(delegate: Map[QName, String]) extends Map[QName, String] with M
       throw new IllegalArgumentException("Illegal character in attribute value '" + value + "'")
   }
 
-  override def empty = new Attributes(Map())
+  @deprecated("Use the factory methods on the Attributes companion instead","0.4")
+  def this(entries: Map[QName, String]) = this(OrderPreservingMap(entries.toSeq:_*))
+  
+  override def empty = Attributes.empty
   
   // totally shadowed by the overload; compiler won't even touch it without ascribing a supertype
-  def +[B >: String](kv: (QName, B)) = delegate + kv
+  def +[B >: String](kv: (QName, B)): Map[QName, B] = delegate + kv
   
   /**
    * Special overload of the `+` method to return `Attributes` rather than
@@ -121,11 +124,47 @@ class Attributes(delegate: Map[QName, String]) extends Map[QName, String] with M
    */
   def +(kv: (QName, String))(implicit d: DummyImplicit) = new Attributes(delegate + kv)
   
+  // totally shadowed by the overload; compiler won't even touch it without ascribing a supertype
+  override def + [B >: String] (kv1: (QName, B), kv2: (QName, B), kvs: (QName, B) *): Map[QName, B] = delegate + (kv1, kv2, kvs:_*)
+  
+  /**
+   * Special overload of the multiple-argument `+` method to return `Attributes` rather than
+   * `Map[QName, String]`.
+   *
+   * See the corresponding overload of single-argument `+` for more details.
+   *
+   * @usecase def +(kv1: (QName, String), kv2: (QName, String), kvs: (QName, String) *): Attributes
+   */
+  def +(kv1: (QName, String), kv2: (QName, String), kvs: (QName, String) *)(implicit d: DummyImplicit) = new Attributes(delegate + (kv1,kv2,kvs:_*))
+  
+  
+  // totally shadowed by the overload; compiler won't even touch it without ascribing a supertype
+  override def updated [B >: String](key: QName, value: B): Map[QName, B] = this + ((key, value))
+
+  /**
+   * Special overload of the `updated` method to return `Attributes` rather than
+   * `Map[QName, String]`.  
+   *
+   * See the corresponding overload of single-argument `+` for more details.
+   *
+   * @usecase def updated(key: QName, value: String): Attributes
+   */
+  def updated(key: QName, value: String)(implicit d: DummyImplicit) = new Attributes(delegate.updated(key,value))
+  
+  
   def -(key: QName) = new Attributes(delegate - key)
   
   def iterator = delegate.iterator
   
   def get(key: QName) = delegate get key
+  
+  //The following two overrides are recommended by MapLike for efficiency:  
+  override def size: Int = delegate.size
+  
+  override def foreach[U] (f:((QName,String)) => U) {
+    delegate.foreach(f)
+  }
+  
 }
 
 /**
@@ -162,9 +201,9 @@ object Attributes {
     def apply(from: Attributes) = apply()
   }
   
-  def newBuilder = OrderPreservingMap.newBuilder[QName, String] mapResult { m: Map[QName, String] => new Attributes(m) }
+  def newBuilder = OrderPreservingMap.newBuilder[QName, String] mapResult { m: OrderPreservingMap[QName, String] => new Attributes(m) }
   
-  val empty = new Attributes(OrderPreservingMap())
+  val empty = new Attributes(OrderPreservingMap.empty[QName,String])
   
   def apply(attrs: (QName, String)*) = if (attrs.isEmpty) empty else new Attributes(OrderPreservingMap(attrs: _*))
 }

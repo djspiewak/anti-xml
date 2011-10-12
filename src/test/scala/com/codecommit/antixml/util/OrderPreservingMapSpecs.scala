@@ -86,7 +86,7 @@ trait OrderPreservingMapSpecs extends Specification with ScalaCheck {
         val (map, expect) = ((buildMap(e),e.entries) /: ops) { (itm, op) =>
           val (m,e) = itm
           op match {
-            case Add(k,v) => (m + (k,v), updateEntry(e,k,v))
+            case Add(k,v) => (m + ((k,v)), updateEntry(e,k,v))
             case Remove(k) => (m - k, removeEntry(e, k))
           }
         }

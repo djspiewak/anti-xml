@@ -119,7 +119,7 @@ object ZipperMergeStrategy {
   object RequireLocal extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext) = context.directUpdate map {
       case (e:Elem, _) if (e.children==context.original.children) => e.copy(children=context.indirectUpdate._1.children)
-      case n => error("A conflict has been detected in the following node that cannot be resolved by the RequireLocal merge strategy:\n" + n)
+      case n => sys.error("A conflict has been detected in the following node that cannot be resolved by the RequireLocal merge strategy:\n" + n)
     }
   }
 
@@ -130,7 +130,7 @@ object ZipperMergeStrategy {
    */
   object RequireConflictFree extends ZipperMergeStrategy {
     override def apply(context: ZipperMergeContext): Nothing =
-      error("A node and one or more of its descendents were contained in the same zipper.\n" +
+      sys.error("A node and one or more of its descendents were contained in the same zipper.\n" +
           "Possible fixes include either using a different merge strategy or using a different selection\n" +
           "operator.\n"+
           context.original)
