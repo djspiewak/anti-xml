@@ -5,9 +5,16 @@ CHANGELOG
 0.4
 ===
 
+* ``Attributes#updated`` and ``Attributes#+`` now return ``Attributes`` rather
+  than ``Map``
+
+  * Note that ``attrs + ("a", "b")`` wil no longer compile.  Use ``attrs + (("a", "b"))``
+    instead
+
+* ``Attributes`` now always order-preserving
 * **Bug Fixes**
 
-  * `Issue #76`_ – Stack Overflow when loading files
+  * `Issue #67`_ – Stack Overflow when loading files
   
   
 .. _Issue #67: https://github.com/djspiewak/anti-xml/issues/67
