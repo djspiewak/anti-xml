@@ -38,11 +38,12 @@ class Project(info: ProjectInfo) extends DefaultProject(info) with Eclipsify wit
 
   val scalaCheck = {
     val scalacheckCrossVersion = crossScalaVersionString match {
-      case "2.9.1" => "2.9.1.RC3"
+      case "2.8.2" => "2.8.1"
       case v => v
     }
     val scalacheckVersion = crossScalaVersionString match {
       case "2.8.1" => "1.8"
+      case "2.8.2" => "1.8"
       case _ => "1.9"
     }
     "org.scala-tools.testing" % ("scalacheck_" + scalacheckCrossVersion) % scalacheckVersion % "test" withSources
