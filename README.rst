@@ -42,7 +42,7 @@ Usage
 =====
 
 The Maven artifact descriptor for the latest *stable* version of
-Anti-XML is as follows: ``com.codecommit:anti-xml_2.8.1:0.2``.  We also regularly
+Anti-XML is as follows: ``com.codecommit:anti-xml_2.9.1:0.3``.  We also regularly
 push ``-SNAPSHOT`` releases to the Scala-Tools_ "snapshots" repository, for all
 five of you who like to live dangerously.  You should be able to use this
 descriptor to easily add Anti-XML as a dependency to any project with a
@@ -53,18 +53,18 @@ build systems.
 
 **SBT**::
   
-    val antiXML = "com.codecommit" %% "anti-xml" % "0.2"
+    val antiXML = "com.codecommit" %% "anti-xml" % "0.3"
   
 **Buildr**::
   
-    compile.with "com.codecommit:anti-xml_#{Scala.version}:jar:0.2"
+    compile.with "com.codecommit:anti-xml_#{Scala.version}:jar:0.3"
   
 **Maven2**::
   
     <dependency>
       <groupId>com.codecommit</groupId>
-      <artifactId>anti-xml_2.8.1</artifactId>
-      <version>0.2</version>
+      <artifactId>anti-xml_2.9.1</artifactId>
+      <version>0.3</version>
     </dependency>
     
   
