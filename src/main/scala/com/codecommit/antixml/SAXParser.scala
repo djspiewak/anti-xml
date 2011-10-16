@@ -31,7 +31,7 @@ package com.codecommit.antixml
 import org.xml.sax._
 
 import java.io.{InputStream, Reader, StringReader}
-import javax.xml.parsers.SAXParserFactory
+import javax.xml.parsers.{SAXParserFactory, SAXParser => JSAXParser}
 
 import scala.io.Source
 
@@ -40,8 +40,18 @@ import scala.io.Source
  * API as [[com.codecommit.antixml.StAXParser]], but the runtime performance is
  * on the order of 13% slower.  The SAX2 event handler used under the surface is
  * part of the public API in the form of [[com.codecommit.antixml.NodeSeqSAXHandler]].
+ * 
+ * @param factory optional parameter of a function that return a javax.xml.parsers.SAXParser.
+ *                The returned parser should be both validating and namespace aware.  Be wary of
+ *                thread safety if the specified function reuses SAXParserFactory or SAXParser
+ *                instances.
  */
-class SAXParser extends XMLParser {
+class SAXParser(factory: () => JSAXParser = () => { 
+                  val factory = SAXParserFactory.newInstance
+                  factory.setValidating(true)
+                  factory.setNamespaceAware(true)
+		  factory.newSAXParser
+	        }) extends XMLParser {
   def fromString(str: String): Elem =
     fromInputSource(new InputSource(new StringReader(str)))
   
@@ -52,11 +62,7 @@ class SAXParser extends XMLParser {
     fromInputSource(new InputSource(reader))
 
   def fromInputSource(source: InputSource): Elem = {
-    val factory = SAXParserFactory.newInstance
-    factory.setValidating(true)
-    factory.setNamespaceAware(true)
-    
-    val parser = factory.newSAXParser
+    val parser = factory()
     val handler = new NodeSeqSAXHandler
     parser.parse(source, handler)
     
