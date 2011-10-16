@@ -46,12 +46,7 @@ import scala.io.Source
  *                thread safety if the specified function reuses SAXParserFactory or SAXParser
  *                instances.
  */
-class SAXParser(factory: () => JSAXParser = () => { 
-                  val factory = SAXParserFactory.newInstance
-                  factory.setValidating(true)
-                  factory.setNamespaceAware(true)
-		  factory.newSAXParser
-	        }) extends XMLParser {
+class SAXParser(factory: (() => JSAXParser) = SAXParser.makeDefaultParser) extends XMLParser {
   def fromString(str: String): Elem =
     fromInputSource(new InputSource(new StringReader(str)))
   
@@ -67,5 +62,14 @@ class SAXParser(factory: () => JSAXParser = () => {
     parser.parse(source, handler)
     
     handler.result().head   // safe because anything else won't validate
+  }
+}
+
+private object SAXParser {
+  def makeDefaultParser() = {
+    val factory = SAXParserFactory.newInstance
+    factory.setValidating(true)
+    factory.setNamespaceAware(true)
+    factory.newSAXParser
   }
 }
