@@ -27,11 +27,47 @@
  */
 
 package com.codecommit.antixml
+package performance
 
-object Performance {
+import javax.xml.parsers.DocumentBuilderFactory
 
-  def main(args: Array[String]) {
-    performance.Performance.main(args)
-  }
+trait LoadTrial {self: Trial =>
+  def xmlResource: java.net.URL
+  def sizeDescription: String
   
+  class Inst extends self.TrialInstance[Any] {
+    override def resultDescription(a: Any) = XmlCounts(a).report
+    override def testDataDescription = "file size is %d bytes".format(from(xmlResource)(LoadTrial.countBytes))
+    
+    object SAXParser extends SAXParser
+    object StAXParser extends StAXParser
+
+    val antiXml = implemented by "anti-xml" in {
+      from(xmlResource) {SAXParser.fromInputStream(_)}
+    }
+    val antiXmlStAX = implemented by "anti-xml StAX" in {
+      from(xmlResource) {StAXParser.fromInputStream(_)}
+    }
+    val scalaXml = implemented by "scala.xml" in {
+      from(xmlResource) {scala.xml.XML.load(_)}
+    }
+    val javaXml = implemented by "javax.xml" in {
+      from(xmlResource) {DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(_)}
+    }
+    
+    /** Defines the impls that will be used for the size measurements */
+    def sizeMeasurements: Seq[Implementation[_,_]] = Seq(antiXml, scalaXml, javaXml)
+  }
+  def create:Inst = new Inst
+}
+
+object LoadTrial {
+  def countBytes(is: java.io.InputStream): Long = {
+    var count: Long = 0
+    while(is.read() >=0 ) {
+      count += 1
+      count += is.skip(100000000L)
+    }
+    count
+  }
 }
