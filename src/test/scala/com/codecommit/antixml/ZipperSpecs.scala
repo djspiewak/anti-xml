@@ -916,6 +916,26 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
     }
   }
 
+  "Zipper.unselect" should {
+    "only modify the update times of nodes that receive updates" in {
+      val xml = <top><a><b /></a></top>.convert
+      val z = xml \\ *
+      
+      //Conflicting updates.  Second node has latest update time.
+      val z1 = z.updated(0,elem("a",elem("c")))
+      val z2 = z1.updated(1,elem("b2"))  
+      
+      //Make an update to the first node only through a child zipper
+      val zInner = z2 select 'a
+      val zInner1 = zInner.updated(0, zInner(0).asInstanceOf[Elem].copy(name="A"))
+      val z3 = zInner1.unselect
+ 
+      z2.unselect mustEqual <top><a><b2 /></a></top>.convert.toGroup
+      z3.unselect mustEqual <top><A><c /></A></top>.convert.toGroup
+
+    }
+  }
+  
   def validate[Expected] = new {
     def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull
   }
