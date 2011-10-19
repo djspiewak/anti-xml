@@ -83,12 +83,12 @@ trait ShallowSelectionTrial extends SelectionTrial {self: Trial =>
     val javaXml = implemented by "javax.xml" preload domTree in {xml =>
       applySelections(JavaNodeSeqWithIndexedSeq.wrap(xml.getChildNodes)) { (x,s) => x \ s }
     }
-    val antiXmlNB = implemented by "anti-xml - no bloom" preload antiTree in { xml =>
-      applySelections(xml.toGroup) { (x,s) => x \ noBloom(s) }
-    }
     val antiXmlNZ = implemented by "anti-xml - no zipper" preload antiTree in { xml =>
       val cbfwz = withoutZipperContext[Elem]
       applySelections(xml.toGroup) { (x,s) => x.\(s)(cbfwz) }
+    }
+    val antiXmlNB = implemented by "anti-xml - no bloom" preload antiTree in { xml =>
+      applySelections(xml.toGroup) { (x,s) => x \ noBloom(s) }
     }
   }
   def create: Inst

@@ -159,7 +159,7 @@ trait Selectable[+A <: Node] {
    *
    * @usecase def \\!(selector: Selector[Node]): Zipper[Node]
    */
-  def \\![B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[_ <: Node], B, That]): That = {
+  def \\![B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
     fromPathFunc(allMaximalChildren(selector), cbfwz)
   }
   
@@ -177,7 +177,7 @@ trait Selectable[+A <: Node] {
    *
    * @usecase def select(selector: Selector[Node]): Zipper[Node]
    */
-  def select[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[_ <: Node], B, That]): That = {
+  def select[B, That](selector: Selector[B])(implicit cbfwz: CanBuildFromWithZipper[Group[A], B, That]): That = {
     fromPathFunc(fromNodes(selector),cbfwz)
   }
 
