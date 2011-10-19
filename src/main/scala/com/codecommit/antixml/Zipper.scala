@@ -277,11 +277,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
             else {
               val replacements = fval.get
               if (replacements.lengthCompare(1)==0) {
-                val newNode = replacements.head
-                if (newNode eq node)
-                  update(z, index + 1)
-                else 
-                  update(z.updated(index, replacements.head), index + 1)
+                update(z.updated(index, replacements.head), index + 1)
               } else {
                 build(z, replacements, index)
               }
@@ -300,8 +296,12 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
           b += ElemsWithContext(metas(index)._1, z.time+1,currentReplacements)
           for(i <- (index + 1) until nodes.length) {
             val n = nodes(i)
+            val m = metas(i)
             val fv = f(n,i)
-            b += ElemsWithContext(metas(i)._1, z.time + 1 + i - index, fv.getOrElse(util.Vector1(n)))
+            if (fv.isDefined)
+              b += ElemsWithContext(m._1, z.time + 1 + i - index, fv.get)
+            else
+              b += ElemsWithContext(m._1, m._2, util.Vector1(n))
           }
           for((p,t) <- additionalHoles) {
             b += ElemsWithContext(p,t,util.Vector0)

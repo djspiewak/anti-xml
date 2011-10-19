@@ -818,6 +818,44 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
       rc.length mustEqual 200
       rc.toVectorCase mustEqual z2.toVectorCase
     }
+    
+    "only increase the update time of nodes being changed" in {
+      val xml = <top><a><b /></a></top>.convert
+      val z = xml \\ *
+      
+      //Conflicting updates.  Second node has latest update time.
+      val z1 = z.updated(0,elem("a",elem("c")))
+      val z2 = z1.updated(1,elem("b2"))  
+      
+      //Use CFMWI to update first node only, giving it the latest update time.
+      val z3 = z2.conditionalFlatMapWithIndex {(e,i) => i match {
+        case 0  => Some(Seq(e))
+        case _  => None
+      }}
+ 
+      z2.unselect mustEqual <top><a><b2 /></a></top>.convert.toGroup
+      z3.unselect mustEqual <top><a><c /></a></top>.convert.toGroup
+    }
+    
+    "only increase the update time of nodes being changed 2" in {
+      val xml = <top><x /><a><b /></a></top>.convert
+      val z = xml \\ *
+      
+      //Conflicting updates.  Last node has latest update time.
+      val z1 = z.updated(1,elem("a",elem("c")))
+      val z2 = z1.updated(2,elem("b2"))  
+      
+      //Use CFMWI to delete the first node (forcing it to stop using its optimistic strategy)
+      //and then update the second node to give it the latest update time.
+      val z3 = z2.conditionalFlatMapWithIndex {(e,i) => i match {
+        case 0  => Some(Seq())
+        case 1  => Some(Seq(e))
+        case _  => None
+      }}
+
+      z2.unselect mustEqual <top><x/><a><b2 /></a></top>.convert.toGroup
+      z3.unselect mustEqual <top><a><c /></a></top>.convert.toGroup
+    }
   }
   
   "Zipper.slice" should {

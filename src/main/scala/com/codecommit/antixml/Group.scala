@@ -194,7 +194,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
             if (newNode eq node)
               update(g, index + 1)
             else 
-              update(g.updated(index, replacements.head), index + 1)
+              update(g.updated(index, newNode), index + 1)
           } else {
             build(g, replacements, index)
           }
