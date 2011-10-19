@@ -936,6 +936,25 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
     }
   }
   
+  "Zipper.flatMap" should {
+    "increase update times front to back" in {
+      val xml = <top><a><b /></a></top>.convert
+      val z = xml \\ *
+      
+      //Conflicting updates.  First node has latest update time.
+      val z1 = z.updated(1,elem("b2"))  
+      val z2 = z1.updated(0,elem("a",elem("c")))
+      
+      //Apply a flatMap, which will make the second node have the latest update time
+      val z3 = z2 flatMap {n => Seq(n)}
+ 
+      z2.unselect mustEqual <top><a><c /></a></top>.convert.toGroup
+      z3.unselect mustEqual <top><a><b2 /></a></top>.convert.toGroup
+
+    }
+  }
+  
+  
   def validate[Expected] = new {
     def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull
   }

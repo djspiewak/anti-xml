@@ -217,7 +217,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
       val b = cpz.lift(parent, this)
       for(i <- 0 until nodes.length) {
         val (path,time) = metas(i)
-        b += ElemsWithContext(path, time, f(nodes(i)))
+        b += ElemsWithContext(path, time+i+1, f(nodes(i)))
       }
       for ((path,time) <- additionalHoles) {
         b += ElemsWithContext[B](path,time,util.Vector0)
