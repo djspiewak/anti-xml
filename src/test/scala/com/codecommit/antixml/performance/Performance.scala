@@ -59,7 +59,8 @@ object Performance {
       ShallowZipperOps,
       DeepZipperOps,
       HugeZipperOps,
-      HugeDeadZipperOps
+      HugeDeadZipperOps,
+      HugeZipperWithEmptyHolesOps
       )
   
   /* === Load trials === */
@@ -246,4 +247,14 @@ object Performance {
     override def unselectCount = 0
   }
   
+  object HugeZipperWithEmptyHolesOps extends Trial('zipperHugeFiltered, "operations on a BIG zipper that was partially filtered") with ZipperOpsTrial {
+    override val classifiers = Set('zipperOps, 'shallow, 'small)
+    override def xmlResource = getClass.getResource("/spending.xml")
+    override def createZipper(xml: Elem) = {
+      val z = xml \\ anyElem
+      z.slice(z.length/4, z.length/4 + z.length/2)
+    }
+    
+    override def unselectCount = 1
+  }
 }

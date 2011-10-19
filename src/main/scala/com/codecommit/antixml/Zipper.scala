@@ -29,9 +29,10 @@
 package com.codecommit.antixml
 
 import com.codecommit.antixml.util.VectorCase
-import scala.collection.{IndexedSeqLike, GenTraversableOnce}
+import scala.annotation.tailrec
+import scala.collection.{immutable, mutable, IndexedSeqLike, GenTraversableOnce}
 import scala.collection.generic.{CanBuildFrom, FilterMonadic}
-import scala.collection.immutable.{SortedMap, IndexedSeq, Seq}
+import scala.collection.immutable.{SortedMap, IndexedSeq}
 import scala.collection.mutable.Builder
 
 import Zipper._
@@ -138,40 +139,59 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
    *   - A method such as `++`, is used to "add" nodes to a zipper without replacing existing nodes. 
    *   
    **/
-  def parent: Option[Zipper[Node]]
+  val parent: Option[Zipper[Node]]
   
   private def parentOrError = parent getOrElse sys.error("Root has no parent")
 
   /** Context information corresponding to each node in the zipper. */
-  protected def metas: IndexedSeq[(Path, Time)]
+  protected def metas: VectorCase[(ZipperPath, Time)]
 
-  /** 
-   * Information corresponding to each path in the zipper. The map's values consist of the indices of the corresponding nodes, 
-   * along with a master update time for the path.  An empty sequence indicates the path has been elided and should be 
-   * removed upon `unselect`.  In this case, the update time indicates the time of elision.
-   * 
-   * The map is sorted lexicographically by the path primarily to facilitate the `isBeneathPath` method.
-   */
-  protected def pathIndex: SortedMap[Path,(IndexedSeq[Int], Time)]
-
+  /** Additional (path,time) pairs associated with the zipper.  This is mainly used to
+    * keep track of holes that have had all of their correpsonding nodes deleted, but
+    * it's fine for it to contain paths that are also associated with nodes.  During
+    * unselect, each hole will be associated with the latest associated update time 
+    * found in this list or in `metas`.
+    */
+  protected def additionalHoles: immutable.Seq[(ZipperPath,Time)]
+  
   override protected[this] def newBuilder = Zipper.newBuilder[A]
   
-  override def updated[B >: A <: Node](index: Int, node: B): Zipper[B] = {
-    val updatedTime = time + 1
-    val (updatedPath,_) = metas(index)
-    val (updatePathIndices,_) = pathIndex(updatedPath)
-    
-    new Group(super.updated(index, node).toVectorCase) with Zipper[B] {
-      def parent = self.parent
-      val time = updatedTime      
-      val metas = self.metas.updated(index, (updatedPath, updatedTime))
-      val pathIndex = self.pathIndex.updated(updatedPath,(updatePathIndices, updatedTime))
+  override def updated[B >: A <: Node](index: Int, node: B): Zipper[B] = parent match {
+    case Some(_) => {
+      val updatedTime = time + 1
+      val (updatedPath,_) = metas(index)
+      
+      new Group(nodes.updated(index, node)) with Zipper[B] {
+        val parent = self.parent
+        val time = updatedTime      
+        val metas = self.metas.updated(index, (updatedPath, updatedTime))
+        val additionalHoles = self.additionalHoles
+      }
     }
+    case None => brokenZipper(nodes.updated(index,node))
   }
 
-  override def slice(from: Int, until: Int): Zipper[A] = flatMapWithIndex {
-    case (e, i) if i >= from && i < until => VectorCase(e)
-    case (e, _) => VectorCase()
+  override def slice(from: Int, until: Int): Zipper[A] = parent match {
+    case Some(_) => {
+      val lo = math.min(math.max(from, 0), nodes.length)
+      val hi = math.min(math.max(until, lo), nodes.length)
+      val cnt = hi - lo
+      
+      val ahs = new AdditionalHolesBuilder()
+      ahs ++= additionalHoles
+      for(i <- 0 until lo)
+        ahs += ((metas(i)._1, time + 1 + i))
+      for(i <- hi until nodes.length)
+        ahs += ((metas(i)._1, time + 1 + i - cnt))
+      
+      new Group(nodes.slice(from,until)) with Zipper[A] {
+        val parent = self.parent
+        val time = self.time + self.length - cnt
+        val metas = self.metas.slice(from,until)
+        val additionalHoles = ahs.result()
+      }
+    }
+    case None => brokenZipper(nodes.slice(from,until))
   }
    
   override def drop(n: Int) = slice(n, size)
@@ -192,15 +212,23 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
     flatMap(liftedF)(cbf)
   }
 
-  override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = {
-    cbf match {
-      // subtypes of this are the only expected types, hence ignoring type erasure
-      case cbf: CanProduceZipper[Zipper[A], B, That] => {
-        val liftedF = (x: (A, Int)) => f(x._1)
-        flatMapWithIndex(liftedF)(cbf.lift)
+  override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = cbf match {
+    case cpz: CanProduceZipper[Zipper[A], B, That] if parent.isDefined => {
+      val b = cpz.lift(parent, this)
+      for(i <- 0 until nodes.length) {
+        val (path,time) = metas(i)
+        b += ElemsWithContext(path, time, f(nodes(i)))
       }
-      
-      case _ => super.flatMap(f)(cbf)
+      for ((path,time) <- additionalHoles) {
+        b += ElemsWithContext[B](path,time,util.Vector0)
+      }
+      b.result()
+    }
+    case _ => {
+      val b = cbf(this)
+      for(n <- nodes)
+        b ++= f(n).seq
+      b.result()
     }
   }
   
@@ -228,107 +256,160 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
    */
   def stripZipper = new Group(toVectorCase)
   
-  /** A specialized flatMap where the mapping function receives the index of the 
-   * current element as an argument. */
-  private def flatMapWithIndex[B, That](f: ((A, Int)) => GenTraversableOnce[B])(implicit cbfwdz: CanBuildFromWithZipper[Zipper[A], B, That]): That = {
-    val result = toVector.zipWithIndex map {x => (f(x),x._2)}
-    
-    val builder = cbfwdz(parent, this)
-    for ( (items, index) <- result) {
-      val (path, _) = metas(index)
-      builder += ElemsWithContext[B](path, time+index+1, items)
-    }
-    //Add any paths that had been previously emptied out.  (TODO - Can optimize this)
-    for ( (path,(inds,time)) <- pathIndex) {
-      if (inds.isEmpty)
-        builder += ElemsWithContext[B](path,time,VectorCase.empty)
-    }
-    builder.result
-  }
-
-  /** Returns true iff the specified path is one of the contexts maintained by the zipper. */
-  private[antixml] def containsPath(p: Path) = pathIndex.contains(p)
-  
-  /** Returns true iff the specified path is the ancestor of one of the contexts maintained by the zipper. */
-  private[antixml] def isBeneathPath(p: Path) = {
-    //This would be easier if OrderedMap had a variant of the `from` method that was exclusive.
-    val ifp = pathIndex.keySet.from(p)
-    val result = for {
-      h <- ifp.headOption
-      h2 <- if (h != p) Some(h) else ifp.take(2).tail.headOption
-    } yield h2.startsWith(p) && h2.length != p.length
-    result.getOrElse(false)    
-  }
-
-  /** 
-   * Returns the direct updates for the specified path.  The result is unspecified  if the path is not contained
-   * in the zipper.  
-   * @return the time of last update to the path followed by a sequence of the direct update nodes and their update times.  
-   **/
-  private def directUpdatesFor(p: Path): (IndexedSeq[(A,Time)], Time) = {
-    val (indices, time) = pathIndex(p)
-    (indices map {x => (self(x), metas(x)._2)}, time)
+  /**
+   * Optionally replaces each node with 0 to many nodes. Used by `unselect`.  See same-named function in `Group` for more details.
+   */
+  private [antixml] override def conditionalFlatMapWithIndex[B >: A <: Node] (f: (A, Int) => Option[scala.collection.Seq[B]]): Zipper[B] = {
+    /* See the Group implementation for information about how this function is optimized. */ 
+    parent match {
+      case None => brokenZipper(new Group(nodes).conditionalFlatMapWithIndex(f).nodes)
+      case Some(_) => {
+        //Optimistic function that uses `update`
+        @tailrec
+        def update(z: Zipper[B], index: Int): Zipper[B] = {
+          if (index>=z.length)
+            z
+          else {
+            val node = nodes(index)
+            val fval = f(node, index)
+            if (!fval.isDefined)
+              update(z,index + 1)
+            else {
+              val replacements = fval.get
+              if (replacements.lengthCompare(1)==0) {
+                val newNode = replacements.head
+                if (newNode eq node)
+                  update(z, index + 1)
+                else 
+                  update(z.updated(index, replacements.head), index + 1)
+              } else {
+                build(z, replacements, index)
+              }
+            }
+          }
+        }
+        
+        //Fallback function that uses a builder
+        def build(z: Zipper[B], currentReplacements: Seq[B], index: Int): Zipper[B] = {
+          val b = newZipperContextBuilder[B](parent)
+          
+          for(i <- 0 until index) {
+            val (p,t) = z.metas(i)
+            b += ElemsWithContext(p,t,util.Vector1(z(i)))
+          }
+          b += ElemsWithContext(metas(index)._1, z.time+1,currentReplacements)
+          for(i <- (index + 1) until nodes.length) {
+            val n = nodes(i)
+            val fv = f(n,i)
+            b += ElemsWithContext(metas(i)._1, z.time + 1 + i - index, fv.getOrElse(util.Vector1(n)))
+          }
+          for((p,t) <- additionalHoles) {
+            b += ElemsWithContext(p,t,util.Vector0)
+          }
+          
+          b.result      
+        }
+        
+        update(this, 0)
+      }
+    }    
   }
   
   /** Applies the node updates to the parent and returns the result. */
-  def unselect(implicit mergeStrategy: ZipperMergeStrategy): Zipper[Node] = {
-    //TODO - Should we pull back update times as well as nodes?
-    parentOrError flatMapWithIndex {
-      case (node,index) => pullBack(node, VectorCase(index), mergeStrategy)._1
-    }
-  }
+  def unselect(implicit zms: ZipperMergeStrategy): Zipper[Node] = 
+    new Unselector(zms).unselect 
+  
+  /** Utility class to perform unselect.  */
+  private[this] class Unselector(mergeStrategy: ZipperMergeStrategy) {
     
-  /**
-   * Returns the pullback of a path. 
-   * @param node the node that is at the specified path in the zipper's parent
-   * @param path the path
-   * @return the pullback nodes along with the path's latest update time.
-   */
-  private def pullBack(node: Node, path: Path, mergeStrategy: ZipperMergeStrategy): (IndexedSeq[Node], Time) = node match {
-    case elem: Elem if isBeneathPath(path) => {
-      val childPullBacks @ (childGroup, childTime) = pullBackChildren(elem.children, path, mergeStrategy)
-      val indirectUpdate = elem.copy(children = childGroup)
-      if (containsPath(path)) {
-        mergeConflicts(elem, directUpdatesFor(path), (indirectUpdate, childTime), mergeStrategy)
+    /** Each hole is associated with a list of node/time pairs as well as a master update time */
+    type HoleInfo = ZipperHoleMap[(VectorCase[(A,Time)],Time)]
+    
+    private val topLevelHoleInfo: HoleInfo = {
+      val init:(VectorCase[(A,Time)],Time) = (util.Vector0,0)
+      val hm0: HoleInfo = ZipperHoleMap.empty
+      val hm1 = (hm0 /: (0 until self.length)) { (hm, i) =>
+        val item = self(i)
+        val (path,time) = metas(i)
+        val (oldItems, oldTime) = hm.getDeep(path).getOrElse(init)
+        val newItems = oldItems :+ (item, time)
+        val newTime = math.max(oldTime, time)
+        hm.updatedDeep(path, (newItems, newTime))
+      }
+      (hm1 /: additionalHoles) { case (hm,(path,time)) =>
+        val (oldItems, oldTime) = hm.getDeep(path).getOrElse(init)
+        val newTime = math.max(oldTime, time)
+        hm.updatedDeep(path, (oldItems, newTime))
+      }
+    }
+    
+    /** Applies the node updates to the parent and returns the result. */
+    def unselect: Zipper[Node] = 
+      pullBackGroup(parentOrError, topLevelHoleInfo)._1.asInstanceOf[Zipper[Node]]
+    
+    /**
+     * Returns the pullback of the nodes in the specified group.
+     * @param nodes the group containing the nodes to pull back.
+     * @param holeInfo the HoleInfo corresponding to the group.
+     * @return the pullBacks of the groups children, concatenated together, along with the latest update
+     * time.
+     */
+    private[this] def pullBackGroup(nodes: Group[Node], holeInfo: HoleInfo): (Group[Node], Time) = {
+      var mxt: Int = 0
+      val updatedGroup = nodes.conditionalFlatMapWithIndex[Node] { (node,index) => node match {
+        case elem:Elem if (holeInfo.hasChildrenAt(index)) => {
+          val (newNodes, time) = pullUp(elem, index, holeInfo)
+          mxt = math.max(mxt,time)
+          Some(newNodes)
+        }
+        case _ if holeInfo.contains(index) => {
+          val (newNodes, time) = holeInfo(index)
+          mxt = math.max(mxt, time)
+          Some(newNodes.map {_._1})
+        }
+        case _ => None
+      }}
+      (updatedGroup,mxt)
+    }
+    
+    /**
+     * Returns the pullback of an element that is known to be above a hole (and thus has
+     * child updates that need to be pulled up).
+     *
+     * @param elem the element
+     * @param indexInParent the index of the element in its parent
+     * @param holeInfo the HoleInfo corresponding to the parent group
+     * @return the pulled back nodes and their combined update time
+     *
+     * @note assumes `holeInfo.hasChildrenAt(indexInParent) == true`
+     */
+    private[this] def pullUp(elem: Elem, indexInParent: Int, holeInfo: HoleInfo): (VectorCase[Node], Time) = {
+      //Recursively pull back children 
+      val (childGrp, childTime) = pullBackGroup(elem.children, holeInfo.children(indexInParent))
+      val indirectUpdate = elem.copy(children = childGrp)
+      if (holeInfo.contains(indexInParent)) {
+        //This is a conflicted hole, so merge.
+        mergeConflicts(elem, holeInfo(indexInParent), (indirectUpdate, childTime))
       } else {
+        //No conflicts, just let the child updates bubble up
         (VectorCase(indirectUpdate), childTime)
       }
     }
-    case _ if containsPath(path) => {
-      val (items, time) = directUpdatesFor(path)
-      (items.map(_._1), time)
+ 
+    /**
+     * Merges updates at a conflicted node in the tree.  See the unselection algorithm, above, for more information. 
+     * @param node the conflicted node
+     * @param directUpdates the direct updates to `node`.
+     * @param indirectUpdate the indirectUpdate to `node`.
+     * @return the sequence of nodes to replace `node`, along with an overall update time for `node`.
+     */
+    private def mergeConflicts(node: Elem, directUpdates: (IndexedSeq[(Node,Time)], Time) , indirectUpdate: (Node, Time)): (VectorCase[Node], Time) = {
+      val mergeContext = ZipperMergeContext(original=node, lastDirectUpdate = directUpdates._2, directUpdate = directUpdates._1,
+          indirectUpdate = indirectUpdate)
+       
+      val result = mergeStrategy(mergeContext)
+      (VectorCase.fromSeq(result), math.max(directUpdates._2, indirectUpdate._2))
     }
-    case _ => (VectorCase(node), 0)
-  }
-
-  /**
-   * Returns the pullback of the children of a path in the zipper's parent tree. 
-   * @param node the node that is at the specified path in the zipper's parent
-   * @param path the path
-   * @return the pullBacks of the path's children, concatenated together, along with the latest update
-   * time of the child paths.
-   */
-  private def pullBackChildren(nodes: IndexedSeq[Node], path: Path, mergeStrategy: ZipperMergeStrategy): (Group[Node], Time) = {
-    val childPullbacks = nodes.zipWithIndex.map {
-      case (node, index) => pullBack(node, path :+ index, mergeStrategy)
-    }
-    (childPullbacks.flatMap[Node,Group[Node]](_._1), childPullbacks.maxBy(_._2)._2)
-  }
-  
-  /**
-   * Merges updates at a conflicted node in the tree.  See the unselection algorithm, above, for more information. 
-   * @param node the conflicted node
-   * @param directUpdates the direct updates to `node`.
-   * @param indirectUpdate the indirectUpdate to `node`.
-   * @param mergeStrategy the merge strategy
-   * @return the sequence of nodes to replace `node`, along with an overall update time for `node`.
-   */
-  private def mergeConflicts(node: Elem, directUpdates: (IndexedSeq[(Node,Time)], Time) , indirectUpdate: (Node, Time), mergeStrategy: ZipperMergeStrategy): (IndexedSeq[Node], Time) = {
-    val mergeContext = ZipperMergeContext(original=node, lastDirectUpdate = directUpdates._2, directUpdate = directUpdates._1,
-        indirectUpdate = indirectUpdate)
-     
-    val result = mergeStrategy(mergeContext)
-    (VectorCase.fromSeq(result), math.max(directUpdates._2, indirectUpdate._2))
   }
 }
 
@@ -339,17 +420,9 @@ object Zipper {
   /** The units in which time is measured in the zipper. Assumed non negative. */
   private type Time = Int
   
-  /** A top-down path used to represent a location in the Group tree.*/
-  private type Path = VectorCase[Int]
-  
-  private implicit object PathOrdering extends Ordering[Path] {
-    override def compare(x: Path, y: Path) =
-      Ordering.Iterable[Int].compare(x,y)
-  }
-  
   implicit def canBuildFromWithZipper[A <: Node] = {
     new CanBuildFromWithZipper[Traversable[_], A, Zipper[A]] {      
-      override def apply(parent: Option[Zipper[Node]]): Builder[ElemsWithContext[A],Zipper[A]] = new WithZipperBuilder[A](parent)
+      override def apply(parent: Option[Zipper[Node]]) = newZipperContextBuilder(parent)
     }
   }
   
@@ -362,63 +435,101 @@ object Zipper {
     }
   }
   
-  def newBuilder[A <: Node] = VectorCase.newBuilder[A].mapResult({new Group(_).toZipper})
+  /** Returns a builder that produces a zipper without a parent */
+  def newBuilder[A <: Node] = VectorCase.newBuilder[A].mapResult(brokenZipper(_))
+
+  /** Returns a builder that produces a zipper with a full zipper context */
+  private def newZipperContextBuilder[A <: Node](parent: Option[Zipper[Node]]) = parent match {
+    case Some(_) => new WithZipperBuilder[A](parent)
+    case None => brokenZipperBuilder[A]
+  }
   
   /** Returns a "broken" zipper which contains the specified nodes but cannot be unselected */
   private[antixml] def brokenZipper[A <: Node](nodes: VectorCase[A]): Zipper[A] = {
-    val fakePath = VectorCase(0)
     new Group[A](nodes) with Zipper[A] {
-      override def parent = None      
+      override val parent = None      
       override val time = 0
-      override val metas = constant((fakePath,0), nodes.length)
-      override val pathIndex = SortedMap( fakePath -> (0 until nodes.length, 0))
+      override val metas = null //Should never be accesseed
+      override val additionalHoles = null //Should never be accessed
     }
   }
   
-  private def constant[A](a: A, sz: Int) = new IndexedSeq[A] {
-    override def apply(i: Int) = a
-    override def length = sz
-  }
-  
+  /** Ignores context and builds a "broken" zipper */
+  private def brokenZipperBuilder[A <: Node]: Builder[ElemsWithContext[A],Zipper[A]] = 
+    CanBuildFromWithZipper.identityCanBuildFrom(VectorCase.canBuildFrom[A])(None) mapResult(brokenZipper(_))
+
   /**
    * The primary builder class used to construct Zippers. 
    */
   private class WithZipperBuilder[A <: Node](parent: Option[Zipper[Node]]) extends Builder[ElemsWithContext[A],Zipper[A]] { self =>
-    private val innerBuilder = VectorCase.newBuilder[(Path, Time, A)]
-    private var pathIndex = SortedMap.empty[Path,(IndexedSeq[Int], Time)]
+    
+    import scala.collection.mutable.HashMap
+    
+    private val itemsBuilder = VectorCase.newBuilder[A]
+    private val metasBuilder = VectorCase.newBuilder[(ZipperPath,Time)]
+    private val additionalHolesBuilder = new AdditionalHolesBuilder()
     private var size = 0
     private var maxTime = 0
     
     override def += (ewc: ElemsWithContext[A]) = {      
       val ElemsWithContext(pseq, time, ns) = ewc
-      val path = VectorCase.fromSeq(pseq)
-
-      val items = ns.seq.toSeq.map(x => (path, time, x))(VectorCase.canBuildFrom)
-      innerBuilder ++= items
+      val path: ZipperPath = ZipperPath.fromSeq(pseq)
+      val pathTime = (path, time)
       
-      val (oldIndices, oldTime) = pathIndex.getOrElse(path, (VectorCase.empty,0))
-      val (newIndices, newTime) = (math.max(oldTime, time), oldIndices ++ (size until (size + items.length)))
-      pathIndex = pathIndex.updated(path, (newTime,newIndices))
+      var nsz = 0
+      for(n <- ns) {
+        itemsBuilder += n
+        metasBuilder += pathTime
+        nsz += 1
+      }
+      if (nsz==0) {
+        additionalHolesBuilder += pathTime
+      }
       
-      size += items.length
+      size += nsz
       maxTime = math.max(maxTime, time)
       this            
     }
     override def clear() {
-      innerBuilder.clear()
-      pathIndex = SortedMap.empty
+      itemsBuilder.clear()
+      metasBuilder.clear()
+      additionalHolesBuilder.clear()
       size = 0
       maxTime = 0
     }
     override def result(): Zipper[A] = {
-      val res = innerBuilder.result()
-      new Group[A](res map {case (_,_,node) => node}) with Zipper[A] {
-        override def parent = self.parent      
+      val itemsResult = itemsBuilder.result()
+      val metasResult = metasBuilder.result()
+      val additionalHolesResult = additionalHolesBuilder.result()
+      maxTime = math.max(maxTime, size)
+      
+      new Group[A](itemsResult) with Zipper[A] {
+        override val parent = self.parent      
         override val time = maxTime
-        override val metas = res map {case (path,time,_) => (path,time)}
-        override val pathIndex = self.pathIndex
+        override val metas = metasResult
+        override val additionalHoles = additionalHolesResult
       }
     }
   }
   
+  /** Builder for the `additionalHoles` list.  This builder ensures that the result has at most one
+   *  entry for any given ZipperPath.  Although this isn't necessary for correctness, it ensures that
+   *  the `additionalHoles` list remains bounded in size by the total number of holes.
+   */
+  private class AdditionalHolesBuilder extends Builder[(ZipperPath,Time), immutable.Seq[(ZipperPath,Time)]] {0
+    private val hm = mutable.HashMap[ZipperPath,Time]()
+   
+    def += (elem: (ZipperPath,Time)) = {
+      val (p,t) = elem
+      val t2 = hm.getOrElse(p,0)
+      hm.put(p,math.max(t,t2))
+      this
+    }
+    def clear() {
+      hm.clear
+    }
+    def result = 
+      if (hm.size==0) util.Vector0 
+      else (VectorCase.newBuilder[(ZipperPath,Time)] ++= hm).result
+  }
 }

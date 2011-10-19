@@ -223,6 +223,52 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       
       func(xml) mustEqual xml
     }
+    
+    "foreach should traverse group" in check { (xml: Group[Node]) =>
+      val b = Vector.newBuilder[Node]
+      xml foreach {b += _}
+      val v = b.result
+      val results = for(i <- 0 until xml.length) yield v(i) mustEqual xml(i)
+      (v.length mustEqual xml.length) +: results
+    }
+  }
+  
+  "Group.conditionalFlatMapWithIndex" should {
+    
+    "work with simple replacements" in check { (xml: Group[Node]) =>
+      def f(n: Node, i: Int): Option[Seq[Node]] = n match {
+        case n if (i & 1) == 0 => None
+        case e: Elem => Some(Seq(e.copy(name=e.name.toUpperCase)))
+        case n => None
+      }
+      val cfmwi = xml.conditionalFlatMapWithIndex(f)
+      val equiv = xml.zipWithIndex.flatMap {case (n,i) => f(n,i).getOrElse(Seq(n))}
+      
+      Seq(
+        Vector(cfmwi:_*) mustEqual Vector(equiv:_*),
+        cfmwi.length mustEqual xml.length
+      )
+    }
+    
+    "work with complex replacements" in check { (xml: Group[Node]) =>
+      def f(n: Node, i: Int): Option[Seq[Node]] = n match {
+        case n if (i & 1) == 0 => None
+        case _ if (i & 2) == 0 => Some(Seq())
+        case e: Elem => Some(Seq(e.copy(name=e.name+"MODIFIED"), e, e))
+        case n => Some(Seq(n, n, n))
+      }
+      val cfmwi = xml.conditionalFlatMapWithIndex(f)
+      val equiv = xml.zipWithIndex.flatMap {case (n,i) => f(n,i).getOrElse(Seq(n))}
+      
+      val expectedDels = (xml.length + 2) >>> 2
+      val expectedTripples = (xml.length) >>> 2
+      val expectedLength = xml.length - expectedDels + 2*expectedTripples
+      
+      Seq(
+        Vector(cfmwi:_*) mustEqual Vector(equiv:_*),
+        cfmwi.length mustEqual expectedLength
+      )
+    }
   }
 
   "canonicalization" should {

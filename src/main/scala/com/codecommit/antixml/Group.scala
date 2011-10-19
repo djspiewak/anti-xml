@@ -32,6 +32,7 @@ package antixml
 import util._
 
 import scala.annotation.unchecked.uncheckedVariance
+import scala.annotation.tailrec
 
 import scala.collection.{IndexedSeqLike, TraversableLike, GenTraversableOnce}
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
@@ -132,6 +133,10 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   override def head = nodes.head
   
+  override def foreach[U](f: A => U) {
+    nodes.foreach(f)
+  }
+  
   override def init = new Group(nodes.init)
   
   override def iterator = nodes.iterator
@@ -154,6 +159,67 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   override def take(n: Int) = new Group(nodes take n)
   
   override def takeRight(n: Int) = new Group(nodes takeRight n)
+
+  /** Optionally replaces each node with 0 to many nodes.
+   *  
+   *  This is used by `Zipper.unselect` to update groups.  It is an optimized version of:
+   *
+   * {{{
+   * group.zipWithIndex.flatMap {case (n,i) => f(n,i).getOrElse(Seq(group(i))) }
+   * }}}
+   *
+   */
+  private [antixml] def conditionalFlatMapWithIndex[B >: A <: Node] (f: (A, Int) => Option[Seq[B]]): Group[B] = {
+    /*
+     * The key observation is that most of the time we are only updating a few of the group's nodes.
+     * So instead of rebuilding a Group from scratch, we try to just call `updated` on the nodes
+     * that are changing.  However, we must fall back to a complete rebuild if we discover
+     * a node being replaced by 0 or many nodes.
+     */
+    
+    //Optimistic function that uses `update`
+    @tailrec
+    def update(g: VectorCase[B], index: Int): VectorCase[B] = {
+      if (index>=g.length)
+        g
+      else {
+        val node = nodes(index)
+        val fval = f(node, index)
+        if (!fval.isDefined)
+          update(g,index + 1)
+        else {
+          val replacements = fval.get
+          if (replacements.lengthCompare(1)==0) {
+            val newNode = replacements.head
+            if (newNode eq node)
+              update(g, index + 1)
+            else 
+              update(g.updated(index, replacements.head), index + 1)
+          } else {
+            build(g, replacements, index)
+          }
+        }
+      }
+    }
+    
+    //Fallback function that uses a builder
+    def build(g: VectorCase[B], currentReplacements: Seq[B], index: Int): VectorCase[B] = {
+      val b = VectorCase.newBuilder[B] ++= g.view.take(index)
+      b ++= currentReplacements
+      for(i <- (index + 1) until g.length) {
+        val n = nodes(i)
+        val fv = f(n,i)
+        if (fv.isDefined)
+          b ++= fv.get
+        else
+          b += n
+      }
+      b.result      
+    }
+
+    
+    new Group(update(nodes, 0))
+  }
   
   /**
    * Merges adjacent [[com.codecommit.antixml.Text]] as well as adjacent

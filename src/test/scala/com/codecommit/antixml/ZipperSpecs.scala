@@ -670,6 +670,213 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
 
   }
   
+  "Zipper.conditionalFlatMapWithIndex" should {
+    
+    "work with simple replacements" in check { (xml: Group[Node]) =>
+      val zipper = xml select *
+      def f(n: Node, i: Int): Option[Seq[Node]] = n match {
+        case n if (i & 1) == 0 => None
+        case e: Elem => Some(Seq(e.copy(name=e.name.toUpperCase)))
+        case n => None
+      }
+      val cfmwi = zipper.conditionalFlatMapWithIndex(f)
+      val equiv = xml.zipWithIndex.flatMap {case (n,i) => f(n,i).getOrElse(Seq(n))}
+      
+      Seq(
+        Vector(cfmwi:_*) mustEqual Vector(equiv:_*),
+        cfmwi.length mustEqual xml.length
+      )
+    }
+    
+    "work with complex replacements" in check { (xml: Group[Node]) =>
+      def f(n: Node, i: Int): Option[Seq[Node]] = n match {
+        case n if (i & 1) == 0 => None
+        case _ if (i & 2) == 0 => Some(Seq())
+        case e: Elem => Some(Seq(e.copy(name=e.name+"MODIFIED"), e, e))
+        case n => Some(Seq(n, n, n))
+      }
+      val zipper = xml select *
+      val cfmwi = zipper.conditionalFlatMapWithIndex(f)
+      val equiv = xml.zipWithIndex.flatMap {case (n,i) => f(n,i).getOrElse(Seq(n))}
+      
+      val expectedDels = (xml.length + 2) >>> 2
+      val expectedTripples = (xml.length) >>> 2
+      val expectedLength = xml.length - expectedDels + 2*expectedTripples
+      
+      Seq(
+        Vector(cfmwi:_*) mustEqual Vector(equiv:_*),
+        cfmwi.length mustEqual expectedLength
+      )
+    }
+    
+    "preserve zipper context with simple replacements" in {
+      def f(t: Text, i: Int): Option[Seq[Text]] = {
+        if ((i&1)==0) None else Some(Seq(Text(t.text + i)))
+      }
+      val texts = Group.fromSeq(for (i <- 0 until 100) yield Text(i.toString))
+      val elems = for(t <- texts) yield elem("Text"+t.text,t)
+
+      val zipper = elems \ textNode(".*".r)      
+      zipper.toVectorCase mustEqual texts.toVectorCase //sanity check
+      
+      val z2 = zipper.conditionalFlatMapWithIndex(f)
+      z2.length mustEqual 100
+      z2.toVectorCase mustEqual zipper.toVectorCase.zipWithIndex.flatMap {
+        case (t,i) => f(t,i).getOrElse(Seq(t))
+      }
+      
+      val result = z2.unselect      
+      result.length mustEqual 100
+      result.forall(_.children.length == 1) must beTrue
+      
+      val rc = result flatMap {n => n.children}
+      Vector(rc:_*) mustEqual Vector(z2:_*) 
+    }
+    
+    "preserve zipper context with complex replacements" in {
+      //Replaces every 4 nodes with 5 nodes
+      def f(t: Text, i: Int): Option[Seq[Text]] = {
+        if ((i&1)==0) None 
+        else if ((i&2)==0) Some(Seq(t,t,t))
+        else Some(Seq())
+      }
+
+      val texts = Group.fromSeq(for (i <- 0 until 100) yield Text(i.toString))
+      val elems = for(t <- texts) yield elem("Text"+t.text,t)
+    
+      val zipper = elems \ textNode(".*".r)      
+      zipper.toVectorCase mustEqual texts.toVectorCase //sanity check
+      
+      val z2 = zipper.conditionalFlatMapWithIndex(f)
+      z2.length mustEqual 125
+      z2.toVectorCase mustEqual zipper.toVectorCase.zipWithIndex.flatMap {
+        case (t,i) => f(t,i).getOrElse(Seq(t))
+      }
+      
+      val result = z2.unselect
+      result.length mustEqual 100
+
+      val rc = result flatMap {n => n.children}
+      rc.length mustEqual 125      
+      rc.toVectorCase mustEqual z2.toVectorCase
+    }
+    
+    "preserve zipper context with complex replacements and empty holes" in {
+      //Replaces every 4 nodes with 5 nodes
+      def f(t: Text, i: Int): Option[Seq[Text]] = {
+        if ((i&1)==0) None 
+        else if ((i&2)==0) Some(Seq(t,t,t))
+        else Some(Seq())
+      }
+      
+      val texts = Group.fromSeq(for (i <- 0 until 200) yield Text(i.toString))
+      val elems = for(t <- texts) yield elem("Text"+t.text,t)
+
+      val zipper = elems \ textNode(".*".r)      
+      zipper.toVectorCase mustEqual texts.toVectorCase //sanity check
+
+      val z2 = zipper.slice(50,150).conditionalFlatMapWithIndex(f)
+      z2.length mustEqual 125
+      z2.toVectorCase mustEqual zipper.toVectorCase.slice(50,150).zipWithIndex.flatMap {
+        case (t,i) => f(t,i).getOrElse(Seq(t))
+      }
+      
+      val result = z2.unselect      
+      result.length mustEqual 200      
+      result.slice(0,50).forall(_.children.isEmpty) must beTrue
+      result.slice(150,200).forall(_.children.isEmpty) must beTrue
+      
+      val rc = result flatMap {n => n.children}
+      rc.length mustEqual 125
+      rc.toVectorCase mustEqual z2.toVectorCase
+    }
+    
+    "preserve zipper context with  half simple, half complex" in {
+      def f(t: Text, i: Int): Option[Seq[Text]] = {
+        if (i<25) None
+        else if (i<50) Some(Seq(Text(t.text.toUpperCase)))
+        else Some(Seq(t,t,t))
+      }
+      
+      val texts = Group.fromSeq(for (i <- 0 until 100) yield Text(i.toString))
+      val elems = for(t <- texts) yield elem("Text"+t.text,t)
+
+      val zipper = elems \ textNode(".*".r)      
+      zipper.toVectorCase mustEqual texts.toVectorCase //sanity check
+      
+      val z2 = zipper.conditionalFlatMapWithIndex(f)
+      z2.length mustEqual 200
+      z2.toVectorCase mustEqual zipper.toVectorCase.zipWithIndex.flatMap {
+        case (t,i) => f(t,i).getOrElse(Seq(t))
+      }
+      
+      val result = z2.unselect      
+      result.length mustEqual 100
+      result.slice(0,50).forall(_.children.length == 1) must beTrue
+      
+      val rc = result flatMap {n => n.children}
+      rc.length mustEqual 200
+      rc.toVectorCase mustEqual z2.toVectorCase
+    }
+  }
+  
+  "Zipper.slice" should {
+    val texts = Group.fromSeq(for (i <- 0 until 100) yield Text(i.toString))
+    val elems = for(t <- texts) yield elem("Text"+t.text,t)
+    val zipper = elems \ textNode(".*".r)     
+    
+    "match the behavior of Group.slice for ranges in bounds" in check { (from: Int, to: Int) =>
+      val f = (from & Int.MaxValue) % zipper.length
+      val t = (to & Int.MaxValue) % zipper.length
+      zipper.slice(f,t).toVectorCase mustEqual texts.slice(f,t).toVectorCase
+    }
+    "match the behavior of Group.slice for any range" in check { (f: Int, t: Int) =>
+      zipper.slice(f,t).toVectorCase mustEqual texts.slice(f,t).toVectorCase
+    }
+    
+    "update the zipper context correctly for ranges in bounds" in check { (from: Int, to: Int) =>
+      val f = (from & Int.MaxValue) % zipper.length
+      val t = (to & Int.MaxValue) % zipper.length
+      
+      val unselected = zipper.slice(f,t).unselect
+      unselected.length mustEqual elems.length
+      
+      val uc = unselected flatMap {n => n.children}      
+      uc.toVectorCase mustEqual texts.slice(f,t).toVectorCase
+    }
+    
+    "update the zipper context correctly for any range" in check { (f: Int, t: Int) =>      
+      val unselected = zipper.slice(f,t).unselect
+      unselected.length mustEqual elems.length
+      
+      val uc = unselected flatMap {n => n.children}      
+      uc.toVectorCase mustEqual texts.slice(f,t).toVectorCase
+    }
+    
+    "update the zipper context correctly for multiple slices" in check { (f1: Int, t1: Int, f2: Int, t2: Int) =>
+      
+      val unselected = zipper.slice(f1,t1).slice(f2,t2).unselect
+      unselected.length mustEqual elems.length
+      
+      val uc = unselected flatMap {n => n.children}      
+      uc.toVectorCase mustEqual texts.slice(f1,t1).slice(f2,t2).toVectorCase
+    }
+    
+    "update the zipper context correctly for multiple slices in bounds" in check { (from1: Int, to1: Int, from2: Int, to2: Int) =>
+      val f1 = (from1 & Int.MaxValue) % zipper.length
+      val t1 = (to1 & Int.MaxValue) % zipper.length
+      val slice1 = zipper.slice(f1,t1)
+      
+      val f2 = if (slice1.length == 0) 0 else (from2 & Int.MaxValue) % slice1.length
+      val t2 = if (slice1.length == 0) 0 else (to2 & Int.MaxValue) % slice1.length
+      
+      val unselected = slice1.slice(f2,t2).unselect
+      unselected.length mustEqual elems.length
+      
+      val uc = unselected flatMap {n => n.children}      
+      uc.toVectorCase mustEqual texts.slice(f1,t1).slice(f2,t2).toVectorCase
+    }
+  }
 
   def validate[Expected] = new {
     def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull
@@ -680,5 +887,9 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
 
   def elem(name: String) = Elem(None, name, Attributes(), Map(), Group())
   def elem(name: String, children: Node*) = Elem(None, name, Attributes(), Map(), Group(children: _*))
+  
+  def textNode(s: scala.util.matching.Regex) = Selector[Text]({
+    case t: Text if s.pattern.matcher(t.text).matches() => t
+  })
 
 }

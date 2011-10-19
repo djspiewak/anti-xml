@@ -132,6 +132,8 @@ private[antixml] case object Vector0 extends VectorCase[Nothing] {
   
   override def iterator = Iterator.empty
   
+  override def foreach[U](f: Nothing => U) {}
+  
   def toVector = Vector()
 }
 
@@ -164,6 +166,10 @@ private[antixml] case class Vector1[+A](_1: A) extends VectorCase[A] {
       VectorN(_1 +: that.toVector)
   }
   
+  override def foreach[U](f: A => U) {
+    f(_1)
+  }
+
   // TODO more methods
   
   def toVector = Vector(_1)
@@ -195,6 +201,11 @@ private[antixml] case class Vector2[+A](_1: A, _2: A) extends VectorCase[A] {
       VectorN(Vector(_1, _2) ++ that.toVector)
   }
   
+  override def foreach[U](f: A => U) {
+    f(_1)
+    f(_2)
+  }
+
   // TODO more methods
   
   def toVector = Vector(_1, _2)
@@ -227,6 +238,12 @@ private[antixml] case class Vector3[+A](_1: A, _2: A, _3: A) extends VectorCase[
       VectorN(Vector(_1, _2, _3) ++ that.toVector)
   }
   
+  override def foreach[U](f: A => U) {
+    f(_1) 
+    f(_2)
+    f(_3)
+  }
+
   // TODO more methods
   
   def toVector = Vector(_1, _2, _3)
@@ -260,6 +277,13 @@ private[antixml] case class Vector4[+A](_1: A, _2: A, _3: A, _4: A) extends Vect
       VectorN(Vector(_1, _2, _3, _4) ++ that.toVector)
   }
   
+  override def foreach[U](f: A => U) {
+    f(_1)
+    f(_2)
+    f(_3)
+    f(_4)
+  }
+
   // TODO more methods
   
   def toVector = Vector(_1, _2, _3, _4)
@@ -361,5 +385,7 @@ private[antixml] case class VectorN[+A](vector: Vector[A]) extends VectorCase[A]
   // note: this actually defeats a HotSpot optimization in trivial micro-benchmarks
   override def iterator = vector.iterator
   
+  override def foreach[U](f: A => U) {vector.foreach(f)}
+
   def toVector = vector
 }
