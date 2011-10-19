@@ -390,10 +390,12 @@ object Group {
   
   def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { new Group(_) }
   
+  private val theEmpty: Group[Nothing] = new Group(Vector0)
+  
   /**
    * @return An empty [[com.codecommit.antixml.Group]] with the given parameter type.
    */
-  def empty[A <: Node] = new Group[A](VectorCase.empty)
+  def empty[A <: Node]: Group[A] = theEmpty
   
   /**
    * Builds a new group with the specified set of nodes in order.  The most specific
@@ -415,6 +417,6 @@ object Group {
    * to ensure that the sequences you pass to this method are always of type
    * `Vector`, since this will avoid the penalty.
    */
-  def fromSeq[A <: Node](seq: Seq[A]) = new Group(VectorCase(seq: _*))
+  def fromSeq[A <: Node](seq: Seq[A]): Group[A] = if (seq.isEmpty) theEmpty else new Group(VectorCase(seq: _*))
 }
 
