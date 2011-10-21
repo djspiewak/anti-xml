@@ -362,10 +362,12 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   }
 
   /** If true this group may contain an element with the given name as one of its children (recursively). */
-  def matches(elementName: String) = bloomFilter contains elementName
+  def matches(elementName: String) = 
+    if (bloomFilter eq Group.emptyBloomFilter) false else bloomFilter contains elementName
   
   /** Same as `matches(String)`, but works with hashes created by Group.bloomFilterHash. */
-  private[antixml] def matches(hash: BloomFilter.Hash) = bloomFilter containsHash hash
+  private[antixml] def matches(hash: BloomFilter.Hash) = 
+    if (bloomFilter eq Group.emptyBloomFilter) false else bloomFilter containsHash hash
 }
 
 /**
