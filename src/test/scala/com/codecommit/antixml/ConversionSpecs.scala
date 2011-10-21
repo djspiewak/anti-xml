@@ -35,7 +35,7 @@ import org.scalacheck._
 import scala.xml
 
 class ConversionSpecs extends Specification with ScalaCheck {
-  import Node.CharRegex
+  import Node.hasOnlyValidChars
   import Prop._
   
   "scala.xml explicit conversions" should {
@@ -60,7 +60,7 @@ class ConversionSpecs extends Specification with ScalaCheck {
     }
 
     "convert text nodes" in check { str: String =>
-      if (!CharRegex.unapplySeq(str).isEmpty) {
+      if (hasOnlyValidChars(str)) {
         val node = xml.Text(str)
         node.convert mustEqual Text(str)
       } else {
@@ -69,7 +69,7 @@ class ConversionSpecs extends Specification with ScalaCheck {
     }
     
     "convert entity references" in check { str: String =>
-      if (!CharRegex.unapplySeq(str).isEmpty) {
+      if (hasOnlyValidChars(str)) {
         val ref = xml.EntityRef(str)
         ref.convert mustEqual EntityRef(str)
         (ref: xml.Node).convert mustEqual EntityRef(str)

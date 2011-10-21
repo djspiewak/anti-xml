@@ -29,15 +29,15 @@
 package com.codecommit.antixml
 
 case class QName(prefix: Option[String], name: String) {
-  import Elem.NameRegex
+  import Elem.isValidName
   
   for (p <- prefix) {
-    if (NameRegex.unapplySeq(p).isEmpty) {
+    if (! isValidName(p)) {
       throw new IllegalArgumentException("Illegal element prefix, '" + p + "'")
     }
   }
   
-  if (NameRegex.unapplySeq(name).isEmpty) {
+  if (! isValidName(name)) {
     throw new IllegalArgumentException("Illegal attribute name, '" + name + "'")
   }
   
