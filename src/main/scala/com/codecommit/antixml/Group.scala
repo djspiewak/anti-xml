@@ -336,6 +336,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
 
   private lazy val bloomFilter: BloomFilter = {
     // note: mutable and horrible for performance
+    import Group._
     val names = new ListBuffer[String]
     var childFilter: BloomFilter = null
     
@@ -344,17 +345,20 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
         case Elem(_, name, _, _, children) => {
           names += name
           
-          childFilter = if (childFilter == null)
-            children.bloomFilter
-          else
-            childFilter ++ children.bloomFilter
+          val chbf = children.bloomFilter
+          if (chbf ne emptyBloomFilter) {
+            childFilter = if (childFilter == null)
+              chbf
+            else
+              childFilter ++ chbf
+          }
         }
         
         case _ =>
       }
     }
     
-    val ourFilter = BloomFilter(names)(1024)
+    val ourFilter = if (names.isEmpty) emptyBloomFilter else BloomFilter(names)(bloomFilterN)
     if (childFilter == null)
       ourFilter
     else
@@ -363,6 +367,9 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
 
   /** If true this group may contain an element with the given name as one of its children (recursively). */
   def matches(elementName: String) = bloomFilter contains elementName
+  
+  /** Same as `matches(String)`, but works with hashes created by Group.bloomFilterHash. */
+  private[antixml] def matches(hash: BloomFilter.Hash) = bloomFilter containsHash hash
 }
 
 /**
@@ -370,7 +377,14 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
  * new `Group`(s) from specified nodes.
  */
 object Group {
-  import Zipper.Time
+  
+  /** The "N" value we always use for Group bloom filters */
+  private final val bloomFilterN = 1024  
+  
+  private val emptyBloomFilter = BloomFilter(Nil)(bloomFilterN)
+  
+  private[antixml] def bloomFilterHash(elementName: String): BloomFilter.Hash =
+    BloomFilter.generateHash(bloomFilterN)(elementName)
   
   /** 
    * Creates instances of [[com.codecommit.antixml.CanBuildFromWithZipper]] for [[com.codecommit.antixml.Group]] types.  

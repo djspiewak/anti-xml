@@ -270,6 +270,17 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
       )
     }
   }
+  
+  "Group.matches" should {
+    "never produce false negatives for Strings" in check { (xml: Group[Node]) =>
+      val allElems = xml \\ anyElem
+      allElems forall {e => xml.matches(e.name)} must beTrue
+    }
+    "never produce false negatives for Hashes" in check { (xml: Group[Node]) =>
+      val allElems = xml \\ anyElem
+      allElems forall {e => xml.matches(Group.bloomFilterHash(e.name))} must beTrue
+    }
+  }
 
   "canonicalization" should {
     import Node.CharRegex
@@ -331,5 +342,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
   def elem(name: String, children: Node*) = Elem(None, name, Attributes(), Map(), Group(children: _*))
 
   def elem(qname : QName, children: Node*) = Elem(qname.prefix, qname.name, Attributes(), Map(), Group(children: _*))
+  
+  val anyElem: Selector[Elem] = Selector {case e: Elem => e}
 
 }

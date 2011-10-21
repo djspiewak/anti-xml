@@ -54,10 +54,11 @@ object Selector {
       private val pf: PartialFunction[Node, Elem] = {
         case e @ Elem(_, `name`, _, _, _) => e
       }
+      private val hash = Group.bloomFilterHash(name)
 
       def apply(node: Node) = pf(node)
       def isDefinedAt(node: Node) = pf isDefinedAt node
-      def canMatchIn(group: Group[Node]) = group.matches(name)
+      def canMatchIn(group: Group[Node]) = group.matches(hash)
     }
   
 
