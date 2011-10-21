@@ -122,12 +122,6 @@ import CanBuildFromWithZipper.ElemsWithContext
  *
  */
 trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { self =>
-  
-  /** 
-   * A value that is greater than the update time of any node or path in the zipper. Subsequent updates must
-   * be tagged with a larger time.
-   */
-  protected def time: Time
 
   /** 
    * Returns the original group that was selected upon when the Zipper was created.  A value of `None` indicates that
@@ -139,56 +133,45 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
    *   - A method such as `++`, is used to "add" nodes to a zipper without replacing existing nodes. 
    *   
    **/
-  val parent: Option[Zipper[Node]]
+   def parent: Option[Zipper[Node]] = context map {_.parent}
   
-  private def parentOrError = parent getOrElse sys.error("Root has no parent")
-
-  /** Context information corresponding to each node in the zipper. */
-  protected def metas: VectorCase[(ZipperPath, Time)]
-
-  /** Additional (path,time) pairs associated with the zipper.  This is mainly used to
-    * keep track of holes that have had all of their correpsonding nodes deleted, but
-    * it's fine for it to contain paths that are also associated with nodes.  During
-    * unselect, each hole will be associated with the latest associated update time 
-    * found in this list or in `metas`.
-    */
-  protected def additionalHoles: immutable.Seq[(ZipperPath,Time)]
+  /** The zipper context or None if this is a broken zipper. */
+  private[antixml] val context: Option[Context]
   
   override protected[this] def newBuilder = Zipper.newBuilder[A]
   
-  override def updated[B >: A <: Node](index: Int, node: B): Zipper[B] = parent match {
-    case Some(_) => {
-      val updatedTime = time + 1
+  override def updated[B >: A <: Node](index: Int, node: B): Zipper[B] = context match {
+    case Some(Context(parent, lastUpdate, metas, additionalHoles)) => {
+      val updatedTime = lastUpdate + 1
       val (updatedPath,_) = metas(index)
+      val updatedMetas = metas.updated(index, (updatedPath, updatedTime))
+      val ctx = Context(parent, updatedTime, updatedMetas, additionalHoles)
       
       new Group(nodes.updated(index, node)) with Zipper[B] {
-        val parent = self.parent
-        val time = updatedTime      
-        val metas = self.metas.updated(index, (updatedPath, updatedTime))
-        val additionalHoles = self.additionalHoles
+        val context = Some(ctx)
       }
     }
     case None => brokenZipper(nodes.updated(index,node))
   }
 
-  override def slice(from: Int, until: Int): Zipper[A] = parent match {
-    case Some(_) => {
+  override def slice(from: Int, until: Int): Zipper[A] = context match {
+    case Some(Context(parent, lastUpdate, metas, additionalHoles)) => {
       val lo = math.min(math.max(from, 0), nodes.length)
       val hi = math.min(math.max(until, lo), nodes.length)
       val cnt = hi - lo
       
+      //Put the ZipperPaths from the elided `metas` entries into additionalHoles
       val ahs = new AdditionalHolesBuilder()
       ahs ++= additionalHoles
       for(i <- 0 until lo)
-        ahs += ((metas(i)._1, time + 1 + i))
+        ahs += ((metas(i)._1, lastUpdate + 1 + i))
       for(i <- hi until nodes.length)
-        ahs += ((metas(i)._1, time + 1 + i - cnt))
+        ahs += ((metas(i)._1, lastUpdate + 1 + i - cnt))
+      
+      val ctx = Context(parent, lastUpdate + length - cnt, metas.slice(from, until), ahs.result())
       
       new Group(nodes.slice(from,until)) with Zipper[A] {
-        val parent = self.parent
-        val time = self.time + self.length - cnt
-        val metas = self.metas.slice(from,until)
-        val additionalHoles = ahs.result()
+        val context = Some(ctx)
       }
     }
     case None => brokenZipper(nodes.slice(from,until))
@@ -213,11 +196,12 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
   }
 
   override def flatMap[B, That](f: A => GenTraversableOnce[B])(implicit cbf: CanBuildFrom[Zipper[A], B, That]): That = cbf match {
-    case cpz: CanProduceZipper[Zipper[A], B, That] if parent.isDefined => {
-      val b = cpz.lift(parent, this)
+    case cpz: CanProduceZipper[Zipper[A], B, That] if context.isDefined => {
+      val Context(parent, lastUpdate, metas, additionalHoles) = context.get
+      val b = cpz.lift(Some(parent), this)
       for(i <- 0 until nodes.length) {
-        val (path,time) = metas(i)
-        b += ElemsWithContext(path, time+i+1, f(nodes(i)))
+        val (path,_) = metas(i)
+        b += ElemsWithContext(path, lastUpdate+i+1, f(nodes(i)))
       }
       for ((path,time) <- additionalHoles) {
         b += ElemsWithContext[B](path,time,util.Vector0)
@@ -261,53 +245,44 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
    */
   private [antixml] override def conditionalFlatMapWithIndex[B >: A <: Node] (f: (A, Int) => Option[scala.collection.Seq[B]]): Zipper[B] = {
     /* See the Group implementation for information about how this function is optimized. */ 
-    parent match {
+    context match {
       case None => brokenZipper(new Group(nodes).conditionalFlatMapWithIndex(f).nodes)
-      case Some(_) => {
+      case Some(Context(parent, lastUpdate, metas, additionalHoles)) => {
         //Optimistic function that uses `update`
         @tailrec
         def update(z: Zipper[B], index: Int): Zipper[B] = {
-          if (index>=z.length)
-            z
-          else {
-            val node = nodes(index)
-            val fval = f(node, index)
-            if (!fval.isDefined)
-              update(z,index + 1)
-            else {
-              val replacements = fval.get
-              if (replacements.lengthCompare(1)==0) {
-                update(z.updated(index, replacements.head), index + 1)
-              } else {
-                build(z, replacements, index)
-              }
+          if (index<z.length)
+            f(nodes(index), index) match {
+              case None => update(z,index + 1)
+              case Some(r) if r.lengthCompare(1)==0 => update(z.updated(index, r.head), index + 1)
+              case Some(r) => build(z, r, index)
             }
-          }
+          else
+            z
         }
         
         //Fallback function that uses a builder
         def build(z: Zipper[B], currentReplacements: Seq[B], index: Int): Zipper[B] = {
-          val b = newZipperContextBuilder[B](parent)
+          val b = newZipperContextBuilder[B](Some(parent))
+          val zc = z.context.get 
           
           for(i <- 0 until index) {
-            val (p,t) = z.metas(i)
+            val (p,t) = zc.metas(i)
             b += ElemsWithContext(p,t,util.Vector1(z(i)))
           }
-          b += ElemsWithContext(metas(index)._1, z.time+1,currentReplacements)
+          b += ElemsWithContext(metas(index)._1, zc.lastUpdate+1,currentReplacements)
           for(i <- (index + 1) until nodes.length) {
             val n = nodes(i)
             val m = metas(i)
-            val fv = f(n,i)
-            if (fv.isDefined)
-              b += ElemsWithContext(m._1, z.time + 1 + i - index, fv.get)
-            else
-              b += ElemsWithContext(m._1, m._2, util.Vector1(n))
+            f(n,i) match {
+              case None => b += ElemsWithContext(m._1, m._2, util.Vector1(n))
+              case Some(r) => b += ElemsWithContext(m._1, zc.lastUpdate + 1 + i - index, r)
+            }
           }
-          for((p,t) <- additionalHoles) {
+          for((p,t) <- additionalHoles)
             b += ElemsWithContext(p,t,util.Vector0)
-          }
           
-          b.result      
+          b.result
         }
         
         update(this, 0)
@@ -316,16 +291,19 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
   }
   
   /** Applies the node updates to the parent and returns the result. */
-  def unselect(implicit zms: ZipperMergeStrategy): Zipper[Node] = 
-    new Unselector(zms).unselect 
+  def unselect(implicit zms: ZipperMergeStrategy): Zipper[Node] = { 
+    val ctx = context.getOrElse(sys.error("Zipper does not have a valid context"))
+    new Unselector(ctx, zms).unselect 
+  }
   
   /** Utility class to perform unselect.  */
-  private[this] class Unselector(mergeStrategy: ZipperMergeStrategy) {
+  private[this] class Unselector(context: Context, mergeStrategy: ZipperMergeStrategy) {
     
     /** Each hole is associated with a list of node/time pairs as well as a master update time */
     type HoleInfo = ZipperHoleMap[(VectorCase[(A,Time)],Time)]
     
     private val topLevelHoleInfo: HoleInfo = {
+      val Context(_,_,metas,additionalHoles) = context
       val init:(VectorCase[(A,Time)],Time) = (util.Vector0,0)
       val hm0: HoleInfo = ZipperHoleMap.empty
       val hm1 = (hm0 /: (0 until self.length)) { (hm, i) =>
@@ -345,7 +323,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
     
     /** Applies the node updates to the parent and returns the result. */
     def unselect: Zipper[Node] = 
-      pullBackGroup(parentOrError, topLevelHoleInfo)._1.asInstanceOf[Zipper[Node]]
+      pullBackGroup(context.parent, topLevelHoleInfo)._1.asInstanceOf[Zipper[Node]]
     
     /**
      * Returns the pullback of the nodes in the specified group.
@@ -355,21 +333,21 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
      * time.
      */
     private[this] def pullBackGroup(nodes: Group[Node], holeInfo: HoleInfo): (Group[Node], Time) = {
-      var mxt: Int = 0
+      var maxTime: Int = 0  //mutable for performance and to avoid further complicating`conditionalFlatMapWithIndex`.
       val updatedGroup = nodes.conditionalFlatMapWithIndex[Node] { (node,index) => node match {
         case elem:Elem if (holeInfo.hasChildrenAt(index)) => {
           val (newNodes, time) = pullUp(elem, index, holeInfo)
-          mxt = math.max(mxt,time)
+          maxTime = math.max(maxTime,time)
           Some(newNodes)
         }
         case _ if holeInfo.contains(index) => {
           val (newNodes, time) = holeInfo(index)
-          mxt = math.max(mxt, time)
+          maxTime = math.max(maxTime, time)
           Some(newNodes.map {_._1})
         }
         case _ => None
       }}
-      (updatedGroup,mxt)
+      (updatedGroup,maxTime)
     }
     
     /**
@@ -417,6 +395,21 @@ object Zipper {
     
   import CanBuildFromWithZipper.ElemsWithContext
   
+  /**
+   * Defines the zipper context
+   *
+   * @param parent the zipper's parent
+   * @param lastUpdate A value that is greater than the update time of any node or path in the zipper. 
+   * Subsequent updates must be tagged with a larger time.
+   * @param metas the path and time associated with each node in the Zipper.  Each element in this structure
+   * corresponds with the node at the same index in the Zipper.
+   * @param additionalHoles assertions that indicate the specified path is associated with the zipper
+   * and has at least the specified time.  If there are paths in this structure that are not in `metas`,
+   * then the corresponding hole will be replaced with an empty sequence during `unselect`.  
+   */
+  private[antixml] case class Context(parent: Zipper[Node], lastUpdate: Time, 
+          metas: VectorCase[(ZipperPath, Time)], additionalHoles: immutable.Seq[(ZipperPath, Time)])
+  
   /** The units in which time is measured in the zipper. Assumed non negative. */
   private type Time = Int
   
@@ -440,17 +433,14 @@ object Zipper {
 
   /** Returns a builder that produces a zipper with a full zipper context */
   private def newZipperContextBuilder[A <: Node](parent: Option[Zipper[Node]]) = parent match {
-    case Some(_) => new WithZipperBuilder[A](parent)
+    case Some(p) => new WithZipperBuilder[A](p)
     case None => brokenZipperBuilder[A]
   }
   
   /** Returns a "broken" zipper which contains the specified nodes but cannot be unselected */
   private[antixml] def brokenZipper[A <: Node](nodes: VectorCase[A]): Zipper[A] = {
     new Group[A](nodes) with Zipper[A] {
-      override val parent = None      
-      override val time = 0
-      override val metas = null //Should never be accesseed
-      override val additionalHoles = null //Should never be accessed
+      val context = None    
     }
   }
   
@@ -461,7 +451,7 @@ object Zipper {
   /**
    * The primary builder class used to construct Zippers. 
    */
-  private class WithZipperBuilder[A <: Node](parent: Option[Zipper[Node]]) extends Builder[ElemsWithContext[A],Zipper[A]] { self =>
+  private class WithZipperBuilder[A <: Node](parent: Zipper[Node]) extends Builder[ElemsWithContext[A],Zipper[A]] { self =>
     
     import scala.collection.mutable.HashMap
     
@@ -498,23 +488,22 @@ object Zipper {
       maxTime = 0
     }
     override def result(): Zipper[A] = {
-      val itemsResult = itemsBuilder.result()
-      val metasResult = metasBuilder.result()
-      val additionalHolesResult = additionalHolesBuilder.result()
-      maxTime = math.max(maxTime, size)
+      val ctx = Context(parent, maxTime, metasBuilder.result(), additionalHolesBuilder.result())
       
-      new Group[A](itemsResult) with Zipper[A] {
-        override val parent = self.parent      
-        override val time = maxTime
-        override val metas = metasResult
-        override val additionalHoles = additionalHolesResult
+      new Group[A](itemsBuilder.result()) with Zipper[A] {
+        val context = Some(ctx)
       }
     }
   }
   
   /** Builder for the `additionalHoles` list.  This builder ensures that the result has at most one
    *  entry for any given ZipperPath.  Although this isn't necessary for correctness, it ensures that
-   *  the `additionalHoles` list remains bounded in size by the total number of holes.
+   *  the `additionalHoles` list remains bounded in size by the total number of holes. 
+   *
+   *  NOTE - The uniqueness guarantee may not be worth it. Methods like `filter` and `slice` would be faster 
+   *  if we didn't bother with it and built directly into a sequence.  Moreover, unbounded growth is
+   *  probably unlikely in practice.  I think it could only occur if there was a very strange sequence
+   *  of `flatMap` calls.
    */
   private class AdditionalHolesBuilder extends Builder[(ZipperPath,Time), immutable.Seq[(ZipperPath,Time)]] {0
     private val hm = mutable.HashMap[ZipperPath,Time]()

@@ -180,26 +180,24 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
     //Optimistic function that uses `update`
     @tailrec
     def update(g: VectorCase[B], index: Int): VectorCase[B] = {
-      if (index>=g.length)
-        g
-      else {
+      if (index<g.length) {
         val node = nodes(index)
-        val fval = f(node, index)
-        if (!fval.isDefined)
-          update(g,index + 1)
-        else {
-          val replacements = fval.get
-          if (replacements.lengthCompare(1)==0) {
-            val newNode = replacements.head
-            if (newNode eq node)
-              update(g, index + 1)
-            else 
-              update(g.updated(index, newNode), index + 1)
-          } else {
-            build(g, replacements, index)
+        f(node, index) match {
+          case None => update(g, index + 1)
+          case Some(replacements) => {
+            if (replacements.lengthCompare(1)==0) {
+              val newNode = replacements.head
+              if (newNode eq node) 
+                update(g, index + 1) //if same instance, don't bother updating the vector
+              else 
+                update(g.updated(index, newNode), index + 1)
+            } else {
+              build(g, replacements, index)
+            }
           }
         }
-      }
+      } 
+      else g
     }
     
     //Fallback function that uses a builder
@@ -208,15 +206,13 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
       b ++= currentReplacements
       for(i <- (index + 1) until g.length) {
         val n = nodes(i)
-        val fv = f(n,i)
-        if (fv.isDefined)
-          b ++= fv.get
-        else
-          b += n
+        f(n,i) match {
+          case None => b += n
+          case Some(r) => b ++= r
+        }
       }
       b.result      
     }
-
     
     new Group(update(nodes, 0))
   }
