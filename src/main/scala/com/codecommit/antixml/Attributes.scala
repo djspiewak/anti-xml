@@ -86,10 +86,10 @@ import com.codecommit.antixml.util.OrderPreservingMap
  * @see [[com.codecommit.antixml.QName]]
  */
 class Attributes private (delegate: OrderPreservingMap[QName, String]) extends Map[QName, String] with MapLike[QName, String, Attributes] {
-  import Node.CharRegex
+  import Node.hasOnlyValidChars
 
   for ((name, value) <- delegate) {
-    if (CharRegex.unapplySeq(value).isEmpty) 
+    if (!hasOnlyValidChars(value))
       throw new IllegalArgumentException("Illegal character in attribute value '" + value + "'")
   }
 
