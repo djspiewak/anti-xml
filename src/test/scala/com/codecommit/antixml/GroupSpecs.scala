@@ -283,10 +283,10 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
   }
 
   "canonicalization" should {
-    import Node.CharRegex
+    import Node.hasOnlyValidChars
     
     "merge two adjacent text nodes" in check { (left: String, right: String) =>
-      if (!CharRegex.unapplySeq(left + right).isEmpty) {
+      if (hasOnlyValidChars(left + right)) {
         Group(Text(left), Text(right)).canonicalize mustEqual Group(Text(left + right))
         Group(CDATA(left), CDATA(right)).canonicalize mustEqual Group(CDATA(left + right))
       } else {
@@ -295,7 +295,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
     
     "merge two adjacent text nodes at end of Group" in check { (left: String, right: String) =>
-      if (!CharRegex.unapplySeq(left + right).isEmpty) {
+      if (hasOnlyValidChars(left + right)) {
         Group(elem("foo"), elem("bar", Text("test")), Text(left), Text(right)).canonicalize mustEqual Group(elem("foo"), elem("bar", Text("test")), Text(left + right))
         Group(elem("foo"), elem("bar", Text("test")), CDATA(left), CDATA(right)).canonicalize mustEqual Group(elem("foo"), elem("bar", Text("test")), CDATA(left + right))
       } else {
@@ -304,7 +304,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
     
     "merge two adjacent text nodes at beginning of Group" in check { (left: String, right: String) =>
-      if (!CharRegex.unapplySeq(left + right).isEmpty) {
+      if (hasOnlyValidChars(left + right)) {
         Group(Text(left), Text(right), elem("foo"), elem("bar", Text("test"))).canonicalize mustEqual Group(Text(left + right), elem("foo"), elem("bar", Text("test")))
         Group(CDATA(left), CDATA(right), elem("foo"), elem("bar", Text("test"))).canonicalize mustEqual Group(CDATA(left + right), elem("foo"), elem("bar", Text("test")))
       } else {
@@ -313,7 +313,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
     
     "merge two adjacent text nodes at depth" in check { (left: String, right: String) =>
-      if (!CharRegex.unapplySeq(left + right).isEmpty) {
+      if (hasOnlyValidChars(left + right)) {
         Group(elem("foo", elem("bar", Text(left), Text(right)))).canonicalize mustEqual Group(elem("foo", elem("bar", Text(left + right))))
         Group(elem("foo", elem("bar", CDATA(left), CDATA(right)))).canonicalize mustEqual Group(elem("foo", elem("bar", CDATA(left + right))))
       } else {
@@ -322,7 +322,7 @@ class GroupSpecs extends Specification with ScalaCheck with XMLGenerators with U
     }
     
     "not merge adjacent text and cdata nodes" in check { (left: String, right: String) =>
-      if (!CharRegex.unapplySeq(left + right).isEmpty) {
+      if (hasOnlyValidChars(left + right)) {
         Group(CDATA(left), Text(right)).canonicalize mustEqual Group(CDATA(left), Text(right))
         Group(Text(left), CDATA(right)).canonicalize mustEqual Group(Text(left), CDATA(right))
       } else {
