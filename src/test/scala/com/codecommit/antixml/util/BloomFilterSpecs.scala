@@ -41,6 +41,16 @@ class BloomFilterSpecs extends Specification with ScalaCheck {
       (filter must contain(_:Any)).forall(xs)
     }
   }
+  
+  "containsHash" should {
+    "never give a false negative" in check { (xs: List[String], preN: Int) =>
+      val n = preN & 0xFFF + 512 //Something reasonable
+      val toHash = BloomFilter.generateHash(n) _
+      
+      val filter = BloomFilter(xs)(n)
+      (filter must containHash(_:BloomFilter.Hash)).forall(xs map toHash)
+    }
+  }
 
   "++" should {
     "throw an exception on mismatched filter size" in {
@@ -66,10 +76,19 @@ class BloomFilterSpecs extends Specification with ScalaCheck {
       val filter2 = BloomFilter(xs2)(n=width)
       (filter1 ++ filter2) mustEqual (filter2 ++ filter1)
     }
+    
+    "treat empty filters as identity elements" in check { (xs1: List[String], preN: Int) =>
+      val n = preN & 0xFFF + 512
+      val filter1 = BloomFilter(xs1)(n)
+      val empty = BloomFilter(Seq())(n)
+      filter1 mustEqual (filter1 ++ empty)
+      filter1 mustEqual (empty ++ filter1)
+    }
   }
-
+  
   val numProcessors = Runtime.getRuntime.availableProcessors
   implicit val params: Parameters = set(maxSize -> (numProcessors * 200), workers -> numProcessors)
   def contain(a: Any): Matcher[BloomFilter] = ((_:BloomFilter).contains(a), (_:BloomFilter).toString+" doesn't contain "+a)
+  def containHash(h: BloomFilter.Hash): Matcher[BloomFilter] = ((_:BloomFilter).containsHash(h), (_:BloomFilter).toString+" doesn't contain hash "+h.hashes)
 
 }

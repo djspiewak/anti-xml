@@ -14,3 +14,4 @@ project/plugins/src_managed/
 .project
 .classpath
 .scala_dependencies
+java.hprof.txt

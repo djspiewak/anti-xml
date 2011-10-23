@@ -28,10 +28,45 @@
 
 package com.codecommit.antixml
 
-object Performance {
+import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable.Builder
 
-  def main(args: Array[String]) {
-    performance.Performance.main(args)
+package object performance {
+  
+  def simpleNameOf(n: org.w3c.dom.Node) = 
+    if (n.getLocalName == null) n.getNodeName else n.getLocalName
+  
+  
+  def from[A](u: java.net.URL)(f: java.io.InputStream => A): A = {
+    val is = u.openStream()
+    try {
+      f(is)
+    } finally {
+      is.close()
+    }
+  }
+
+  /** Selects elements with the specified name, without taking advantage of the bloom filter.*/
+  def noBloom(s: String) = Selector({case e:Elem if e.name == s => e})
+  
+  /** Selects any element */
+  val anyElem = Selector[Elem] {case e:Elem => e}
+
+  /** A CBFWZ that builds a plain `Group` rather than a `Zipper` */
+  def withoutZipperContext[A <: Node] = CanBuildFromWithZipper.identityCanBuildFrom(new CanBuildFrom[Traversable[_], A, Group[A]] {
+    def apply(from: Traversable[_]): Builder[A, Group[A]] = apply()
+    def apply(): Builder[A, Group[A]] = Group.newBuilder[A]
+  })
+  
+  
+  def cleanVM() {
+    System.gc()
   }
   
+  def deepsize(x: => Any) = {
+    com.github.dmlap.sizeof.SizeOf.deepsize(x)
+  }
+  
+
 }
+

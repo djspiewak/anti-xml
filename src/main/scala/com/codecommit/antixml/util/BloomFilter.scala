@@ -28,6 +28,7 @@
 
 package com.codecommit.antixml.util
 
+import scala.collection.immutable
 import scala.collection.immutable.BitSet
 import scala.util.Random
 
@@ -44,7 +45,7 @@ private[antixml] object BloomFilter {
     new BloomFilter(BitSet(hashes: _*), n, m, k)
   }
 
-  private def hash(m: Int, k: Int)(element: Any): Seq[Int] = {
+  private def hash(m: Int, k: Int)(element: Any): immutable.Seq[Int] = {
     // TODO Is tihs approach valid and if so does it offer enough performance?
     val rnd = new Random(element.hashCode)
     (1 until k) map { _ => abs(rnd.nextInt) % m }
@@ -68,6 +69,14 @@ private[antixml] object BloomFilter {
       (m, k)
     }
   }
+  
+  case class Hash(hashes: immutable.Seq[Int])
+  
+  def generateHash(n: Int, p: Float=0.33f)(element: Any): Hash = {
+    val (m, k) = optimalMAndK(n, p)
+    Hash(hash(m,k)(element))
+  }
+  
 }
 
 private[antixml] class BloomFilter(private val bits: BitSet, private val n: Int, private val m: Int, private val k: Int) {
@@ -75,6 +84,9 @@ private[antixml] class BloomFilter(private val bits: BitSet, private val n: Int,
 
   def contains(element: Any): Boolean =
     hash(m, k)(element) forall bits.contains
+  
+  def containsHash(hash: Hash): Boolean =
+    hash.hashes forall bits.contains
 
   def ++(that: BloomFilter): BloomFilter = {
     if (this.n != that.n || this.m != that.m || this.k != that.k) {

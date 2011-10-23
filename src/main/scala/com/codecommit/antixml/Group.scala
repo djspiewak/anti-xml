@@ -32,6 +32,7 @@ package antixml
 import util._
 
 import scala.annotation.unchecked.uncheckedVariance
+import scala.annotation.tailrec
 
 import scala.collection.{IndexedSeqLike, TraversableLike, GenTraversableOnce}
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
@@ -132,6 +133,10 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   
   override def head = nodes.head
   
+  override def foreach[U](f: A => U) {
+    nodes.foreach(f)
+  }
+  
   override def init = new Group(nodes.init)
   
   override def iterator = nodes.iterator
@@ -154,6 +159,63 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   override def take(n: Int) = new Group(nodes take n)
   
   override def takeRight(n: Int) = new Group(nodes takeRight n)
+
+  /** Optionally replaces each node with 0 to many nodes.
+   *  
+   *  This is used by `Zipper.unselect` to update groups.  It is an optimized version of:
+   *
+   * {{{
+   * group.zipWithIndex.flatMap {case (n,i) => f(n,i).getOrElse(Seq(group(i))) }
+   * }}}
+   *
+   */
+  private [antixml] def conditionalFlatMapWithIndex[B >: A <: Node] (f: (A, Int) => Option[Seq[B]]): Group[B] = {
+    /*
+     * The key observation is that most of the time we are only updating a few of the group's nodes.
+     * So instead of rebuilding a Group from scratch, we try to just call `updated` on the nodes
+     * that are changing.  However, we must fall back to a complete rebuild if we discover
+     * a node being replaced by 0 or many nodes.
+     */
+    
+    //Optimistic function that uses `update`
+    @tailrec
+    def update(g: VectorCase[B], index: Int): VectorCase[B] = {
+      if (index<g.length) {
+        val node = nodes(index)
+        f(node, index) match {
+          case None => update(g, index + 1)
+          case Some(replacements) => {
+            if (replacements.lengthCompare(1)==0) {
+              val newNode = replacements.head
+              if (newNode eq node) 
+                update(g, index + 1) //if same instance, don't bother updating the vector
+              else 
+                update(g.updated(index, newNode), index + 1)
+            } else {
+              build(g, replacements, index)
+            }
+          }
+        }
+      } 
+      else g
+    }
+    
+    //Fallback function that uses a builder
+    def build(g: VectorCase[B], currentReplacements: Seq[B], index: Int): VectorCase[B] = {
+      val b = VectorCase.newBuilder[B] ++= g.view.take(index)
+      b ++= currentReplacements
+      for(i <- (index + 1) until g.length) {
+        val n = nodes(i)
+        f(n,i) match {
+          case None => b += n
+          case Some(r) => b ++= r
+        }
+      }
+      b.result      
+    }
+    
+    new Group(update(nodes, 0))
+  }
   
   /**
    * Merges adjacent [[com.codecommit.antixml.Text]] as well as adjacent
@@ -270,6 +332,7 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
 
   private lazy val bloomFilter: BloomFilter = {
     // note: mutable and horrible for performance
+    import Group._
     val names = new ListBuffer[String]
     var childFilter: BloomFilter = null
     
@@ -278,17 +341,20 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
         case Elem(_, name, _, _, children) => {
           names += name
           
-          childFilter = if (childFilter == null)
-            children.bloomFilter
-          else
-            childFilter ++ children.bloomFilter
+          val chbf = children.bloomFilter
+          if (chbf ne emptyBloomFilter) {
+            childFilter = if (childFilter == null)
+              chbf
+            else
+              childFilter ++ chbf
+          }
         }
         
         case _ =>
       }
     }
     
-    val ourFilter = BloomFilter(names)(1024)
+    val ourFilter = if (names.isEmpty) emptyBloomFilter else BloomFilter(names)(bloomFilterN)
     if (childFilter == null)
       ourFilter
     else
@@ -296,7 +362,12 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
   }
 
   /** If true this group may contain an element with the given name as one of its children (recursively). */
-  def matches(elementName: String) = bloomFilter contains elementName
+  def matches(elementName: String) = 
+    if (bloomFilter eq Group.emptyBloomFilter) false else bloomFilter contains elementName
+  
+  /** Same as `matches(String)`, but works with hashes created by Group.bloomFilterHash. */
+  private[antixml] def matches(hash: BloomFilter.Hash) = 
+    if (bloomFilter eq Group.emptyBloomFilter) false else bloomFilter containsHash hash
 }
 
 /**
@@ -304,7 +375,14 @@ class Group[+A <: Node] private[antixml] (private[antixml] val nodes: VectorCase
  * new `Group`(s) from specified nodes.
  */
 object Group {
-  import Zipper.Time
+  
+  /** The "N" value we always use for Group bloom filters */
+  private final val bloomFilterN = 1024  
+  
+  private val emptyBloomFilter = BloomFilter(Nil)(bloomFilterN)
+  
+  private[antixml] def bloomFilterHash(elementName: String): BloomFilter.Hash =
+    BloomFilter.generateHash(bloomFilterN)(elementName)
   
   /** 
    * Creates instances of [[com.codecommit.antixml.CanBuildFromWithZipper]] for [[com.codecommit.antixml.Group]] types.  
@@ -324,10 +402,12 @@ object Group {
   
   def newBuilder[A <: Node] = VectorCase.newBuilder[A] mapResult { new Group(_) }
   
+  private val theEmpty: Group[Nothing] = new Group(Vector0)
+  
   /**
    * @return An empty [[com.codecommit.antixml.Group]] with the given parameter type.
    */
-  def empty[A <: Node] = new Group[A](VectorCase.empty)
+  def empty[A <: Node]: Group[A] = theEmpty
   
   /**
    * Builds a new group with the specified set of nodes in order.  The most specific
@@ -349,6 +429,6 @@ object Group {
    * to ensure that the sequences you pass to this method are always of type
    * `Vector`, since this will avoid the penalty.
    */
-  def fromSeq[A <: Node](seq: Seq[A]) = new Group(VectorCase(seq: _*))
+  def fromSeq[A <: Node](seq: Seq[A]): Group[A] = if (seq.isEmpty) theEmpty else new Group(VectorCase(seq: _*))
 }
 

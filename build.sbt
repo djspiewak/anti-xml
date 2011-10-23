@@ -8,6 +8,8 @@ crossScalaVersions := Seq("2.9.1", "2.9.0-1", "2.9.0")
 
 scalaVersion := "2.9.1"
 
+scalacOptions += "-deprecation"
+
 libraryDependencies <++= (scalaVersion) { v =>
   Seq(
     "org.scala-tools.testing" %% "scalacheck" % "1.9" % "test" withSources,
@@ -28,9 +30,13 @@ InputKey[Option[String]]("test-perf") <<= inputTask { (args: TaskKey[Seq[String]
       log.info("Running performance tests...")
       val depFiles = deps map {_.data}
       val sizeOfJar = depFiles ** ("sizeof" + "*.jar")
-      new Fork.ForkScala("com.codecommit.antixml.Performance")(None, 
-          Seq("-javaagent:" + sizeOfJar.absString, "-Xmx2g"),
-          depFiles ++ Seq(cdt, cdc), args, log) match {
+      val cp = depFiles ++ Seq(cdt,cdc)
+      val vmArgs = Seq(
+               "-javaagent:" + sizeOfJar.absString, 
+               "-Xmx2g",
+               "-XX:+UseSerialGC") //Seems to make System.gc() synchronous
+      //To find bottlenecks, add "-agentlib:hprof=cpu=samples,depth=6" to vmArgs
+      new Fork.ForkScala("com.codecommit.antixml.Performance")(None, vmArgs, cp, args, log) match {
         case 0 => None
         case x => Some("failed with error code " + x)
       }

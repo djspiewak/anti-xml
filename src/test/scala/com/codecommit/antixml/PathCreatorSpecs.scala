@@ -36,6 +36,8 @@ import scala.math.Ordering
 
 class PathCreatorSpecs extends SpecificationWithJUnit {
   
+  def vec[A](t: Traversable[A]) = Vector(t.toSeq:_*)
+  
   val s = *
 
   val x0 = fromString("<root0><a0>foo</a0><b0>baz</b0><c0/></root0>")
@@ -54,7 +56,7 @@ class PathCreatorSpecs extends SpecificationWithJUnit {
 
   def ps(pars: (Elem, Int)*) = List(pars.map(_._2): _*) //List(pars.map(ParentLoc.tupled): _*)
   def nl(n: Node, l: Int) = l //WithLoc(n, l)
-  def pv(n: Node, path: Int*) = PathVal(n, Vector(path: _*))
+  def pv(n: Node, path: Int*) = PathVal(n, ZipperPath(path: _*))
   
   val root = Vector(pv(x0,0), pv(x1, 1), pv(x2, 2))
   val directChild = Vector (
@@ -70,12 +72,12 @@ class PathCreatorSpecs extends SpecificationWithJUnit {
   
   "allMaximalChildren" should {
     "stop at the highest match" in {
-      allMaximalChildren(s)(group) mustEqual directChild.sortBy(pathKeys)
+      vec(allMaximalChildren(s)(group)) mustEqual directChild.sortBy(pathKeys)
     }
     
     "find deep matches" in {
       val sel = Selector({case x:Text => x})
-      allMaximalChildren(sel)(group) mustEqual rest.sortBy(pathKeys)      
+      vec(allMaximalChildren(sel)(group)) mustEqual rest.sortBy(pathKeys)      
     }
     
     "find matches at mixed levels" in {
@@ -83,18 +85,18 @@ class PathCreatorSpecs extends SpecificationWithJUnit {
         case e:Elem if e.name == "a0" => e
         case t:Text => t
       })
-      allMaximalChildren(sel)(group) mustEqual (directChild.take(1) ++ rest.drop(1)).sortBy(pathKeys)      
+      vec(allMaximalChildren(sel)(group)) mustEqual (directChild.take(1) ++ rest.drop(1)).sortBy(pathKeys)      
     }
   }
   
   "allMaximal" should {
     "stop at the highest match" in {
-      allMaximal(s)(group) mustEqual root.sortBy(pathKeys)
+      vec(allMaximal(s)(group)) mustEqual root.sortBy(pathKeys)
     }
     
     "find deep matches" in {
       val sel = Selector({case x:Text => x})
-      allMaximal(sel)(group) mustEqual rest.sortBy(pathKeys)      
+      vec(allMaximal(sel)(group)) mustEqual rest.sortBy(pathKeys)      
     }
     
     "find matches at mixed levels" in {
@@ -102,7 +104,7 @@ class PathCreatorSpecs extends SpecificationWithJUnit {
         case e:Elem if e.name == "a0" => e
         case t:Text => t
       })
-      allMaximal(sel)(group) mustEqual (directChild.take(1) ++ rest.drop(1)).sortBy(pathKeys)      
+      vec(allMaximal(sel)(group)) mustEqual (directChild.take(1) ++ rest.drop(1)).sortBy(pathKeys)      
     }
 
     "find matches at mixed levels 2" in {
@@ -110,7 +112,7 @@ class PathCreatorSpecs extends SpecificationWithJUnit {
         case e:Elem if e.name == "root0" || e.name=="a0" || e.name=="a1" => e
         case t:Text => t 
       })
-      allMaximal(sel)(group) mustEqual (root.take(1) ++ directChild.drop(3).take(1) ++ rest.drop(3)).sortBy(pathKeys)      
+      vec(allMaximal(sel)(group)) mustEqual (root.take(1) ++ directChild.drop(3).take(1) ++ rest.drop(3)).sortBy(pathKeys)      
     }
   }
   
@@ -121,36 +123,36 @@ class PathCreatorSpecs extends SpecificationWithJUnit {
     "ignore empty groups" in {
       val empty = Group()
 
-      fromNodes(s)(empty) mustEqual Nil
-      all(s)(empty) mustEqual Nil
-      directChildren(s)(empty) mustEqual Nil
-      allChildren(s)(empty) mustEqual Nil
+      vec(fromNodes(s)(empty)) mustEqual Nil
+      vec(all(s)(empty)) mustEqual Nil
+      vec(directChildren(s)(empty)) mustEqual Nil
+      vec(allChildren(s)(empty)) mustEqual Nil
     }
 
     "take from the root of the nodes" in {
-      fromNodes(s)(group) mustEqual root.sortBy(pathKeys)
+      vec(fromNodes(s)(group)) mustEqual root.sortBy(pathKeys)
     }
 
     "take the children of the root nodes" in {
-      directChildren(s)(group) mustEqual directChild.sortBy(pathKeys)
+      vec(directChildren(s)(group)) mustEqual directChild.sortBy(pathKeys)
     }
 
     "take all the nodes recursively, depth first" in {
-      all(s)(group) mustEqual (root ++ directChild ++ rest).sortBy(pathKeys) 
+      vec(all(s)(group)) mustEqual (root ++ directChild ++ rest).sortBy(pathKeys) 
     }
 
     "take all children nodes recursively, depth first" in {
-      allChildren(s)(group) mustEqual (directChild ++ rest).sortBy(pathKeys)
+      vec(allChildren(s)(group)) mustEqual (directChild ++ rest).sortBy(pathKeys)
     }
 
     "apply selectors at the root level" in {
       val sel = Selector({ case Elem(_, "root1", _, _, _) => elem("selected") })
-      fromNodes(sel)(group) mustEqual Vector(pv(elem("selected"), 1)) 
+      vec(fromNodes(sel)(group)) mustEqual Vector(pv(elem("selected"), 1)) 
     }
 
     "apply selectors to the children of the root" in {
       val sel = Selector({ case Elem(_, "b2", _, _, _) => elem("selected") })
-      directChildren(sel)(group) mustEqual Vector(pv(elem("selected"),2,1))
+      vec(directChildren(sel)(group)) mustEqual Vector(pv(elem("selected"),2,1))
     }
 
     val selDeep = Selector({
@@ -171,11 +173,11 @@ class PathCreatorSpecs extends SpecificationWithJUnit {
     )
 
     "apply selectors recursively" in {
-      all(selDeep)(group) mustEqual (selResRoot ++ selResNoRoot).sortBy(pathKeys)
+      vec(all(selDeep)(group)) mustEqual (selResRoot ++ selResNoRoot).sortBy(pathKeys)
     }
 
     "apply selectors recursively on the children" in {
-      allChildren(selDeep)(group) mustEqual selResNoRoot.sortBy(pathKeys)
+      vec(allChildren(selDeep)(group)) mustEqual selResNoRoot.sortBy(pathKeys)
     }
     
   }

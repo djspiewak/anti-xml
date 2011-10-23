@@ -179,6 +179,14 @@ class VectorCaseSpecs extends Specification with ScalaCheck {
       vec.foldLeft(0) { _ + _ } === list.foldLeft(0) { _ + _ }
     }
     
+    "implement foreach" in check { vec: VectorCase[Int] =>
+      val b = Vector.newBuilder[Int]
+      for(i <- vec)
+        b += i
+      val v = b.result()
+      v mustEqual vec
+    }
+    
     "implement forall" in check { (vec: VectorCase[Int], f: (Int)=>Boolean) =>
       val bool = vec forall f
       
