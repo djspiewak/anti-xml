@@ -97,16 +97,33 @@ object CanBuildFromWithZipper {
    * Decorates a sequence of zipper elements with a path and an update time.  This is the
    * basic unit of information used to construct zippers.  See  [[com.codecommit.antixml.CanBuildFromWithZipper]]
    * for more information.
+   * 
+   * There are two types of elements visible and hidden. Visible ones provide the
+   * indexed values of a zipper, while the hidden ones provide unindexable values in the zipper.
+   * Both types are represented as concrete subclasses of this one.
    *
    * @tparam Elem the type of node that will be contained in the zipper.
-   * @param path Identifies a location (known as a "hole") in the zipper's parent.  The order of the
-   * path is from top to bottom (the first item specifies the index of a top-level node in the parent Group).
    * @param updateTime the update time associated with these elements.  One context is considered to have
    * been updated later than another if its updateTime is greater.
-   * @param elements the actual elements to be added to the zipper.  
    * @see [[com.codecommit.antixml.CanBuildFromWithZipper]]
    */
-  case class ElemsWithContext[+Elem](path: Seq[Int], updateTime: Int, elements: GenTraversableOnce[Elem])
+  sealed abstract class ElemsWithContext[+Elem](updateTime: Int)
+  /**
+   * A visible zipper element.
+   * @param path Identifies a location (known as a "hole") in the zipper's parent.  The order of the
+   * path is from top to bottom (the first item specifies the index of a top-level node in the parent Group).
+   * @param elements the actual elements to be added to the zipper. 
+   */
+	case class ElemsWithContextVisible[+Elem](path: Seq[Int], updateTime: Int, elements: GenTraversableOnce[Elem]) extends ElemsWithContext[Elem](updateTime)
+  /**
+   * A hidden zipper element.
+   * @tparam Elem Dummy parameterization to satisfy the signature of methods like `flatMap`.
+   * @param path A zipper path instance leading to the location of the hole.
+   * @param elements The elements to be mapped to the path contained in the context. The type
+   * of the elements is the most general as they are not accessible through the zipper's methods
+   * and hence do not participate in any sort of transformations.
+   */
+  case class ElemsWithContextHidden(path: ZipperPath, updateTime: Int, elements: GenTraversableOnce[Node]) extends ElemsWithContext[Nothing](updateTime)
   
   /** Implicitly lifts [[scala.collection.mutable.CanBuildFrom]] instances into instances of [[com.codecommit.antixml.CanBuildFromWithZipper]]. The resulting builders simply ignore
     * the extra information in `ElemsWithContext` and produce their collections as usual.
@@ -122,7 +139,10 @@ object CanBuildFromWithZipper {
       
       private def liftBuilder(b: Builder[Elem,To]) = new Builder[ElemsWithContext[Elem], To]() {
         override def += (x: ElemsWithContext[Elem]) = {
-          b ++= x.elements.seq
+          x match {
+           case ElemsWithContextVisible(_, _, elements) => b ++= elements.seq
+           case ElemsWithContextHidden(_, _, _) => // nothing to do with hidden nodes
+          }
           this
         }
         override def clear() {
