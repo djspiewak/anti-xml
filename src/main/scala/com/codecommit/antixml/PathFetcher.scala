@@ -4,7 +4,9 @@ import scala.annotation.tailrec
 /**
  * Fetches [[com.codecommit.antixml.ZipperPath]]s from within a [[com.codecommit.antixml.Group]] 
  */
-object PathFetcher { //TODO test
+object PathFetcher {
+  
+  //TODO state monad for caching?
 	
   /**  
    * @param source The group upon which the fetching is performed.
