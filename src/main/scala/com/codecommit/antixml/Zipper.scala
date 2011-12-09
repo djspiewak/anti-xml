@@ -35,9 +35,11 @@ import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 import scala.collection.immutable.{SortedMap, IndexedSeq}
 import scala.collection.mutable.Builder
 import Zipper._
+import Zipper.ZipperPathOrdering
 import CanBuildFromWithZipper.ElemsWithContext
 import com.codecommit.antixml.CanBuildFromWithZipper.ElemsWithContextVisible
 import com.codecommit.antixml.CanBuildFromWithZipper.ElemsWithContextHidden
+import scala.collection.immutable.SortedSet
 
 /** 
  * Provides an `unselect` operation which copies this Group's nodes back to the XML tree from which
@@ -153,6 +155,44 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
       }
     }
     case None => brokenZipper(nodes.updated(index,node))
+  }
+  
+  /** TODO */
+  private[antixml] def shiftHoles(shiftFunc: PathTransformer => ZipperPath => Seq[ZipperPath]): Zipper[Node] = context match {
+    case Some(context @ Context(parent, lastUpdate, metas, additionalHoles, hiddenNodes)) => {
+      implicit val lexicographic = ZipperPathOrdering
+      
+      val shift = shiftFunc(PathTransformer(parent))
+      
+      // not allowing duplicates and sorting lexicographical
+      val newPaths = SortedSet(metas.flatMap(m => shift(m._1)): _*)
+      val holeInfo = new HoleMapper(context).holeInfo
+      
+      val b = newZipperContextBuilder[Node](Some(parent))
+      val pathsInit: VectorCase[ElemsWithContextVisible[Node]] = util.Vector0
+      
+      val (unusedPaths, usedPaths) = // leaving paths that were never used before
+        holeInfo.depthFirst.foldLeft((newPaths, pathsInit)) { case ((nPaths, used), hole) =>
+          val (path, (nt, time)) = hole
+          val (nodes, _) = nt.unzip
+
+          if (nPaths contains path) {
+            (nPaths - path, used :+ ElemsWithContextVisible(path, time, nodes)) 
+          } else {
+            b += ElemsWithContextHidden(path, time, nodes) 
+            (nPaths, used)
+          }
+        }
+
+      val initTime = 0 // these paths were never modified
+      val unusedElems = unusedPaths.toList map(p => ElemsWithContextVisible[Node](p, initTime, PathFetcher.getNode(parent)(p)))
+      
+      val visibleElems = SortedSet(unusedElems ++ usedPaths: _*)(Ordering.by(_.path))
+      b ++= visibleElems
+      
+      b.result
+    }
+    case None => sys.error("Cannot shift root.")
   }
 
   override def slice(from: Int, until: Int): Zipper[A] = context match {
@@ -305,12 +345,11 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
     new Unselector(ctx, zms).unselect 
   }
   
-  /** Utility class to perform unselect.  */
-  private[this] class Unselector(context: Context, mergeStrategy: ZipperMergeStrategy) {
-    
-    /** Each hole is associated with a list of node/time pairs as well as a master update time */
-    type HoleInfo = ZipperHoleMap[(VectorCase[(Node,Time)],Time)]
-    
+  /** Each hole is associated with a list of node/time pairs as well as a master update time */
+  private type HoleInfo = ZipperHoleMap[(VectorCase[(Node,Time)],Time)]
+  
+  /** A utility class to convert the contents of the zipper into a hole map. */
+  private[this] class HoleMapper(context: Context) {
     private val initHoleInfoItem:(VectorCase[(Node,Time)],Time) = (util.Vector0,0)
     
     type HoleMapGet[A] = A => (ZipperPath, Time, GenTraversableOnce[Node])
@@ -327,7 +366,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
       }
     }
     
-    private val topLevelHoleInfo: HoleInfo = {
+    val holeInfo: HoleInfo = {
       val Context(_, _, metas, additionalHoles, hiddenNodes) = context
 
       /* Getters for the different parts of the zipper. */
@@ -356,6 +395,12 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
         addToHoleInfo(items, hi, get)
       }
     }
+  }
+  
+  /** Utility class to perform unselect.  */
+  private[this] class Unselector(context: Context, mergeStrategy: ZipperMergeStrategy) {
+    
+    private val topLevelHoleInfo = new HoleMapper(context).holeInfo
     
     /** Applies the node updates to the parent and returns the result. */
     def unselect: Zipper[Node] = 
@@ -466,6 +511,12 @@ object Zipper {
 
       def lift = canBuildFromWithZipper
     }
+  }
+  
+  /** Lexicographic ordering for path objects. */
+  private object ZipperPathOrdering extends Ordering[ZipperPath] {
+    override def compare(x: ZipperPath, y: ZipperPath) =
+      Ordering.Iterable[Int].compare(x,y)
   }
   
   /** Returns a builder that produces a zipper without a parent */

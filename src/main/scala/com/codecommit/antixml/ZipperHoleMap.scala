@@ -106,6 +106,8 @@ private[antixml] final class ZipperHoleMap[+B] private (items: Map[Int, ZipperHo
 
   /** Returns a traversable represented the tree's contents in pre-order (lexicographically by path).
    * Note that this has not been optimized, as it is only currently used by toString and for testing.
+   * 
+   * TODO using this for zipper shifting, consider optimizing
    */
   def depthFirst: Traversable[(ZipperPath, B)] = 
     new Traversable[(ZipperPath, B)] {

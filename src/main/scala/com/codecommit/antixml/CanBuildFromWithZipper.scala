@@ -103,27 +103,25 @@ object CanBuildFromWithZipper {
    * Both types are represented as concrete subclasses of this one.
    *
    * @tparam Elem the type of node that will be contained in the zipper.
+   * @param path A zipper path instance leading to the location of the hole.
    * @param updateTime the update time associated with these elements.  One context is considered to have
    * been updated later than another if its updateTime is greater.
    * @see [[com.codecommit.antixml.CanBuildFromWithZipper]]
    */
-  sealed abstract class ElemsWithContext[+Elem](updateTime: Int)
+  sealed abstract class ElemsWithContext[+Elem](path: ZipperPath, updateTime: Int)
   /**
    * A visible zipper element.
-   * @param path Identifies a location (known as a "hole") in the zipper's parent.  The order of the
-   * path is from top to bottom (the first item specifies the index of a top-level node in the parent Group).
    * @param elements the actual elements to be added to the zipper. 
    */
-	case class ElemsWithContextVisible[+Elem](path: Seq[Int], updateTime: Int, elements: GenTraversableOnce[Elem]) extends ElemsWithContext[Elem](updateTime)
+	case class ElemsWithContextVisible[+Elem](path: ZipperPath, updateTime: Int, elements: GenTraversableOnce[Elem]) extends ElemsWithContext[Elem](path, updateTime)
   /**
    * A hidden zipper element.
    * @tparam Elem Dummy parameterization to satisfy the signature of methods like `flatMap`.
-   * @param path A zipper path instance leading to the location of the hole.
    * @param elements The elements to be mapped to the path contained in the context. The type
    * of the elements is the most general as they are not accessible through the zipper's methods
    * and hence do not participate in any sort of transformations.
    */
-  case class ElemsWithContextHidden(path: ZipperPath, updateTime: Int, elements: GenTraversableOnce[Node]) extends ElemsWithContext[Nothing](updateTime)
+  case class ElemsWithContextHidden(path: ZipperPath, updateTime: Int, elements: GenTraversableOnce[Node]) extends ElemsWithContext[Nothing](path, updateTime)
   
   /** Implicitly lifts [[scala.collection.mutable.CanBuildFrom]] instances into instances of [[com.codecommit.antixml.CanBuildFromWithZipper]]. The resulting builders simply ignore
     * the extra information in `ElemsWithContext` and produce their collections as usual.
