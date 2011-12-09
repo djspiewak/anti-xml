@@ -13,8 +13,8 @@ import PathFetcher._
  *  @param source The source for the transformed paths.
  */
 private[antixml] case class PathTransformer(source: Group[Node]) {
-  //TODO this whole class is probably quite slow
-  //TODO state monad for caching?
+  //TODO this whole class is probably quite slow, ZipperPath is not optimized for modifications
+  
 
   /** Shifts the path one step upwards, if possible.
    * @param path The path to be shifted
