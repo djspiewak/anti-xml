@@ -2,6 +2,7 @@ package com.codecommit.antixml
 
 import scala.annotation.tailrec
 import PathTransformer._
+import PathFetcher._
 
 /** Transforms [[com.codecommit.antixml.ZipperPath]]s with predefined functions.
  *
@@ -17,38 +18,21 @@ private[antixml] case class PathTransformer(source: Group[Node]) {
 
   /** Shifts the path one step upwards, if possible.
    * @param path The path to be shifted
-   * @return An optional path which is the parent of the original path, a new path transformer
-   * with an updated cache. */
+   * @return An optional path which is the parent of the original path. */
   def shiftUp(path: ZipperPath): Option[ZipperPath] = if (path.isEmpty) None else Some(path.init)
 
   /** Shifts the path one step to the left, if possible.
    * @param path The path to be shifted
-   * @return An optional path which is a sibling of the original path from the left, a new path transformer
-   * with an updated cache. */
+   * @return An optional path which is a sibling of the original path from the left. */
   def shiftLeft(path: ZipperPath): Option[ZipperPath] = {
     shiftSideways(path, -1)
   }
 
   /** Shifts the path one step to the right, if possible.
    * @param path The path to be shifted
-   * @return An optional path which is a sibling of the original path from the right, a new path transformer
-   * with an updated cache. */
+   * @return An optional path which is a sibling of the original path from the right. */
   def shiftRight(path: ZipperPath): Option[ZipperPath] = {
     shiftSideways(path, +1)
-  }
-
-  /** @return An optional node at the end of the path and updated cache. */
-  private def getNode(path: ZipperPath): Option[Node] = getNode(source, path)
-
-  @tailrec
-  private def getNode(currLevel: Group[Node], path: ZipperPath): Option[Node] = {
-    if (path.isEmpty) None
-    else if (path.size == 1) Some(currLevel(path.head))
-    else {
-      // the cast must succeed otherwise the path is invalid
-      val children = currLevel(path.head).asInstanceOf[Elem].children
-      getNode(children, path.tail)
-    }
   }
 
   /** Tries to shift the path sideways by the given increment. */
@@ -58,7 +42,7 @@ private[antixml] case class PathTransformer(source: Group[Node]) {
     val currLevel =
       if (path.size == 1) source
       else {
-        val parent = getNode(path.init) // size > 1
+        val parent = getNode(source)(path.init) // size > 1
         parent.get.asInstanceOf[Elem].children // must be an elem for a valid path
       }
 
