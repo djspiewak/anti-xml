@@ -157,14 +157,34 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
     case None => brokenZipper(nodes.updated(index,node))
   }
   
-  /** TODO doc/test */
+  /** Shifts the focus of the zipper to another set of holes.
+   * 
+   * The shifting is performed using a shifting function which is applied to each
+   * path visible in the zipper and produces a new sequence of paths. 
+   * These paths are sorted lexicographically and duplicates are removed.
+   * 
+   * A new zipper displaying the above paths is returned while internally maintaining data 
+   * about any previously contained paths.
+   * 
+   * The values which are attached to the paths come from two sources:
+   * - If the zipper previously contained the path, the data attached to it is used.
+   * - If the path is new, the data is fetched directly from the parent of the zipper.
+   * 
+   * In case a hole was previously multiplied (e.g. using flatMap) it is placed
+   * as is in the resulting zipper.
+   * 
+   * Note: shifting is not supported for parentless (broken) zippers.
+   * 
+   *  @param shiftFunc A function to be supplied with the parent of the zipper 
+   *  and applied to the indexed contents of the zipper. 
+   *  Assumed to produce valid paths with regard to the supplied parent. */
   private[antixml] def shiftHoles(shiftFunc: Group[Node] => ZipperPath => Seq[ZipperPath]): Zipper[Node] = context match {
     case Some(context @ Context(parent, lastUpdate, metas, additionalHoles, hiddenNodes)) => {
       implicit val lexicographic = ZipperPathOrdering
       
       val shift = shiftFunc(parent)
       
-      // not allowing duplicates and sorting lexicographical
+      // not allowing duplicates and sorting lexicographically
       val newPaths = SortedSet(metas.flatMap(m => shift(m._1)): _*)
       val holeInfo = new HoleMapper(context).holeInfo
       
@@ -173,13 +193,19 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
       
       val (unusedPaths, usedPaths) = // leaving paths that were never used before
         holeInfo.depthFirst.foldLeft((newPaths, pathsInit)) { case ((nPaths, used), hole) =>
-          val (path, (nt, time)) = hole
-          val (nodes, _) = nt.unzip
+          val (path, (nodesTimes, masterTime)) = hole
+          
+          val holes = 
+            if (nodesTimes.isEmpty) Seq((path, masterTime, util.Vector0))
+            else nodesTimes.map { case (n, t) => (path, t, Seq(n)) }
+          
+          val visible = (ElemsWithContextVisible.apply[Node] _).tupled
+          val hidden = (ElemsWithContextHidden.apply _).tupled
 
           if (nPaths contains path) {
-            (nPaths - path, used :+ ElemsWithContextVisible(path, time, nodes)) 
+            (nPaths - path, used ++ holes.map(visible))
           } else {
-            b += ElemsWithContextHidden(path, time, nodes) 
+            b ++= holes.map(hidden)
             (nPaths, used)
           }
         }
