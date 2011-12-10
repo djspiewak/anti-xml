@@ -157,12 +157,12 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
     case None => brokenZipper(nodes.updated(index,node))
   }
   
-  /** TODO */
-  private[antixml] def shiftHoles(shiftFunc: PathTransformer => ZipperPath => Seq[ZipperPath]): Zipper[Node] = context match {
+  /** TODO doc/test */
+  private[antixml] def shiftHoles(shiftFunc: Group[Node] => ZipperPath => Seq[ZipperPath]): Zipper[Node] = context match {
     case Some(context @ Context(parent, lastUpdate, metas, additionalHoles, hiddenNodes)) => {
       implicit val lexicographic = ZipperPathOrdering
       
-      val shift = shiftFunc(PathTransformer(parent))
+      val shift = shiftFunc(parent)
       
       // not allowing duplicates and sorting lexicographical
       val newPaths = SortedSet(metas.flatMap(m => shift(m._1)): _*)
