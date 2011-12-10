@@ -54,7 +54,3 @@ private[antixml] case class PathTransformer(source: Group[Node]) {
       else None
   }
 }
-
-private[antixml] object PathTransformer {
-  private[antixml]type PathCache = Map[ZipperPath, Option[Node]]
-}
