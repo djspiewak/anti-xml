@@ -965,6 +965,13 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
       shifted.unselect mustEqual group
     }
     
+    "handle empty results" in {
+      val shifted = zipper shiftHoles makeConstShift(Seq())
+      
+      shifted mustEqual Group()
+      shifted.unselect mustEqual group
+    }
+    
     "result in a lexicographic set" in {
       val shifted = zipper shiftHoles constantShift
       shifted mustEqual constShiftRes
