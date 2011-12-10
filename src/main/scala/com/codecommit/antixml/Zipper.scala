@@ -197,7 +197,7 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
           
           val holes = 
             if (nodesTimes.isEmpty) Seq((path, masterTime, util.Vector0))
-            else nodesTimes.map { case (n, t) => (path, t, Seq(n)) }
+            else nodesTimes.map { case (n, t) => (path, t, Seq(n)) } // this contains duplicates for multiplied locations
           
           val visible = (ElemsWithContextVisible.apply[Node] _).tupled
           val hidden = (ElemsWithContextHidden.apply _).tupled
@@ -211,9 +211,12 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
         }
 
       val initTime = 0 // these paths were never modified
-      val unusedElems = unusedPaths.toList map(p => ElemsWithContextVisible[Node](p, initTime, PathFetcher.getNode(parent)(p)))
+      val unusedElems = unusedPaths.toList map { p =>
+    	ElemsWithContextVisible[Node](p, initTime, PathFetcher.getNode(parent)(p))
+      }
       
-      val visibleElems = SortedSet(unusedElems ++ usedPaths: _*)(Ordering.by(_.path))
+      // this can contain duplicate locations from the previously used paths
+      val visibleElems = (unusedElems ++ usedPaths).sortBy(_.path)
       b ++= visibleElems
       
       b.result
