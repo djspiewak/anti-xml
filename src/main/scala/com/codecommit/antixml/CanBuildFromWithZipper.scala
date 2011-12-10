@@ -109,11 +109,13 @@ object CanBuildFromWithZipper {
    * @see [[com.codecommit.antixml.CanBuildFromWithZipper]]
    */
   sealed abstract class ElemsWithContext[+Elem](path: ZipperPath, updateTime: Int)
+  
   /**
    * A visible zipper element.
    * @param elements the actual elements to be added to the zipper. 
    */
-	case class ElemsWithContextVisible[+Elem](path: ZipperPath, updateTime: Int, elements: GenTraversableOnce[Elem]) extends ElemsWithContext[Elem](path, updateTime)
+  case class ElemsWithContextVisible[+Elem](path: ZipperPath, updateTime: Int, elements: GenTraversableOnce[Elem]) extends ElemsWithContext[Elem](path, updateTime)
+  
   /**
    * A hidden zipper element.
    * @tparam Elem Dummy parameterization to satisfy the signature of methods like `flatMap`.
