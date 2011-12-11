@@ -87,7 +87,7 @@ class XMLSpecs extends Specification {
   
   "fromString" should {
     "parse a complex document without stack overflow" in {
-      val stream = getClass.getClassLoader.getResourceAsStream("jira-rss-derby-project.xml")
+      val stream = getClass.getResourceAsStream("/jira-rss-derby-project.xml")
       val string = new Scanner(stream, "UTF-8").useDelimiter("\\A").next
       XML.fromString(string) must not(throwA[StackOverflowError])
     }
