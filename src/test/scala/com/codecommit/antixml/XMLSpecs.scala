@@ -28,6 +28,8 @@
 
 package com.codecommit.antixml
 
+import java.util.Scanner
+
 import org.specs2.execute.Pending
 import org.specs2.mutable._
 
@@ -63,7 +65,7 @@ class XMLSpecs extends Specification {
       val ns = "urn:my-urn:quux";
       fromString("<my:test xmlns:my='urn:my-urn:quux'/>") mustEqual Elem(Some("my"), "test", Attributes(), Map("my" -> ns), Group[Node]())
     }
-
+    
     "parse prefixes" in {
       fromString("<my:test xmlns:my='urn:my-urn:quux'></my:test>").name mustEqual "test"
     }
@@ -80,6 +82,14 @@ class XMLSpecs extends Specification {
     "load large files without difficulty" in {
       val is = getClass.getResourceAsStream("/discogs_20110201_labels.xml")
       fromSource(Source fromInputStream is) must not(throwA[StackOverflowError])
+    }
+  }
+  
+  "fromString" should {
+    "parse a complex document without stack overflow" in {
+      val stream = getClass.getClassLoader.getResourceAsStream("jira-rss-derby-project.xml")
+      val string = new Scanner(stream, "UTF-8").useDelimiter("\\A").next
+      XML.fromString(string) must not(throwA[StackOverflowError])
     }
   }
   
