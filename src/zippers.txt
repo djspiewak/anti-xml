@@ -32,7 +32,7 @@ but it's easy enough to derive a new version of ``results`` which has the
 modification::
     
     val results = xml \ "book"
-    val book2 = results.head.copy(attrs=Map("first" -> "yes"))
+    val book2 = results.head.copy(attrs=Attributes("first" -> "yes"))
     val results2 = results.updated(0, book2)
     
 The ``results2`` variable will be of type ``Group[Elem]`` and will contain exactly
