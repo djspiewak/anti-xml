@@ -183,9 +183,13 @@ trait Zipper[+A <: Node] extends Group[A] with IndexedSeqLike[A, Zipper[A]] { se
       implicit val lexicographic = ZipperPathOrdering
       
       val shift = shiftFunc(parent)
+      val unsoretedPaths = for {
+        m <- metas 
+        path <- shift(m._1) if path != ZipperPath.empty // ignoring empty paths
+      } yield path
       
-      // not allowing duplicates and sorting lexicographically
-      val newPaths = SortedSet(metas.flatMap(m => shift(m._1)): _*)
+      // not allowing duplicates and empty paths and sorting lexicographically
+      val newPaths = SortedSet(unsoretedPaths: _*)
       val holeInfo = new HoleMapper(context).holeInfo
       
       val b = newZipperContextBuilder[Node](Some(parent))

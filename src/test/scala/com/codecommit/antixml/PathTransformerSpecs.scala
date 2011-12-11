@@ -27,9 +27,9 @@ class PathTransformerSpecs extends SpecificationWithJUnit with DataTables {
     
     "properly shift paths" in {
       "path" | "result" |
-      p1     ! Some(ZipperPath(0, 1)) |
+      p1     ! Some(ZipperPath(0, 1)).asInstanceOf[Option[ZipperPath]] |
       p2     ! Some(ZipperPath(1)) |
-      p3     ! Some(ZipperPath()) |> {
+      p3     ! None |> {
        (path, res) => transformer.shiftUp(path) mustEqual res
       }
     }

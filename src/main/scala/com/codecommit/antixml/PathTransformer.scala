@@ -19,7 +19,7 @@ private[antixml] case class PathTransformer(source: Group[Node]) {
   /** Shifts the path one step upwards, if possible.
    * @param path The path to be shifted
    * @return An optional path which is the parent of the original path. */
-  def shiftUp(path: ZipperPath): Option[ZipperPath] = if (path.isEmpty) None else Some(path.init)
+  def shiftUp(path: ZipperPath): Option[ZipperPath] = if (path.isEmpty || path.size == 1) None else Some(path.init)
 
   /** Shifts the path one step to the left, if possible.
    * @param path The path to be shifted
