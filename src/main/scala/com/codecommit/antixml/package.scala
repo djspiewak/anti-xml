@@ -35,7 +35,7 @@ package com.codecommit
  * <ul>
  * <li>∀`A` . `A => Converter[A]` – Implements ''explicit'' conversions from
  * `scala.xml` types to Anti-XML correspondents (where applicable).  This
- * technically makes the `anti` method available on all types.  However, that
+ * technically makes the `convert` method available on all types.  However, that
  * method will only be callable on very specific types in the `scala.xml`
  * library, and thus it shouldn't cause any collsion issues.</li>
  * <li>`(String, String) => (QName, String)` – Required to get nice syntax for
@@ -48,11 +48,11 @@ package com.codecommit
 package object antixml {
   
   /**
-   * Pimps the `anti` method onto any object for which there exists a conversion
+   * Pimps the `convert` method onto any object for which there exists a conversion
    * into Anti-XML.  Note that this conversion is an implicit value, statically
    * enforced and thus shouldn't be the source of any collision issues.  It should
    * actually be possible to have another implicit conversion in scope which
-   * pimps the `anti` method without seeing conflicts.
+   * pimps the `convert` method without seeing conflicts.
    * 
    * @see [[com.codecommit.antixml.XMLConvertable]]
    */

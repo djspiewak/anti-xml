@@ -102,13 +102,13 @@ trait XMLConvertable[-A, +B] {      // note: doesn't extend Function1 to avoid c
  * </ul>
  *
  * This corresponds with the roughly-intuitive conversion precedence.  Thus, if
- * we have a value of type [[scala.xml.Elem]] and we invoke the `anti` method on
+ * we have a value of type [[scala.xml.Elem]] and we invoke the `convert` method on
  * that value, the result will be of type [[com.codecommit.antixml.Elem]].  However,
  * if we take that same value and ascribe it the type of [[scala.xml.Node]],
- * the `anti` method will return a value of type [[com.codecommit.antixml.Node]].
+ * the `convert` method will return a value of type [[com.codecommit.antixml.Node]].
  * Finally, we can take this same value and ascribe it the even less-specific type
  * of [[scala.xml.NodeSeq]] (or even [[scala.Seq]]`[`[[scala.xml.Node]]`]`, for
- * that matter).  Invoking the `anti` method on this maximally-widened type will
+ * that matter).  Invoking the `convert` method on this maximally-widened type will
  * produce a value of type [[com.codecommit.antixml.Group]]`[`[[com.codecommit.antixml.Node]]`]`.
  * Thus, the most specific conversion is chosen in all cases.
  */
