@@ -127,19 +127,15 @@ trait Zipper[+A <: Node] extends Group[A]
 	    with ZipperHoleShifting
 	    with ZipperAxes { self =>
 
-  /** 
-   * Returns the original group that was selected upon when the Zipper was created.  A value of `None` indicates that
+  /** The zipper context or None if this is a broken zipper.
+   * A value of `None` indicates that
    * the Zipper has no parent and `unselect` cannot be called.  This possibility is an unfortunate consequence of the
    * fact that some operations must return the static type of Zipper even though they yield no usable context.  
    * In practice, this situation is usually caused by one of the following operations:
    * 
    *   - A non-Zipper group is selected upon and then 'unselect' is used to generate an updated group. 
    *   - A method such as `++`, is used to "add" nodes to a zipper without replacing existing nodes. 
-   *   
-   **/
-  def parent: Option[Zipper[Node]] = context map {_.parent}
-  
-  /** The zipper context or None if this is a broken zipper. */
+   */
   private[antixml] val context: Option[Context]
   
   /**
