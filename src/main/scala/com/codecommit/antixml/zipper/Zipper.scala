@@ -123,9 +123,9 @@ import CanBuildFromWithZipper._
 trait Zipper[+A <: Node] extends Group[A] 
 		with IndexedSeqLike[A, Zipper[A]] 
 		with ZipperGroupOverrides[A]
+	    with ZipperUnselection
 	    with ZipperHoleShifting
-	    with ZipperAxes
-	    with ZipperUnselection { self =>
+	    with ZipperAxes { self =>
 
   /** 
    * Returns the original group that was selected upon when the Zipper was created.  A value of `None` indicates that
@@ -152,61 +152,6 @@ trait Zipper[+A <: Node] extends Group[A]
   def unselect(implicit zms: ZipperMergeStrategy): Zipper[Node] = { 
     val ctx = context.getOrElse(sys.error("Zipper does not have a valid context"))
     unselect(ctx, zms)
-  }
-  
-  /** Each hole is associated with a list of node/time pairs as well as a master update time */
-  private[antixml] type HoleInfo = ZipperHoleMap[(VectorCase[(Node,Time)],Time)]
-  
-  /** Converts the given context object into a hole info instance. */
-  private[antixml] def toHoleInfo(context: Context) = new HoleMapper(context).holeInfo
-  
-  /** A utility class to convert the contents of the zipper into a hole map. */
-  private[this] class HoleMapper(context: Context) {
-    private val initHoleInfoItem:(VectorCase[(Node,Time)],Time) = (util.Vector0,0)
-    
-    type HoleMapGet[A] = A => (ZipperPath, Time, GenTraversableOnce[Node])
-    
-    /** Adding items to the hole info object using the given getter function to transform the items
-     * into the appropriate format. */
-    private def addToHoleInfo[A](items: Seq[A], h: HoleInfo, get: HoleMapGet[A]) = {
-      (h /: items) { (hi, item) =>
-      	val (path, time, nodes) = get(item)
-      	val (oldNodes, oldTime) = hi.getDeep(path).getOrElse(initHoleInfoItem)
-        val newItems = (oldNodes /: nodes) { case(old, node) => old :+ (node, time) }
-        val newTime = math.max(oldTime, time)
-        hi.updatedDeep(path, (newItems, newTime))
-      }
-    }
-    
-    val holeInfo: HoleInfo = {
-      val Context(_, _, metas, additionalHoles, hiddenNodes) = context
-
-      /* Getters for the different parts of the zipper. */
-      
-      val indicesGet = (i: Int) => {
-        val (path, time) = metas(i)
-        val items = util.Vector1(self(i))
-        (path, time, items)
-      }
-      
-      val hiddenGet = (ewc: ElemsWithContextHidden) => {
-        val ElemsWithContextHidden(path, time, items) = ewc
-        (path, time, items)
-      }
-
-      val additonalGet = (pt: (ZipperPath, Time)) => {
-        val (path, time) = pt
-        (path, time, util.Vector0)
-      }
-      
-      case class ItemsGet[A](items: Seq[A], get: HoleMapGet[A])	  
-      val itemsGetters = List(ItemsGet(indices, indicesGet), ItemsGet(hiddenNodes, hiddenGet), ItemsGet(additionalHoles, additonalGet))
-      
-      val holeInit: HoleInfo = ZipperHoleMap.empty
-      (holeInit /: itemsGetters) { case (hi, ItemsGet(items, get)) =>
-        addToHoleInfo(items, hi, get)
-      }
-    }
   }
 }
 

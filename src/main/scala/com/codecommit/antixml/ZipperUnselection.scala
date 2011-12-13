@@ -1,14 +1,15 @@
 package com.codecommit.antixml
 
 import Zipper._
+import ZipperHoleMapper._
 import util.VectorCase
 import collection.immutable.IndexedSeq
 
 /** Provides unselection support for zipper. */
-private[antixml] trait ZipperUnselection { self: Zipper[Node] =>
+private[antixml] trait ZipperUnselection extends ZipperHoleMapper { self: Zipper[Node] =>
 
   /** Applies the node updates to the context parent and returns the result. */
-  private def unselect(context: Context, mergeStrategy: ZipperMergeStrategy) = {
+  def unselect(context: Context, mergeStrategy: ZipperMergeStrategy) = {
     val topLevelHoleInfo = toHoleInfo(context)
     pullBackGroup(context.parent, topLevelHoleInfo, mergeStrategy)._1.asInstanceOf[Zipper[Node]]
   }
