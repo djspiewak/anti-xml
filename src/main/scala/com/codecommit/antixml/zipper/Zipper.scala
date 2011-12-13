@@ -136,7 +136,7 @@ trait Zipper[+A <: Node] extends Group[A]
    *   - A method such as `++`, is used to "add" nodes to a zipper without replacing existing nodes. 
    *   
    **/
-   def parent: Option[Zipper[Node]] = context map {_.parent}
+  def parent: Option[Zipper[Node]] = context map {_.parent}
   
   /** The zipper context or None if this is a broken zipper. */
   private[antixml] val context: Option[Context]

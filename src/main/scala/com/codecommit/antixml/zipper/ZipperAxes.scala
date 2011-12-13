@@ -11,7 +11,7 @@ import scala.annotation.tailrec
  * Note2: the axes are calculated using holes in the zipper, hence for a modified
  * zipper some nodes may be multiplied or elided.
  */
-trait ZipperAxes { self: Zipper[Node] =>
+private[antixml] trait ZipperAxes { self: Zipper[Node] =>
   /** Returns the direct parent of a node. */
   def directParent = {
     shiftHoles (g => (PathTransformer(g).shiftUp(_)).andThen(_.toList))

@@ -7,7 +7,7 @@ import scala.collection.immutable.SortedSet
 import CanBuildFromWithZipper._
 
 /** Responsible for zipper hole shifting support. */
-trait ZipperHoleShifting { self: Zipper[Node] =>
+private[antixml] trait ZipperHoleShifting { self: Zipper[Node] =>
 
   /** Shifts the focus of the zipper to another set of holes.
    *
@@ -83,7 +83,7 @@ trait ZipperHoleShifting { self: Zipper[Node] =>
   }
 }
 
-object ZipperHoleShifting {
+private object ZipperHoleShifting {
   /** Lexicographic ordering for path objects. */
   private object ZipperPathOrdering extends Ordering[ZipperPath] {
     override def compare(x: ZipperPath, y: ZipperPath) =

@@ -9,7 +9,7 @@ import scala.annotation.tailrec
 /** Contains methods on [[com.codecommit.antixml.Group]] that are overridden in
  *  the zipper's implementation.
  */
-trait ZipperGroupOverrides[+A <: Node] { self: Zipper[A] =>
+private[antixml] trait ZipperGroupOverrides[+A <: Node] { self: Zipper[A] =>
   
   override protected[this] def newBuilder = Zipper.newBuilder[A]
   
