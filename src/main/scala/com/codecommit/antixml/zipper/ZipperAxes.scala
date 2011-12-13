@@ -2,7 +2,7 @@ package com.codecommit.antixml
 import scala.annotation.tailrec
 
 /**
- * Wraps [[com.codecommit.antixml.Zipper]] instances with some XPath like axes.
+ * Adds some XPath like axes to [[com.codecommit.antixml.Zipper]] instances.
  * 
  * Note1: the axes are applied to each node in a zipper individually and the result
  * is a new zipper with the nodes concatenated and sorted lexicographically by
@@ -11,10 +11,10 @@ import scala.annotation.tailrec
  * Note2: the axes are calculated using holes in the zipper, hence for a modified
  * zipper some nodes may be multiplied or elided.
  */
-class ZipperAxes(zipper: Zipper[Node]) {
+trait ZipperAxes { self: Zipper[Node] =>
   /** Returns the direct parent of a node. */
   def directParent = {
-    zipper shiftHoles (g => (PathTransformer(g).shiftUp(_)).andThen(_.toList))
+    shiftHoles (g => (PathTransformer(g).shiftUp(_)).andThen(_.toList))
   }
   
   /** Returns the ancestors of a node. */
@@ -40,7 +40,7 @@ class ZipperAxes(zipper: Zipper[Node]) {
    *  @param appendSource True if the initial path should be part of the result.
    */
   private def transFuncToShift(func: PathTransformer => ZipperPath => Option[ZipperPath], withSource: Boolean) = {
-    zipper shiftHoles { g =>
+    shiftHoles { g =>
       val pathToOpt = func(PathTransformer(g))
 
       @tailrec
@@ -62,10 +62,4 @@ class ZipperAxes(zipper: Zipper[Node]) {
     }
   }
   
-}
-
-object ZipperAxes {
-	/** Pimps a plain zipper to have axes selection methods. 
-	 * TODO move to package object? */
-	implicit def zipperToAxes(zipper: Zipper[Node]) = new ZipperAxes(zipper)
 }

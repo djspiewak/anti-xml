@@ -2,7 +2,6 @@ package com.codecommit.antixml
 
 import org.specs2.mutable._
 import XML._
-import ZipperAxes._
 import scala.collection.immutable.SortedSet
 
 class ZipperAxesSpecs extends SpecificationWithJUnit {
