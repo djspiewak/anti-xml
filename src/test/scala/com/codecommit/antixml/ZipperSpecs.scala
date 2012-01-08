@@ -27,13 +27,14 @@
  */
 
 package com.codecommit.antixml
-package zipper
+
+import zipper._
 
 import org.specs2.mutable._
 import org.specs2.ScalaCheck
 import org.scalacheck._
 import XML._
-import com.codecommit.antixml.Zipper._
+import Zipper._
 import scala.io.Source
 
 class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenerators {
