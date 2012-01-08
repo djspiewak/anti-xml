@@ -1,4 +1,5 @@
 package com.codecommit.antixml
+package zipper
 
 import Zipper._
 import ZipperHoleMapper._

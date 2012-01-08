@@ -1,4 +1,6 @@
 package com.codecommit.antixml
+package zipper
+
 import scala.annotation.tailrec
 
 /**

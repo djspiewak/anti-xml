@@ -29,10 +29,12 @@
 package com.codecommit
 package antixml
 
+import zipper._
+
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
 import scala.collection.immutable.VectorBuilder
 
-import com.codecommit.antixml.CanBuildFromWithZipper.ElemsWithContextVisible
+import CanBuildFromWithZipper.ElemsWithContextVisible
 import com.codecommit.antixml.util.VectorCase
 
 trait Selectable[+A <: Node] {

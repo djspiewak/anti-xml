@@ -30,6 +30,7 @@ package com.codecommit
 package antixml
 
 import util._
+import zipper._
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.annotation.tailrec

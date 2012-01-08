@@ -1,4 +1,5 @@
 package com.codecommit.antixml
+package zipper
 
 import org.specs2.mutable._
 import XML._

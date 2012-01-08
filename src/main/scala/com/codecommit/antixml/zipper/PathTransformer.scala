@@ -1,7 +1,7 @@
 package com.codecommit.antixml
+package zipper
 
 import scala.annotation.tailrec
-import PathTransformer._
 import PathFetcher._
 
 /** Transforms [[com.codecommit.antixml.ZipperPath]]s with predefined functions.
@@ -13,6 +13,8 @@ import PathFetcher._
  *  @param source The source for the transformed paths.
  */
 private[antixml] case class PathTransformer(source: Group[Node]) {
+  import PathTransformer._
+  
   //TODO this whole class is probably quite slow, ZipperPath is not optimized for modifications
   
 

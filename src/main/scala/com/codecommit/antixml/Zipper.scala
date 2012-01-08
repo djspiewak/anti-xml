@@ -28,6 +28,8 @@
 
 package com.codecommit.antixml
 
+import zipper._
+
 import com.codecommit.antixml.util.VectorCase
 import scala.annotation.tailrec
 import scala.collection.{immutable, mutable, IndexedSeqLike, GenTraversableOnce}

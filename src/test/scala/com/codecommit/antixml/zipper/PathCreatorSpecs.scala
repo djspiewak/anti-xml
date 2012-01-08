@@ -27,10 +27,11 @@
  */
 
 package com.codecommit.antixml
+package zipper
 
 import org.specs2.mutable._
-import com.codecommit.antixml.PathCreator._
-import com.codecommit.antixml.Zipper._
+import PathCreator._
+import Zipper._
 import XML._
 import scala.math.Ordering
 
