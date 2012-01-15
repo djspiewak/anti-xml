@@ -36,7 +36,7 @@ private[antixml] case class PathTransformer(source: Group[Node]) {
   def shiftRight(path: ZipperPath): Option[ZipperPath] = {
     shiftSideways(path, +1)
   }
-
+  
   /** Tries to shift the path sideways by the given increment. */
   private def shiftSideways(path: ZipperPath, increment: Int): Option[ZipperPath] = {
     assert(!path.isEmpty, "Cannot shift an empty path.")
@@ -52,7 +52,7 @@ private[antixml] case class PathTransformer(source: Group[Node]) {
 
     val newLoc = path(end) + increment
 
-      if (currLevel.indices.contains(newLoc)) Some(path.updated(end, newLoc))
-      else None
+    if (currLevel.indices.contains(newLoc)) Some(path.updated(end, newLoc))
+    else None
   }
 }
