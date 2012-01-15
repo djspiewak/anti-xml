@@ -151,6 +151,16 @@ trait Zipper[+A <: Node] extends Group[A]
     val ctx = context.getOrElse(sys.error("Zipper does not have a valid context"))
     unselect(ctx, zms)
   }
+  
+  /** Recursively applying [[Zipper#unselect]] until reaching the root. 
+   * Guaranteed not to fail upon root unselection. */
+  def unselectAll(implicit zms: ZipperMergeStrategy): Group[Node] = {
+    def unselectRecur(z: Zipper[Node]): Group[Node] = {
+      if (z.context.isDefined) unselectRecur(z.unselect)
+      else z.stripZipper
+    }
+    unselectRecur(this)
+  }
 }
 
 object Zipper {

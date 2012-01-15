@@ -918,6 +918,27 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
     }
   }
   
+  "Zipper.unselectAll" should {
+    val xml = <top><a><b><c><d /></c></b></a></top>.convert
+    
+    "behave like unselect for single selection" in {
+      val z = xml \\ *
+      val z1 = z.updated(0, <c />.convert)
+      z1.unselectAll mustEqual z1.unselect
+    }
+    
+    "behave like reucrsive unselect for multiple selections" in {
+      val z = xml \ 'a \ 'b \ 'c \ 'd
+      val z1 = z.updated(0, <e />.convert)
+      z1.unselectAll mustEqual z1.unselect.unselect.unselect.unselect
+    }
+    
+    "return self group on a broken zipper" in {
+      val group = xml.toGroup
+      group.toZipper.unselectAll mustEqual group 
+    }
+  }
+  
   "Zipper.flatMap" should {
     "increase update times front to back" in {
       val xml = <top><a><b /></a></top>.convert
