@@ -32,7 +32,7 @@ private[antixml] trait ZipperHoleShifting extends ZipperHoleMapper { self: Zippe
    *  and applied to the indexed contents of the zipper.
    *  Assumed to produce valid paths with regard to the supplied parent.
    */
-  private[antixml] def shiftHoles(shiftFunc: Group[Node] => ZipperPath => Seq[ZipperPath]): Zipper[Node] = context match {
+  private[antixml] def shiftHoles(shiftFunc: Group[Node] => ZipperPath => Traversable[ZipperPath]): Zipper[Node] = context match {
     case Some(context @ Context(parent, lastUpdate, metas, additionalHoles, hiddenNodes)) => {
       implicit val lexicographic = ZipperPathOrdering
 

@@ -20,8 +20,10 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
       zipper.followingSiblingOrSelf.unselect mustEqual res
       zipper.precedingSibling.unselect mustEqual res
       zipper.precedingSiblingOrSelf.unselect mustEqual res
+      zipper.descendant.unselect mustEqual res
+      zipper.descendantOrSelf.unselect mustEqual res
     }
-    
+
     "fail on broken zippers" in {
       bookstore.toZipper.directParent.unselect must throwA[RuntimeException]
       bookstore.toZipper.ancestor.unselect must throwA[RuntimeException]
@@ -30,6 +32,8 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
       bookstore.toZipper.followingSiblingOrSelf.unselect must throwA[RuntimeException]
       bookstore.toZipper.precedingSibling.unselect must throwA[RuntimeException]
       bookstore.toZipper.precedingSiblingOrSelf.unselect must throwA[RuntimeException]
+      bookstore.toZipper.descendant.unselect must throwA[RuntimeException]
+      bookstore.toZipper.descendantOrSelf.unselect must throwA[RuntimeException]
     }
   }
   
@@ -37,15 +41,13 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
     "be empty for root" in {
       val res = bookstore select 'bookstore directParent
       
-      res mustEqual Group()
-      res.unselect mustEqual bookstore
+      verify(res)(Group())
     }
     
     "return the direct parents of nodes" in {
       val res = bookstore \\ 'author directParent;
       
-      res mustEqual (bookstore \\ 'book)
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore \\ 'book)
     }
   }
   
@@ -53,15 +55,13 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
     "be empty for root" in {
       val res = bookstore select 'bookstore ancestor
       
-      res mustEqual Group()
-      res.unselect mustEqual bookstore
+      verify(res)(Group())
     }
     
     "return all ancestors of nodes" in {
       val res = bookstore \\ 'author ancestor;
       
-      res mustEqual (bookstore ++ bookstore \\ 'book)
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore ++ bookstore \\ 'book)
     }
   }
   
@@ -69,8 +69,7 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
     "return self for root" in {
       val res = bookstore select 'bookstore ancestorOrSelf
       
-      res mustEqual bookstore
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore)
     }
     
     "return all ancestors and self of nodes" in {
@@ -79,9 +78,7 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
       
       val res = authors ancestorOrSelf;
       
-      
-      res mustEqual (bookstore :+ books(0) :+ authors(0) :+ books(1) :+ authors(1) :+ books(2) :+ authors(2) :+ authors(3))
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore :+ books(0) :+ authors(0) :+ books(1) :+ authors(1) :+ books(2) :+ authors(2) :+ authors(3))
     }
   }
   
@@ -89,15 +86,13 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
     "return nothing on rightmost node" in {
       val res = bookstore \\ 'author followingSibling
       
-      res mustEqual Group((bookstore \\ 'author).apply(3))
-      res.unselect mustEqual bookstore
+      verify(res)(Group((bookstore \\ 'author).apply(3)))
     }
     
     "return all following siblings of nodes" in {
       val res = bookstore \\ 'title followingSibling
       
-      res mustEqual bookstore \\ 'author 
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore \\ 'author) 
     }
   }
   
@@ -105,15 +100,13 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
     "return self for rightmost nodes" in {
       val res = bookstore \\ 'author followingSiblingOrSelf
       
-      res mustEqual (bookstore \\ 'author)
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore \\ 'author)
     }
     
     "return all following siblings and self of nodes" in {
       val res = bookstore \\ 'title followingSiblingOrSelf
       
-      res mustEqual bookstore \ 'book \ *
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore \ 'book \ *)
     }
   }
   
@@ -121,15 +114,13 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
     "return nothing on leftmost node" in {
       val res = bookstore \\ 'title precedingSibling
       
-      res mustEqual Group()
-      res.unselect mustEqual bookstore
+      verify(res)(Group())
     }
     
     "return all preceding siblings of nodes" in {
       val res = bookstore \\ 'author precedingSibling
       
-      res mustEqual (bookstore \\ 'title) :+ (bookstore \\ 'author).apply(2)
-      res.unselect mustEqual bookstore
+      verify(res)((bookstore \\ 'title) :+ (bookstore \\ 'author).apply(2))
     }
   }
   
@@ -137,18 +128,51 @@ class ZipperAxesSpecs extends SpecificationWithJUnit {
     "return self for leftmost nodes" in {
       val res = bookstore \\ 'title precedingSiblingOrSelf
       
-      res mustEqual (bookstore \\ 'title)
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore \\ 'title)
     }
     
     "return all preceding siblings and self of nodes" in {
       val res = bookstore \\ 'author precedingSiblingOrSelf
       
-      res mustEqual bookstore \ 'book \ *
-      res.unselect mustEqual bookstore
+      verify(res)(bookstore \ 'book \ *)
+    }
+  }
+  
+  val text = Selector({ case t: Text => t })
+  
+  "Descendant axes" should {
+    "return empty for leaf nodes" in {
+      val res = bookstore \\ text descendant
+      
+      verify(res)(Group())
+    }
+    
+    "return all descendants of nodes" in {
+      val res = bookstore \\ 'book descendant
+      
+      verify(res)(bookstore \\ 'book \\ *)
     }
   }
 
+  "Descendant or self axes" should {
+    "return self for leaf nodes" in {
+      val res = bookstore \\ text descendantOrSelf
+
+      verify(res)(bookstore \\ text)
+    }
+
+    "return all descendants and self of nodes" in {
+      val res = bookstore \\ 'book descendantOrSelf
+
+      verify(res)(bookstore \\ *)
+    }
+  }
+  
+  def verify(result: Zipper[Node])(expected: Group[Node]) = {
+    result mustEqual expected
+    result.unselect mustEqual bookstore
+  }
+  
   def resource(filename: String) =
     XML fromSource (scala.io.Source fromURL (getClass getResource ("/" + filename)))
 }

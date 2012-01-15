@@ -2,6 +2,7 @@ package com.codecommit.antixml
 package zipper
 
 import scala.annotation.tailrec
+import PathCreator.PathVals
 
 /**
  * Adds some XPath like axes to [[com.codecommit.antixml.Zipper]] instances.
@@ -36,9 +37,30 @@ private[antixml] trait ZipperAxes { self: Zipper[Node] =>
   
   /** Returns the preceding siblings of a node including itself. */
   def precedingSiblingOrSelf = transFuncToShift(_.shiftLeft, true)
+  
+  /** Returns the descendants of a node.
+   * 
+   *  Note: this method is not optimized, use plain zipper selection for more efficient results. */
+  def descendant = pathCreatorFuncToShift(PathCreator.allChildren)
+  
+  /** Returns the descendants of a node including itself.
+   * 
+   *  Note: this method is not optimized, use plain zipper selection for more efficient results. */
+  def descendantOrSelf = pathCreatorFuncToShift(PathCreator.all)
+  
+  /** Takes a [[PathCreator]] function and turns it into a shifting function. */
+  private def pathCreatorFuncToShift(func: Selector[Node] => Group[Node] => PathVals[Node]) = {
+    shiftHoles { parent => 
+      path =>
+        val group = Group(PathFetcher.getNode(parent)(path).toList: _*)
+        //TODO redundant calculation of path values
+        //TODO path is not efficient for this sort of operations
+        func(*)(group).map(path ++ _.path.tail) // converting path to original parent's "coordinates"
+    }
+  }
 
   /** Takes a path transformer function and converts it to a shifting function which is applied until
-   *  the transformer return `None`.
+   *  the transformer returns `None`.
    *  @param appendSource True if the initial path should be part of the result.
    */
   private def transFuncToShift(func: PathTransformer => ZipperPath => Option[ZipperPath], withSource: Boolean) = {
