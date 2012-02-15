@@ -188,6 +188,40 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
    * Convenience method to allow replacing all children in a chaining fashion.
    */
   def withChildren(children: Group[Node]) = copy(children = children)
+  
+  /**
+   * Adds a namespace with a given prefix
+   */
+  def addNamespace(prefix: String, namespace: String) = addNamespaces(Map(prefix.trim() -> namespace.trim())) 
+
+  /**
+   * Adds the Map of prefix -> namespace to the scope. 
+   * If the prefix is the empty prefix, a new prefix is created for it. 
+   * If the namespace has been already registered, this will not re-register it. 
+   * (It is allowed by the XML spec, but kind of pointless in practice)
+   * 
+   */
+  def addNamespaces(namespaces: Map[String, String]) = {
+    if (namespaces.isEmpty) this
+    else {
+      def nextValidPrefix = {
+        var i = 1
+        while (scope.contains("ns" + i)) {
+          i = i + 1
+        }
+        "ns" + i
+      }
+      var currentNS = scope
+
+      //could be implemented using a fold
+      namespaces.foreach{
+        case (x, y) if (currentNS.find{case (_, z) => z == y}.isDefined) => //namespace is already registered. do nothing.
+        case ("", y) => currentNS = currentNS + (nextValidPrefix -> y)        
+        case (x, y) => currentNS = currentNS + (x -> y)
+      }
+      if (currentNS == scope) this else copy(scope = currentNS)
+    }
+  }  
 }
 
 object Elem extends ((Option[String], String, Attributes, Map[String, String], Group[Node]) => Elem) {  
