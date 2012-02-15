@@ -168,9 +168,31 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
   }
   
   def toGroup = Group(this)
+
+  /**
+   * Convenience method to allow adding attributes in a chaining fashion.
+   */
+  def withAttribute(name: QName, value: String) = copy(attrs = attrs + (name -> value))
+
+  /**
+   * Convenience method to allow adding a single child in a chaining fashion.
+   */
+  def addChild(node: Node) = copy(children = children :+ node)
+
+  /**
+   * Convenience method to allow adding children in a chaining fashion.
+   */
+  def addChildren(children: Group[Node]) = copy(children = children ++ children)
+
+  /**
+   * Convenience method to allow replacing all children in a chaining fashion.
+   */
+  def withChildren(children: Group[Node]) = copy(children = children)
 }
 
-object Elem extends ((Option[String], String, Attributes, Map[String, String], Group[Node]) => Elem) {
+object Elem extends ((Option[String], String, Attributes, Map[String, String], Group[Node]) => Elem) {  
+  def apply(name: String, attrs: Attributes = Attributes()): Elem = apply(None, name, attrs, Map.empty, Group.empty)
+
   private[this] val NameRegex = {
     val nameStartChar = """:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"""
     "[" + nameStartChar + "][" + nameStartChar + """\-\.0-9\u00B7\u0300-\u036F\u203F-\u2040]*"""r
