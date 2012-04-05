@@ -35,7 +35,10 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.io.OutputStreamWriter
  
-class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
+class XMLSerializer(encoding: String, outputDeclaration: Boolean, indent: String = "") {
+  // Only pretty-print if we have a non-empty indent string
+  private val prettyPrint = (indent != "")
+  private val newline = sys.props("line.separator")
 
   /** Serializes an XML document, whose root is given.
    *
@@ -51,6 +54,7 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
       w.append("<?xml version=\"1.0\" encoding=\"")
       w.append(encoding)
       w.append("\" standalone=\"yes\"?>")
+      newline(w)
     }
     serialize(elem, w)
   }
@@ -74,6 +78,24 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
       serializeDocument(elem, fos)
     } finally {
       fos.close()
+    }
+  }
+
+  /** Writes indentation, if appropriate (i.e. we have an indentation string).
+   *
+   */
+  private def indent(level: Int, w: Writer) {
+    if (prettyPrint) {
+      w append(indent * level)
+    }
+  }
+
+  /** Writes a newline, if appropriate (i.e. we have an indentation string).
+   *
+   */
+  private def newline(w: Writer) {
+    if (prettyPrint) {
+      w append(newline)
     }
   }
   
@@ -109,17 +131,32 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
         
           val qname = (prefix map { _ + ":" } getOrElse "") + name
           val partial = "<" + qname + attrStr + prefixesStr
-          
+
+          // indent is scope - 1 because we want the first element to be at indent 0
+          val indentLevel = scopes.size - 1
+          indent(indentLevel, w)
+          // If we have any children that are Elems, we will write a newline and indent the closing tag.
+          // If we have no children, or they are all text or other special nodes, we won't.
+          // Is there a tidier way to do this?
+          val indentForChildren = prettyPrint && ! (children collect {case e: Elem => e}).isEmpty
           if (children.isEmpty) {
             w.append(partial)
             w.append("/>")
+            newline(w)
           } else {
             w.append(partial)
             w.append('>')
+            if (indentForChildren) {
+              newline(w)
+            }
             children foreach { doSerialize(_, w) }
+            if (indentForChildren) {
+              indent(indentLevel, w)
+            }
             w append("</")
             w append(qname)
             w append('>')
+            newline(w)
           }
           
           scopes = scopes.tail
@@ -133,7 +170,7 @@ class XMLSerializer(encoding: String, outputDeclaration: Boolean) {
 }
 
 object XMLSerializer {
-  def apply(encoding: String = "UTF-8", outputDeclaration: Boolean = false): XMLSerializer = {
-    new XMLSerializer(encoding, outputDeclaration);
+  def apply(encoding: String = "UTF-8", outputDeclaration: Boolean = false, indent: String = ""): XMLSerializer = {
+    new XMLSerializer(encoding, outputDeclaration, indent);
   }
 }
