@@ -41,5 +41,21 @@ class XMLSerializerSpecs extends Specification {
     "serialize unprefixed elements correctly" in {
       fromString("<test xmlns='urn:my-urn:quux'>\n<beef/>\n\t\n</test>").toString mustEqual "<test xmlns=\"urn:my-urn:quux\">\n<beef/>\n\t\n</test>"
     }
+
+    "pretty-print when asked" in {
+      val serializer = XMLSerializer(indent="--")
+      val writer = new java.io.StringWriter
+      serializer.serializeDocument(fromString("<test xmlns='urn:my-urn:quux'><beef><calf>1</calf><calf>2</calf></beef></test>"), writer)
+      writer.toString mustEqual "<test xmlns=\"urn:my-urn:quux\">\n--<beef>\n----<calf>1</calf>\n----<calf>2</calf>\n--</beef>\n</test>\n"
+
+    }
+
+    "maintain existing whitespace when pretty-printing" in {
+      val serializer = XMLSerializer(indent="--")
+      val writer = new java.io.StringWriter
+      serializer.serializeDocument(fromString("<test xmlns='urn:my-urn:quux'>\n<beef><calf>1</calf><calf>2</calf></beef>\n\t\n</test>"), writer)
+      writer.toString mustEqual "<test xmlns=\"urn:my-urn:quux\">\n\n--<beef>\n----<calf>1</calf>\n----<calf>2</calf>\n--</beef>\n\n\t\n</test>\n"
+    }
+
   }
 }
