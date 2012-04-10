@@ -45,26 +45,6 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
   // TODO This is by no means exhaustive, just showing off what's possible.
 
   "Deep Zipper selection" should {
-    // I'm lazy so the bookstore is hardcoded here.
-	// From some reason parsing indented literals gives errors when comparing results, using a single line string.
-    
-    val bookstore = fromString {
-      "<bookstore>" +
-        "<book>" +
-          "<title>For Whom the Bell Tolls</title>" +
-          "<author>Hemmingway</author>" +
-        "</book>" +
-        "<book>" +
-          "<title>I, Robot</title>" +
-          "<author>Isaac Asimov</author>" +
-        "</book>" +
-        "<book>" +
-          "<title>Programming Scala</title>" +
-          "<author>Dean Wampler</author>" +
-          "<author>Alex Payne</author>" +
-        "</book>" +
-      "</bookstore>" 
-    }
       
     val bookGroup = Group(bookstore)
 
@@ -953,7 +933,100 @@ class ZipperSpecs extends SpecificationWithJUnit with ScalaCheck  with XMLGenera
 
     }
   }
-  
+
+  "zipper shifting" should {
+    val x0 = fromString("<root0><a>foo0</a><b>baz0</b><c/></root0>")
+    val x1 = fromString("<root1><a>foo1</a><b>baz1</b><c/></root1>")
+    val x2 = fromString("<root2><a>foo2</a><b>baz2</b><c/></root2>")
+    val root = <root />.convert
+    
+    def updateRoot(c: Group[Node]) = root.copy(children = c).toGroup
+
+    val group = root.copy(children = Group(x0, x1, x2)).toGroup
+    val zipper = group \ *
+    
+    val noShift = (g: Any) => (p: ZipperPath) => Seq(p)
+    
+    def makeConstShift(paths: Seq[ZipperPath]) = (g: Any) => (p: Any) => paths
+
+    val constantShift = makeConstShift(Seq(ZipperPath(0, 1), ZipperPath(0, 2), ZipperPath(0, 1), ZipperPath(0, 0)))
+    val constShiftRes = Group(x0, x1, x2)
+    
+    
+    
+    "fail on a broken zipper" in {
+      group.toZipper.shiftHoles(noShift) must throwA[RuntimeException]
+    }
+    
+    "preserve zipper when not shifting" in {
+      val shifted = zipper shiftHoles noShift
+      
+      shifted mustEqual zipper
+      shifted.unselect mustEqual group
+    }
+    
+    "handle empty results" in {
+      val shifted = zipper shiftHoles makeConstShift(Seq())
+      
+      shifted mustEqual Group()
+      shifted.unselect mustEqual group
+    }
+    
+    "ignore empty paths" in {
+      val shifted = zipper shiftHoles makeConstShift(Seq(ZipperPath.empty))
+      
+      shifted mustEqual Group()
+      shifted.unselect mustEqual group
+    }
+    
+    "result in a lexicographic set" in {
+      val shifted = zipper shiftHoles constantShift
+      shifted mustEqual constShiftRes
+      shifted.unselect mustEqual group
+    }
+    
+    "preserve elided holes" in {
+      val sliced = zipper.slice(1, 2)
+      val shifted = sliced shiftHoles constantShift
+      
+      shifted mustEqual Group(x1) // x0 and x2 were removed by slicing
+      shifted.unselect mustEqual updateRoot(Group(x1))
+    }
+    
+    "preserve multiplied holes" in {
+      val flatMapped = zipper flatMap (n => Seq(n, n))
+      val shifted = flatMapped shiftHoles constantShift
+      val children = Group(x0, x0, x1, x1, x2, x2)
+
+      shifted mustEqual children
+      shifted.unselect mustEqual updateRoot(children)
+    }
+    
+    "preserve previous updates" in {
+      val update = <update />.convert
+      val updated = zipper.updated(1, update)
+      val children = Group(x0, update, x2)
+      val shifted = updated shiftHoles constantShift
+      
+      shifted mustEqual children
+      shifted.unselect mustEqual updateRoot(children)
+    }
+    
+    "maintain hidden holes through multiple shifts (a.k.a 'all together now')" in {
+      val update = <update />.convert
+      
+      val shift1 = zipper.slice(1, 2) shiftHoles constantShift
+      val shift2 = shift1 flatMap (n => Seq(n, n)) shiftHoles makeConstShift(Seq(ZipperPath(0, 0, 0)))
+      val shift3 = shift2.updated(0, update) shiftHoles makeConstShift(Seq(ZipperPath(0, 1, 2)))
+      val shift4 = shift3.updated(0, update) shiftHoles makeConstShift(Seq(ZipperPath(0, 0)))
+      
+      shift4 mustEqual Group()
+      
+      val child = x1.copy(children = x1.children.updated(2, update))
+      shift4.unselect mustEqual updateRoot(Group(child, child))
+    }
+    
+  }
   
   def validate[Expected] = new {
     def apply[A](a: A)(implicit evidence: A =:= Expected) = evidence must not beNull

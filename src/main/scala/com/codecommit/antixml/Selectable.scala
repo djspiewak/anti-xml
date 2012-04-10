@@ -29,11 +29,11 @@
 package com.codecommit
 package antixml
 
-import com.codecommit.antixml.util.VectorCase
 import scala.collection.generic.{CanBuildFrom, HasNewBuilder}
-import scala.collection.immutable.{Vector, VectorBuilder}
+import scala.collection.immutable.VectorBuilder
 
-import CanBuildFromWithZipper.ElemsWithContext
+import com.codecommit.antixml.CanBuildFromWithZipper.ElemsWithContextVisible
+import com.codecommit.antixml.util.VectorCase
 
 trait Selectable[+A <: Node] {
   import PathCreator.{allChildren, directChildren, fromNodes, allMaximalChildren, PathFunction, PathVal}
@@ -195,7 +195,7 @@ trait Selectable[+A <: Node] {
     val grp = toGroup
     val bld = cbfwz(Some(toZipper), grp)
     for( PathVal(value, path) <- pf(grp) ) {
-      bld += ElemsWithContext[B](path, 0, VectorCase(value))
+      bld += ElemsWithContextVisible[B](path, 0, VectorCase(value))
     }
     bld.result()
   }
