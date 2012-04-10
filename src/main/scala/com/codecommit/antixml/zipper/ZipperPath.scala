@@ -27,6 +27,7 @@
  */
  
 package com.codecommit.antixml
+package zipper
 
 import scala.collection.{IndexedSeqOptimized,Seq, LinearSeq}
 import scala.collection.generic.CanBuildFrom

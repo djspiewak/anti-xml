@@ -27,6 +27,7 @@
  */
 
 package com.codecommit.antixml
+package zipper
 
 import scala.collection.immutable.IndexedSeq
 

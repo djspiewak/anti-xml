@@ -31,6 +31,8 @@ package com.codecommit.antixml
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable.Builder
 
+import zipper._
+
 package object performance {
   
   def simpleNameOf(n: org.w3c.dom.Node) = 
