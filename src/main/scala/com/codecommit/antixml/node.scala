@@ -182,7 +182,7 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
   /**
    * Convenience method to allow adding children in a chaining fashion.
    */
-  def addChildren(children: Group[Node]) = copy(children = children ++ children)
+  def addChildren(newChildren: Group[Node]) = copy(children = children ++ newChildren)
 
   /**
    * Convenience method to allow replacing all children in a chaining fashion.
