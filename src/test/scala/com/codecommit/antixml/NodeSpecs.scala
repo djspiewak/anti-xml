@@ -115,6 +115,18 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
       withChildren.children must beEmpty
     }
 
+    "add namespace conveniently" in {
+      val elem = Elem(None, "foo", Attributes(), Map("" -> "urn:foo:bar"), Group(Text("Somewhat crazy")))
+      val withChildren = elem.addNamespace("bar", "urn:foo:baz")
+      withChildren.scope must beEqualTo(Map("" -> "urn:foo:bar", "bar" -> "urn:foo:baz"))
+    }
+
+    "generate namespace" in {
+      val elem = Elem(None, "foo", Attributes(), Map("" -> "urn:foo:bar"), Group(Text("Somewhat crazy")))
+      val withChildren = elem.addNamespace("", "urn:foo:baz")
+      withChildren.scope must beEqualTo(Map("" -> "urn:foo:bar", "ns1" -> "urn:foo:baz"))
+    }
+
     "detect illegal attribute prefixes" in check { str: String =>
       name unapplySeq str match {
         case Some(_) => Elem(None, "foo", Attributes(QName(Some(str), "bar") -> "bar"), Map(), Group()) must not(throwAn[IllegalArgumentException])
