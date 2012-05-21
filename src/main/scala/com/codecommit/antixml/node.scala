@@ -188,7 +188,7 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
    * Convenience method to allow replacing all children in a chaining fashion.
    */
   def withChildren(children: Group[Node]) = copy(children = children)
-  
+
   /**
    * Adds a namespace with a given prefix
    */
@@ -211,14 +211,17 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
         }
         "ns" + i
       }
-      var currentNS = scope
-
-      //could be implemented using a fold
-      namespaces.foreach{
-        case (x, y) if (currentNS.find{case (_, z) => z == y}.isDefined) => //namespace is already registered. do nothing.
-        case ("", y) => currentNS = currentNS + (nextValidPrefix -> y)        
-        case (x, y) => currentNS = currentNS + (x -> y)
+      def mapit(namespaces: Map[String, String], tuple: (String, String)) = tuple match {
+        case (x, y) if (namespaces.find{case (_, z) => z == y}.isDefined) => namespaces
+        case ("", y) if (namespaces.get("").isEmpty) => namespaces + ("" -> y) //if the empty namespace has not been defined already
+        case ("", y) => {
+          val p = nextValidPrefix
+          namespaces + (p -> y)
+        }
+        case (x, y) => namespaces + (x -> y)
       }
+      
+      val currentNS = namespaces.foldLeft(scope){case (ns, tuple) => mapit(ns, tuple)}
       if (currentNS == scope) this else copy(scope = currentNS)
     }
   }  
