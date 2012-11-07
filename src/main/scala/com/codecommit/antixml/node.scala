@@ -28,8 +28,6 @@
 
 package com.codecommit.antixml
 
-import java.io.Writer
-
 /**
  * Root of the `Node` ADT, representing the different types of supported XML
  * nodes which may appear in an XML fragment.  The ADT itself has the following
@@ -258,9 +256,7 @@ object Elem extends ((Option[String], String, Attributes, Map[String, String], G
  * does ''not'' escape characters on output, use [[com.codecommit.antixml.CDATA]].
  */
 case class Text(text: String) extends Node {
-  import Node.hasOnlyValidChars
-
-  if (!hasOnlyValidChars(text))
+  if (!Node.hasOnlyValidChars(text))
     throw new IllegalArgumentException("Illegal character in text '" + text + "'")
 
   override def toString = Node.escapeText(text)
@@ -285,12 +281,10 @@ case class Text(text: String) extends Node {
  * performs escaping, use [[com.codecommit.antixml.Text]]
  */
 case class CDATA(text: String) extends Node {
-  import Node.hasOnlyValidChars
-
   if (text.contains("]]>"))
     throw new IllegalArgumentException("CDATA nodes can't contain ']]>'")
 
-  if (!hasOnlyValidChars(text))
+  if (!Node.hasOnlyValidChars(text))
     throw new IllegalArgumentException("Illegal character in CDATA '" + text + "'")
 
   override def toString = "<![CDATA[" + text + "]]>"
@@ -310,9 +304,7 @@ case class CDATA(text: String) extends Node {
  * }}}
  */
 case class EntityRef(entity: String) extends Node {
-  import Node.hasOnlyValidChars
-
-  if (!hasOnlyValidChars(entity))
+  if (!Node.hasOnlyValidChars(entity))
     throw new IllegalArgumentException("Illegal character in EntityRef '" + entity + "'")
 
   override def toString = "&" + entity + ";"
