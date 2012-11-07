@@ -172,6 +172,11 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
     "escape reserved characters when serialized" in {
       Text("Lorem \" ipsum & dolor ' sit < amet > blargh").toString mustEqual "Lorem \" ipsum &amp; dolor ' sit &lt; amet &gt; blargh"
     }
+    "Support large texts without overflowing" in {
+      val text = io.Source.fromInputStream(getClass.getResourceAsStream("/lots-of-text.txt")).getLines().mkString("\n")
+      Text(text).toString mustEqual Node.escapeText(text)
+    }
+
   }
   
   "cdata nodes" should {
@@ -181,5 +186,10 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
     "Reject the ]]> string in the constructor" in {
       CDATA("la di ]]> da") must throwAn[IllegalArgumentException]
     }
+    "Support large texts without overflowing" in {
+      val text = io.Source.fromInputStream(getClass.getResourceAsStream("/lots-of-text.txt")).getLines().mkString("\n")
+      CDATA(text).toString mustEqual "<![CDATA[%s]]>".format(text)
+    }
+
   }
 }
