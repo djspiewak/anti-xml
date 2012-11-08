@@ -1,6 +1,6 @@
 name := "anti-xml"
 
-organization := "com.codecommit"
+organization := "net.hamnaberg"
 
 version := "0.4-SNAPSHOT"
 
@@ -75,4 +75,30 @@ publishTo <<= (version) apply { (v: String) =>
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
+//Maven central stuff
+homepage := Some(new URL("http://anti-xml.org"))
 
+startYear := Some(2011)
+
+licenses := Seq(("BSD", new URL("https://github.com/hamnis/anti-xml/blob/master/LICENSE.rst")))
+
+pomExtra <<= (pomExtra, name, description) {(pom, name, desc) => pom ++ xml.Group(
+      <scm>
+        <url>http://github.com/hamnis/anti-xml</url>
+        <connection>scm:git:git://github.com/hamnis/anti-xml.git</connection>
+        <developerConnection>scm:git:git@github.com:hamnis/anti-xml.git</developerConnection>
+      </scm>
+      <developers>
+        <developer>
+          <id>djspiewak</id>
+          <name>Daniel Spiewak</name>
+          <url>http://twitter.com/djspiewak</url>
+        </developer>
+      </developers>
+      <contributors>
+        <contributor>
+          <name>Erlend Hamnaberg</name>
+          <url>http://twitter.com/hamnis</url>
+        </contributor>
+      </contributors>
+    )}
