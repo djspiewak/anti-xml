@@ -8,6 +8,7 @@ project/plugins/src_managed/
 *.iml
 *.ipr
 *.iws
+*.*~
 .idea
 .ensime
 .DS_Store
