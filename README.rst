@@ -34,7 +34,7 @@ We are exploring `many ideas`_ for this project. It will be
 interesting to see where things go!
 
 .. _ADTs: http://en.wikipedia.org/wiki/Algebraic_data_type
-.. _many ideas: http://dl.dropbox.com/u/1679797/anti-xml-todo.html
+.. _many ideas: https://github.com/djspiewak/anti-xml/issues
 .. _Novell Vibe: http://vibe.novell.com
 
 
@@ -42,8 +42,8 @@ Usage
 =====
 
 The Maven artifact descriptor for the latest *stable* version of
-Anti-XML is as follows: ``com.codecommit:anti-xml_2.9.1:0.3``.  We also regularly
-push ``-SNAPSHOT`` releases to the Scala-Tools_ "snapshots" repository, for all
+Anti-XML is as follows: ``net.hamnaberg:anti-xml_2.9.1:0.3``.  We also regularly
+push ``-SNAPSHOT`` releases to the Sonatype_ "snapshots" repository, for all
 five of you who like to live dangerously.  You should be able to use this
 descriptor to easily add Anti-XML as a dependency to any project with a
 Maven-compatible build system (Maven, Buildr, SBT, Gradle, Ivy, etc). The stable
@@ -53,18 +53,18 @@ build systems.
 
 **SBT**::
   
-    val antiXML = "com.codecommit" %% "anti-xml" % "0.3"
+    val antiXML = "net.hamnaberg" %% "anti-xml" % "0.5"
   
 **Buildr**::
   
-    compile.with "com.codecommit:anti-xml_#{Scala.version}:jar:0.3"
+    compile.with "net.hamnaberg:anti-xml_#{Scala.version}:jar:0.5"
   
 **Maven2**::
   
     <dependency>
-      <groupId>com.codecommit</groupId>
+      <groupId>net.hamnaberg</groupId>
       <artifactId>anti-xml_2.9.1</artifactId>
-      <version>0.3</version>
+      <version>0.5</version>
     </dependency>
     
   
@@ -73,17 +73,12 @@ Supported Versions of Scala
 
 Anti-XML is cross-built_ for the following Scala versions:
 
+* **2.9.2**
 * **2.9.1**
 * **2.9.0-1**
 * **2.9.0**
 
-Support for the 2.8.x stream is being dropped in version 0.3.  It is believed
-that 2.9.x has had sufficient time to mature and there is very little reason to
-continue to work with 2.8.1.  However, if there is demand for a 2.8.1 (or 2.8.0)
-compatible release, open an issue and I will manually build a JAR for the appropriate
-version.
-
-.. _cross-built: http://code.google.com/p/simple-build-tool/wiki/CrossBuild
+.. _cross-built: http://www.scala-sbt.org/release/docs/Detailed-Topics/Cross-Build.html
 .. _Specs2: http://etorreborre.github.com/specs2/
 .. _ScalaCheck: http://code.google.com/p/scalacheck/
 
@@ -106,5 +101,5 @@ worry, curly braces aren't a religious issue here) and explains the legal
 mumbo-jumbo involved in contributing.
 
 .. _issue tracker:
-.. _official TODO list: http://dl.dropbox.com/u/1679797/anti-xml-todo.html
+.. _official TODO list: https://github.com/djspiewak/anti-xml/issues
 .. _CONTRIBUTING.rst: anti-xml/tree/master/CONTRIBUTING.rst
