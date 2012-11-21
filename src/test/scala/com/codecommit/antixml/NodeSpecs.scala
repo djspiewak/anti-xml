@@ -103,6 +103,30 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
       }
     }
     
+    "add children conveniently" in {
+      val elem = Elem(None, "foo", Attributes(), Map(), Group())
+      val withChildren = elem.addChildren(Group(Elem(None, "bar", Attributes(), Map(), Group()), Text("Hello")))
+      withChildren.children.size must beEqualTo(2)
+    }
+
+    "replace children conveniently" in {
+      val elem = Elem(None, "foo", Attributes(), Map(), Group(Text("Somewhat crazy")))
+      val withChildren = elem.withChildren(Group.empty)
+      withChildren.children must beEmpty
+    }
+
+    "add namespace conveniently" in {
+      val elem = Elem(None, "foo", Attributes(), Map("" -> "urn:foo:bar"), Group(Text("Somewhat crazy")))
+      val withChildren = elem.addNamespace("bar", "urn:foo:baz")
+      withChildren.scope must beEqualTo(Map("" -> "urn:foo:bar", "bar" -> "urn:foo:baz"))
+    }
+
+    "generate namespace" in {
+      val elem = Elem(None, "foo", Attributes(), Map("" -> "urn:foo:bar"), Group(Text("Somewhat crazy")))
+      val withChildren = elem.addNamespace("", "urn:foo:baz")
+      withChildren.scope must beEqualTo(Map("" -> "urn:foo:bar", "ns1" -> "urn:foo:baz"))
+    }
+
     "detect illegal attribute prefixes" in check { str: String =>
       name unapplySeq str match {
         case Some(_) => Elem(None, "foo", Attributes(QName(Some(str), "bar") -> "bar"), Map(), Group()) must not(throwAn[IllegalArgumentException])
@@ -148,6 +172,11 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
     "escape reserved characters when serialized" in {
       Text("Lorem \" ipsum & dolor ' sit < amet > blargh").toString mustEqual "Lorem \" ipsum &amp; dolor ' sit &lt; amet &gt; blargh"
     }
+    "Support large texts without overflowing" in {
+      val text = io.Source.fromInputStream(getClass.getResourceAsStream("/lots-of-text.txt")).getLines().mkString("\n")
+      Text(text).toString mustEqual Node.escapeText(text)
+    }
+
   }
   
   "cdata nodes" should {
@@ -157,5 +186,10 @@ class NodeSpecs extends Specification with DataTables with ScalaCheck with XMLGe
     "Reject the ]]> string in the constructor" in {
       CDATA("la di ]]> da") must throwAn[IllegalArgumentException]
     }
+    "Support large texts without overflowing" in {
+      val text = io.Source.fromInputStream(getClass.getResourceAsStream("/lots-of-text.txt")).getLines().mkString("\n")
+      CDATA(text).toString mustEqual "<![CDATA[%s]]>".format(text)
+    }
+
   }
 }

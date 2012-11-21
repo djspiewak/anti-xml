@@ -1,0 +1,38 @@
+Fetched from http://www.cpan.org/modules/by-module/XML/CHANG-LIU/XML-Node-0.10.readme
+
+Here is a quick but complete example to show you how XML::Node promises
+to keep your XML processing scripts short and clear.
+----------  orders.xml  ----------------------------------------------
+<Orders>
+  <Order ID="0008">
+    <Item>A Book</Item>
+    <Quantity>1</Quantity>
+    <TagsThatIDontCare>Something</TagsThatIDontCare>
+   </Order>
+   <TagsThatIDontCare>Blah Blah</TagsThatIDontCare>
+</Orders>
+
+----------  parse-orders.pl ------------------------------------------
+use XML::Node;
+
+my $item = "";
+my $quantity = "";
+my $id = "";
+
+$p = XML::Node->new();
+
+$p->register(">Orders>Order:ID","char" => \$item);
+$p->register(">Orders>Order>Item","char" => \$item);
+$p->register(">Orders>Order>Quantity","char" => \$quantity);
+$p->register(">Orders>Order","end" => \&handle_order_end);
+
+print "Processing file [orders.xml]...\n";
+$p->parsefile("orders.xml");
+
+sub handle_order_end
+{
+    print "Found order [$id] -- Item: [$item] Quantity: [$quantity]\n";
+    $id="";
+    $item = "";
+    $quantity = "";
+}

@@ -1,10 +1,10 @@
 name := "anti-xml"
 
-organization := "com.codecommit"
+organization := "no.arktekk"
 
 version := "0.4-SNAPSHOT"
 
-crossScalaVersions := Seq("2.9.1", "2.9.0-1", "2.9.0")
+crossScalaVersions := Seq("2.9.2", "2.9.1", "2.9.0-1", "2.9.0")
 
 scalaVersion := "2.9.1"
 
@@ -45,11 +45,11 @@ InputKey[Option[String]]("test-perf") <<= inputTask { (args: TaskKey[Seq[String]
 
 doc in Compile <<= (clean in Compile, doc in Compile) map { (c, d) => d }
 
-scaladocOptions in Compile <++= (unmanagedSourceDirectories in Compile) map { (usd) =>
+scalacOptions in Compile in doc <++= (unmanagedSourceDirectories in Compile) map { (usd) =>
   val scalaSrc: File = (usd filter { _.toString endsWith "scala" }).head
   Seq(
     "-sourcepath", scalaSrc.toString,
-    "-doc-source-url", "https://github.com/djspiewak/anti-xml/tree/master/src/main/scala€{FILE_PATH}.scala"
+    "-doc-source-url", "https://github.com/arktekk/anti-xml/tree/master/src/main/scala€{FILE_PATH}.scala"
   )
 }
 
@@ -65,13 +65,44 @@ publishArtifact in (Compile, packageSrc) := true
 
 publishArtifact in (Test, packageSrc) := false
 
-publishTo <<= version { (v: String) =>
-  val nexus = "http://nexus.scala-tools.org/content/repositories/"
-  if(v endsWith "-SNAPSHOT") Some("Scala Tools Nexus" at nexus + "snapshots/")
-  else Some("Scala Tools Nexus" at nexus + "releases/")
+publishTo <<= (version) apply { (v: String) => 
+  if (v.trim().endsWith("SNAPSHOT")) {
+    Some("Sonatype Nexus Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots") 
+  } else {
+    Some("Sonatype Nexus Staging" at "https://oss.sonatype.org/service/local/staging/deploy/maven2")
+  }
 }
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
-resolvers += ScalaToolsSnapshots
+//Maven central stuff
+homepage := Some(new URL("http://anti-xml.org"))
 
+startYear := Some(2011)
+
+licenses := Seq(("BSD", new URL("https://github.com/arktekk/anti-xml/blob/master/LICENSE.rst")))
+
+pomExtra <<= (pomExtra, name, description) {(pom, name, desc) => pom ++ xml.Group(
+      <scm>
+        <url>http://github.com/arktekk/anti-xml</url>
+        <connection>scm:git:git://github.com/arktekk/anti-xml.git</connection>
+        <developerConnection>scm:git:git@github.com:arktekk/anti-xml.git</developerConnection>
+      </scm>
+      <developers>
+        <developer>
+          <id>djspiewak</id>
+          <name>Daniel Spiewak</name>
+          <url>http://twitter.com/djspiewak</url>
+        </developer>
+      </developers>
+      <contributors>
+        <contributor>
+          <name>Erlend Hamnaberg</name>
+          <url>http://twitter.com/hamnis</url>
+        </contributor>
+         <contributor>
+          <name>Trygve Laugstøl</name>
+          <url>http://twitter.com/trygvis</url>
+        </contributor>
+      </contributors>
+    )}

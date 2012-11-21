@@ -28,8 +28,6 @@
 
 package com.codecommit.antixml
 
-import java.io.Writer
-
 /**
  * Root of the `Node` ADT, representing the different types of supported XML
  * nodes which may appear in an XML fragment.  The ADT itself has the following
@@ -182,13 +180,13 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
   /**
    * Convenience method to allow adding children in a chaining fashion.
    */
-  def addChildren(children: Group[Node]) = copy(children = children ++ children)
+  def addChildren(newChildren: Group[Node]) = copy(children = children ++ newChildren)
 
   /**
    * Convenience method to allow replacing all children in a chaining fashion.
    */
   def withChildren(children: Group[Node]) = copy(children = children)
-  
+
   /**
    * Adds a namespace with a given prefix
    */
@@ -211,14 +209,17 @@ case class Elem(prefix: Option[String], name: String, attrs: Attributes, scope: 
         }
         "ns" + i
       }
-      var currentNS = scope
-
-      //could be implemented using a fold
-      namespaces.foreach{
-        case (x, y) if (currentNS.find{case (_, z) => z == y}.isDefined) => //namespace is already registered. do nothing.
-        case ("", y) => currentNS = currentNS + (nextValidPrefix -> y)        
-        case (x, y) => currentNS = currentNS + (x -> y)
+      def mapit(namespaces: Map[String, String], tuple: (String, String)) = tuple match {
+        case (x, y) if (namespaces.find{case (_, z) => z == y}.isDefined) => namespaces
+        case ("", y) if (namespaces.get("").isEmpty) => namespaces + ("" -> y) //if the empty namespace has not been defined already
+        case ("", y) => {
+          val p = nextValidPrefix
+          namespaces + (p -> y)
+        }
+        case (x, y) => namespaces + (x -> y)
       }
+      
+      val currentNS = namespaces.foldLeft(scope){case (ns, tuple) => mapit(ns, tuple)}
       if (currentNS == scope) this else copy(scope = currentNS)
     }
   }  
@@ -255,9 +256,7 @@ object Elem extends ((Option[String], String, Attributes, Map[String, String], G
  * does ''not'' escape characters on output, use [[com.codecommit.antixml.CDATA]].
  */
 case class Text(text: String) extends Node {
-  import Node.hasOnlyValidChars
-
-  if (!hasOnlyValidChars(text))
+  if (!Node.hasOnlyValidChars(text))
     throw new IllegalArgumentException("Illegal character in text '" + text + "'")
 
   override def toString = Node.escapeText(text)
@@ -282,12 +281,10 @@ case class Text(text: String) extends Node {
  * performs escaping, use [[com.codecommit.antixml.Text]]
  */
 case class CDATA(text: String) extends Node {
-  import Node.hasOnlyValidChars
-
   if (text.contains("]]>"))
     throw new IllegalArgumentException("CDATA nodes can't contain ']]>'")
 
-  if (!hasOnlyValidChars(text))
+  if (!Node.hasOnlyValidChars(text))
     throw new IllegalArgumentException("Illegal character in CDATA '" + text + "'")
 
   override def toString = "<![CDATA[" + text + "]]>"
@@ -307,9 +304,7 @@ case class CDATA(text: String) extends Node {
  * }}}
  */
 case class EntityRef(entity: String) extends Node {
-  import Node.hasOnlyValidChars
-
-  if (!hasOnlyValidChars(entity))
+  if (!Node.hasOnlyValidChars(entity))
     throw new IllegalArgumentException("Illegal character in EntityRef '" + entity + "'")
 
   override def toString = "&" + entity + ";"
