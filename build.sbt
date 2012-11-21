@@ -1,6 +1,6 @@
 name := "anti-xml"
 
-organization := "net.hamnaberg"
+organization := "no.arktekk"
 
 version := "0.4-SNAPSHOT"
 
@@ -49,7 +49,7 @@ scalacOptions in Compile in doc <++= (unmanagedSourceDirectories in Compile) map
   val scalaSrc: File = (usd filter { _.toString endsWith "scala" }).head
   Seq(
     "-sourcepath", scalaSrc.toString,
-    "-doc-source-url", "https://github.com/hamnis/anti-xml/tree/master/src/main/scala€{FILE_PATH}.scala"
+    "-doc-source-url", "https://github.com/arktekk/anti-xml/tree/master/src/main/scala€{FILE_PATH}.scala"
   )
 }
 
@@ -80,13 +80,13 @@ homepage := Some(new URL("http://anti-xml.org"))
 
 startYear := Some(2011)
 
-licenses := Seq(("BSD", new URL("https://github.com/hamnis/anti-xml/blob/master/LICENSE.rst")))
+licenses := Seq(("BSD", new URL("https://github.com/arktekk/anti-xml/blob/master/LICENSE.rst")))
 
 pomExtra <<= (pomExtra, name, description) {(pom, name, desc) => pom ++ xml.Group(
       <scm>
-        <url>http://github.com/hamnis/anti-xml</url>
-        <connection>scm:git:git://github.com/hamnis/anti-xml.git</connection>
-        <developerConnection>scm:git:git@github.com:hamnis/anti-xml.git</developerConnection>
+        <url>http://github.com/arktekk/anti-xml</url>
+        <connection>scm:git:git://github.com/arktekk/anti-xml.git</connection>
+        <developerConnection>scm:git:git@github.com:arktekk/anti-xml.git</developerConnection>
       </scm>
       <developers>
         <developer>
@@ -99,6 +99,10 @@ pomExtra <<= (pomExtra, name, description) {(pom, name, desc) => pom ++ xml.Grou
         <contributor>
           <name>Erlend Hamnaberg</name>
           <url>http://twitter.com/hamnis</url>
+        </contributor>
+         <contributor>
+          <name>Trygve Laugstøl</name>
+          <url>http://twitter.com/trygvis</url>
         </contributor>
       </contributors>
     )}
